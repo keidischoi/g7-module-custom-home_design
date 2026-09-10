@@ -1,5 +1,5 @@
 {
-  "_comment": "공식 sirsoft-basic _user_base: boot.js(설정 임베드+critical CSS) → home-design.js. 사업자 고지 마운트.",
+  "_comment": "공식 sirsoft-basic _user_base: 사업자 고지 마운트만. scripts는 Listener(ensureScripts)가 모듈 활성 시에만 주입 — 미설치/라우트 없음일 때 extension scripts 404 UI 경고 방지.",
   "target_layout": "_user_base",
   "priority": 70,
   "data_sources": [],
@@ -21,16 +21,6 @@
           "children": []
         }
       ]
-    }
-  ],
-  "scripts": [
-    {
-      "id": "chd_home_design_boot_js",
-      "src": "/api/modules/custom-home_design/assets/boot.js"
-    },
-    {
-      "id": "chd_home_design_js",
-      "src": "/api/modules/custom-home_design/assets/home-design.js"
     }
   ]
 }

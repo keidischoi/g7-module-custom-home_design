@@ -14,6 +14,9 @@
  * 0.2.8: fix SyntaxError (extra }); robust official Header selectors (header.sticky,
  *        #desktop_header may be missing because composite Header drops id prop);
  *        hide center search form; theme click; no MutationObserver loops.
+ * 0.2.9: swap search/theme icon order; search panel BELOW header bar ABOVE nav;
+ *        stronger content max-width (!important + .chd-content-col); business fill;
+ *        scripts via Listener only (no extension scripts → silent when 미설치).
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -102,21 +105,25 @@
     return (
       "#main_content," +
       "#main_content.max-w-7xl," +
+      "[id='main_content']," +
+      ".chd-content-col," +
       "#main_content_area .max-w-7xl," +
       "#main_content .max-w-7xl," +
       "[data-chd-max-width]," +
       "#desktop_header .max-w-7xl," +
       "#footer .max-w-7xl," +
+      "footer.chd-footer .max-w-7xl," +
       "#chd_business_info_mount .max-w-7xl," +
       "#chd_business_info_block .chd-bi-inner," +
       "#main_content_area [class*='max-w-']," +
       "#main_content [class*='max-w-']," +
-      /* home mid/lower: root Container + nested width-constrained wrappers */
       "#main_content > div," +
       "#main_content > section," +
       "#main_content [data-chd-max-width]," +
       "#main_content .mx-auto[class*='px-']," +
-      "#main_content_area [data-chd-max-width]"
+      "#main_content_area [data-chd-max-width]," +
+      "#main_content_area > .max-w-7xl," +
+      "#main_content_area > div.mx-auto"
     );
   }
 
@@ -131,9 +138,15 @@
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
       if (el.getAttribute && el.getAttribute("data-chd-full-bleed") === "1") continue;
+      // Skip obvious full-bleed heroes/carousels
+      var id = (el.id || "").toLowerCase();
+      var cls = (el.className && String(el.className)) || "";
+      if (id.indexOf("carousel") !== -1 || id.indexOf("hero") !== -1) continue;
+      if (cls.indexOf("chd-full-bleed") !== -1) continue;
       try {
-        el.style.maxWidth = n + "px";
-        el.style.marginInline = "auto";
+        el.style.setProperty("max-width", n + "px", "important");
+        el.style.setProperty("margin-inline", "auto");
+        if (!el.style.width) el.style.setProperty("width", "100%");
       } catch (err) {}
     }
   }
@@ -152,11 +165,18 @@
       "px;}" +
       contentColumnSelector() +
       "{max-width:var(--chd-content-max-width)!important;" +
-      "width:100%;margin-inline:auto;}" +
+      "width:100%!important;margin-inline:auto!important;}" +
       /* Force Tailwind max-w-* under main home content to honor CSS var */
       "#main_content [class*='max-w-']," +
-      "#main_content_area [class*='max-w-']{" +
+      "#main_content_area [class*='max-w-']," +
+      ".chd-content-col," +
+      "[id='main_content']{" +
       "max-width:var(--chd-content-max-width)!important;}" +
+      /* Keep full-bleed carousel/hero full width */
+      "[data-chd-full-bleed='1']," +
+      "#main_content_area [id*='carousel']," +
+      "#main_content_area [id*='hero']{" +
+      "max-width:none!important;width:100%!important;}" +
       "body{--chd-content-max-width:" +
       n +
       "px;}";
@@ -203,17 +223,20 @@
         "display:none!important;}" +
         "#" +
         PANEL_ID +
-        "{overflow:hidden;transition:max-height .3s ease,opacity .3s ease;" +
-        "border-color:rgb(229 231 235);background:#fff;}" +
+        "{overflow:hidden;transition:max-height .3s ease,opacity .3s ease,padding .3s ease;" +
+        "border-color:rgb(229 231 235);background:#fff;z-index:60;position:relative;width:100%;" +
+        "box-sizing:border-box;}" +
         ".dark #" +
         PANEL_ID +
         "{border-color:rgb(31 41 55);background:rgb(17 24 39);}" +
         "#" +
         PANEL_ID +
-        ".chd-search-open{max-height:96px;opacity:1;pointer-events:auto;border-top-width:1px;border-top-style:solid;}" +
+        ".chd-search-open{max-height:120px!important;opacity:1!important;pointer-events:auto;" +
+        "border-top-width:1px;border-top-style:solid;visibility:visible!important;display:block!important;}" +
         "#" +
         PANEL_ID +
-        ":not(.chd-search-open){max-height:0;opacity:0;pointer-events:none;border-top-width:0;}" +
+        ":not(.chd-search-open){max-height:0!important;opacity:0;pointer-events:none;border-top-width:0;" +
+        "visibility:hidden;}" +
         "#" +
         DESKTOP_TOGGLE_ID +
         ".chd-search-active," +
@@ -483,7 +506,16 @@
       if (searchOpen) panel.classList.add("chd-search-open");
       else panel.classList.remove("chd-search-open");
       panel.setAttribute("aria-hidden", searchOpen ? "false" : "true");
-      panel.hidden = !searchOpen;
+      // Feat uses hidden + inline maxHeight so cached CSS cannot keep it collapsed
+      try {
+        panel.hidden = false; // keep in layout for transition; visibility via class/maxHeight
+        panel.style.maxHeight = searchOpen ? "120px" : "0px";
+        panel.style.opacity = searchOpen ? "1" : "0";
+        panel.style.pointerEvents = searchOpen ? "auto" : "none";
+        panel.style.visibility = searchOpen ? "visible" : "hidden";
+      } catch (e0) {
+        panel.hidden = !searchOpen;
+      }
     }
     [desk, mob].forEach(function (btn) {
       if (!btn) return;
@@ -662,6 +694,33 @@
     return null;
   }
 
+  function findThemeHost(cluster) {
+    if (!cluster) return null;
+    var btn = cluster.querySelector('[aria-label="Toggle theme"]');
+    if (!btn) return null;
+    // Official ThemeToggle wraps button in .relative
+    var wrap = btn.closest(".relative");
+    if (wrap && cluster.contains(wrap)) return wrap;
+    return btn;
+  }
+
+  /** 0.2.9: search BEFORE dark-mode (swap vs previous Theme→Search order). */
+  function insertSearchBeforeTheme(cluster, node) {
+    if (!cluster || !node) return;
+    var themeHost = findThemeHost(cluster);
+    if (themeHost && themeHost.parentNode) {
+      themeHost.parentNode.insertBefore(node, themeHost);
+      return;
+    }
+    // Fallback: before cart (previous behavior)
+    var cart = findCartAnchor(cluster);
+    if (cart && cart.parentNode) {
+      cart.parentNode.insertBefore(node, cart);
+      return;
+    }
+    cluster.appendChild(node);
+  }
+
   function insertBeforeCartOrAppend(cluster, node) {
     if (!cluster || !node) return;
     if (document.getElementById(node.id)) return;
@@ -674,27 +733,27 @@
       cart.parentNode.insertBefore(node, cart);
       return;
     }
-    // After theme toggle if present, else append
-    var themeBtn = cluster.querySelector('[aria-label="Toggle theme"]');
-    if (themeBtn && themeBtn.parentNode) {
-      var after = themeBtn.parentNode.nextSibling;
-      // If theme is wrapped in .relative, insert after that wrapper's next sibling notification, or after wrapper
-      var themeWrap = themeBtn.closest(".relative") || themeBtn;
-      if (themeWrap.parentNode === cluster) {
-        // Prefer before cart; else after notifications: insert near end but before user menu — append is OK fallback
-        cluster.appendChild(node);
-        return;
-      }
-    }
     cluster.appendChild(node);
   }
 
   function ensureDesktopSearchToggle() {
     if (!settingOn(lastSettings, "header_search_icon_mode", true)) return;
-    if (document.getElementById(DESKTOP_TOGGLE_ID)) return;
     var cluster = findDesktopRightCluster();
     if (!cluster) return;
-    insertBeforeCartOrAppend(cluster, buildSearchButton(DESKTOP_TOGGLE_ID));
+    var existing = document.getElementById(DESKTOP_TOGGLE_ID);
+    if (existing) {
+      // Reposition if theme is currently before search (swap to search-first)
+      var themeHost = findThemeHost(cluster);
+      if (themeHost && existing.parentNode && themeHost.parentNode === existing.parentNode) {
+        var pos = existing.compareDocumentPosition(themeHost);
+        // If theme precedes search, move search before theme
+        if (pos & Node.DOCUMENT_POSITION_PRECEDING) {
+          themeHost.parentNode.insertBefore(existing, themeHost);
+        }
+      }
+      return;
+    }
+    insertSearchBeforeTheme(cluster, buildSearchButton(DESKTOP_TOGGLE_ID));
   }
 
   function ensureMobileSearchToggle() {
@@ -715,21 +774,36 @@
 
   function ensureSearchPanel() {
     if (!settingOn(lastSettings, "header_search_icon_mode", true)) return;
-    if (document.getElementById(PANEL_ID)) return;
-    var panel = buildSearchPanel();
-    // Prefer attach under desktop sticky header so it slides below the bar (feat).
+    var existing = document.getElementById(PANEL_ID);
+    var panel = existing || buildSearchPanel();
+    // Feat Header order: top bar → search panel → nav (home menu).
+    // MUST be BEFORE nav so it opens below sticky bar / above home menu — not under nav.
     var desktop = findDesktopHeader();
     if (desktop) {
-      desktop.appendChild(panel);
+      var nav = desktop.querySelector(":scope > nav, nav.border-t, nav");
+      if (nav && nav.parentNode === desktop) {
+        if (panel.parentNode !== desktop || panel.nextSibling !== nav) {
+          desktop.insertBefore(panel, nav);
+        }
+        return;
+      }
+      // No nav (or hide_desktop_top_nav): place after first content row (logo/actions bar)
+      var first = desktop.firstElementChild;
+      if (first) {
+        if (panel.parentNode !== desktop || first.nextSibling !== panel) {
+          if (first.nextSibling) desktop.insertBefore(panel, first.nextSibling);
+          else desktop.appendChild(panel);
+        }
+        return;
+      }
+      if (!panel.parentNode) desktop.appendChild(panel);
       return;
     }
+    if (existing) return;
     var mobile = document.getElementById("mobile_header");
     if (mobile && mobile.parentNode) {
-      if (mobile.nextSibling) {
-        mobile.parentNode.insertBefore(panel, mobile.nextSibling);
-      } else {
-        mobile.parentNode.appendChild(panel);
-      }
+      if (mobile.nextSibling) mobile.parentNode.insertBefore(panel, mobile.nextSibling);
+      else mobile.parentNode.appendChild(panel);
       return;
     }
     var root = document.getElementById("user_layout_root") || document.body;

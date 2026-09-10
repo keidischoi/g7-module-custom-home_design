@@ -15,7 +15,8 @@ use Modules\Custom\HomeDesign\Services\HomeDesignSettingService;
  *  - desktop_header boards filter by hide_header_board_slugs (default empty — show all)
  *  - footer props.linkGroups when footer_link_groups is set (official Footer supports it)
  *  - server-render business info from sirsoft-ecommerce basic_info into chd_business_info_mount
- *  - ensure home-design.js script entry (extension also loads it)
+ *  - ensure boot.js + home-design.js via layout scripts (Listener only; extension has NO scripts
+ *    so 미설치 leftover overlays do not 404-warn on the home page)
  *
  * Header search icon + dark-mode click toggle are applied by home-design.js (0.2.5+; 0.2.8 robust selectors).
  * Desktop top-nav hide: boot.js critical CSS + home-design.js; header data-chd-hide-top-nav (no MutationObserver since 0.2.1).
@@ -178,8 +179,30 @@ class HomeDesignLayoutListener implements HookListenerInterface
             return $node;
         });
 
-        // If mount was not found (extension not yet applied), leave layout as-is;
-        // JS one-shot fallback may fill an empty mount later.
+        // Feat Footer accepts businessInfo prop — set it when present (official ignores unknown props).
+        $bi = [];
+        try {
+            $bi = app(HomeDesignSettingService::class)->getEcommerceBusinessInfo();
+        } catch (\Throwable) {
+            $bi = [];
+        }
+        $updated = $this->updateNodeById($updated, 'footer', static function (array $node) use ($bi): array {
+            if (! isset($node['props']) || ! is_array($node['props'])) {
+                $node['props'] = [];
+            }
+            $node['props']['businessInfo'] = [
+                'companyName' => (string) ($bi['companyName'] ?? ''),
+                'representative' => (string) ($bi['representative'] ?? ''),
+                'businessNumber' => (string) ($bi['businessNumber'] ?? ''),
+                'mailOrderNumber' => (string) ($bi['mailOrderNumber'] ?? ''),
+                'address' => (string) ($bi['address'] ?? ''),
+                'phone' => (string) ($bi['phone'] ?? ''),
+                'email' => (string) ($bi['email'] ?? ''),
+            ];
+
+            return $node;
+        });
+
         return $updated;
     }
 
@@ -394,6 +417,9 @@ class HomeDesignLayoutListener implements HookListenerInterface
             if (! str_contains($className, 'mx-auto')) {
                 $className .= ' mx-auto';
             }
+            if (! str_contains($className, 'chd-content-col')) {
+                $className = trim($className.' chd-content-col');
+            }
             $props['className'] = trim($className);
 
             $style = isset($props['style']) && is_array($props['style']) ? $props['style'] : [];
@@ -405,12 +431,22 @@ class HomeDesignLayoutListener implements HookListenerInterface
             if (! isset($node['props']) || ! is_array($node['props'])) {
                 $node['props'] = [];
             }
+            $baseCls = (string) ($node['props']['className'] ?? '');
+            $baseCls = trim(preg_replace('/\bmax-w-[A-Za-z0-9\[\]\-\/]+\b/', '', $baseCls) ?? $baseCls);
+            if (! str_contains($baseCls, 'chd-content-col')) {
+                $baseCls = trim($baseCls.' chd-content-col');
+            }
+            $node['props']['className'] = $baseCls;
             $baseStyle = isset($node['props']['style']) && is_array($node['props']['style']) ? $node['props']['style'] : [];
             $baseStyle['maxWidth'] = $px.'px';
             $baseStyle['width'] = '100%';
             $baseStyle['marginInline'] = 'auto';
             $node['props']['style'] = $baseStyle;
             $node['props']['data-chd-max-width'] = (string) $px;
+            // Also set props.id so #main_content survives if node id mapping drops
+            if (empty($node['props']['id']) && ($node['id'] ?? '') === 'main_content') {
+                $node['props']['id'] = 'main_content';
+            }
 
             return $node;
         });
@@ -537,6 +573,9 @@ class HomeDesignLayoutListener implements HookListenerInterface
             if (! str_contains($className, 'mx-auto')) {
                 $className .= ' mx-auto';
             }
+            if (! str_contains($className, 'chd-content-col')) {
+                $className = trim($className.' chd-content-col');
+            }
             $props['className'] = trim($className);
             $hit = true;
         }
@@ -548,8 +587,16 @@ class HomeDesignLayoutListener implements HookListenerInterface
         }
         if ($hit || isset($props['data-chd-max-width'])) {
             $style['maxWidth'] = $px.'px';
+            $style['width'] = $style['width'] ?? '100%';
+            $style['marginInline'] = $style['marginInline'] ?? 'auto';
             unset($style['max-width']);
             $props['style'] = $style;
+            $cls2 = (string) ($props['className'] ?? '');
+            if ($cls2 !== '' && ! str_contains($cls2, 'chd-content-col')) {
+                $props['className'] = trim($cls2.' chd-content-col');
+            } elseif ($cls2 === '' && $hit) {
+                $props['className'] = 'chd-content-col mx-auto';
+            }
             $hit = true;
         }
 
@@ -738,12 +785,36 @@ class HomeDesignLayoutListener implements HookListenerInterface
 
     /**
      * Ensure boot.js (embedded settings) loads before home-design.js.
+     * Only called while this Listener is registered (= module installed+active).
+     * Extension overlay intentionally has NO scripts array — leftover extensions
+     * after uninstall must not inject 404 script ids into the home UI.
+     *
+     * Uses the same {id, src} shape as custom-ad_slots cas_hero_carousel.
+     * Never injects layout Component nodes — scripts stay in layout["scripts"].
      */
     private function ensureScripts(array $layout): array
     {
         if (! isset($layout['scripts']) || ! is_array($layout['scripts'])) {
             $layout['scripts'] = [];
         }
+
+        // Drop legacy/broken script ids that G7 may still have from older extensions
+        // (chd_home_design without _js was resolved as a missing Component).
+        $layout['scripts'] = array_values(array_filter(
+            $layout['scripts'],
+            static function ($script): bool {
+                if (! is_array($script)) {
+                    return false;
+                }
+                $id = (string) ($script['id'] ?? '');
+                // Remove the pre-0.2.4 id that collided with Component lookup
+                if ($id === 'chd_home_design') {
+                    return false;
+                }
+
+                return true;
+            }
+        ));
 
         $hasBoot = false;
         $hasMain = false;
@@ -753,16 +824,15 @@ class HomeDesignLayoutListener implements HookListenerInterface
             }
             $id = (string) ($script['id'] ?? '');
             $src = (string) ($script['src'] ?? '');
-            if ($id === self::BOOT_SCRIPT_ID || str_contains($src, 'assets/boot.js')) {
+            if ($id === self::BOOT_SCRIPT_ID || str_contains($src, 'assets/boot')) {
                 $hasBoot = true;
             }
-            if ($id === self::SCRIPT_ID || $id === 'chd_home_design' || str_contains($src, 'home-design.js')) {
+            if ($id === self::SCRIPT_ID || str_contains($src, 'home-design')) {
                 $hasMain = true;
             }
         }
 
         if (! $hasBoot) {
-            // Prepend boot so it runs before main when arrays are appended in order
             array_unshift($layout['scripts'], [
                 'id' => self::BOOT_SCRIPT_ID,
                 'src' => self::BOOT_SCRIPT_SRC,

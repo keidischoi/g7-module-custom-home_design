@@ -3,6 +3,47 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.9] - 2026-09-10
+
+### Fixed
+
+- **Priority: 미설치 시 홈 UI 경고**: extension `home_design__user_base`에서 `scripts` 제거.
+  boot/home-design JS는 **Listener `ensureScripts`만** 주입(모듈 활성 시에만).
+  미설치·라우트 없음 상태에서 `chd_home_design_js` / `chd_home_design_boot_js` 불러오기 실패 토스트가 홈에 뜨지 않음.
+  (잔여 확장 캐시는 `hooks:clear && cache:clear` — README)
+- **`hide_header_board_slugs` DB 미갱신**: 0.2.8이 admin Input `change`에 onSuccess용 `$response` 식을
+  잘못 넣어 `_local.form.hide_header_board_slugs_text`가 타이핑으로 갱신되지 않음.
+  → `{{$event.target.value}}` 복구. 저장 경로: PUT body → `settingsPayload()` →
+  `parseCommaSeparatedSlugs` → `DB::table(...)->update(['hide_header_board_slugs' => json])`.
+- **검색↔다크모드 아이콘 위치 스왑**: 우측 클러스터에서 검색을 ThemeToggle **앞**에 배치 (feat 대비 사용자 요청 swap).
+- **검색 슬라이드 패널**: `header` 맨끝이 아니라 **top bar와 nav(홈 메뉴) 사이**에 삽입.
+  인라인 maxHeight + 보이도록 CSS 강화. (이전: nav 아래 append → 홈 메뉴 밑에서 미세 움직임만)
+- **캐러셀 아래 박스 폭**: `main_content`·max-w 노드에 `chd-content-col` + inline maxWidth,
+  JS `setProperty(...,'important')` + full-bleed 캐러셀 제외.
+- **푸터 사업자 고지**: ecommerce `basic_info` 읽기 강화(alias/envelope/storage paths);
+  mount children 채움 + feat Footer `businessInfo` props 동시 주입; boot.js never-500.
+- **AssetController**: boot/home-design 절대 500/HTML 에러 페이지 금지 (항상 JS 200).
+  `dirname(__DIR__, 4)` 모듈 루트 (ad_slots와 동일). routes에 `.js` + extension-less alias.
+
+### Changed
+
+- Version `0.2.9`. `module.php`에 명시적 `getRoutes()`.
+- README: **반드시 module:install** (미설치면 route:list 0개 / assets 404), 검증 curl·route:list,
+  uninstall 후 `hooks:clear && cache:clear`.
+
+### Install / verify
+
+```bash
+# 미설치면 먼저:
+php82 artisan module:install custom-home_design --source=bundled
+# 이미 설치:
+php82 artisan module:update custom-home_design --source=bundled --force --layout-strategy=overwrite
+php82 artisan migrate --force
+php82 artisan hooks:clear && php82 artisan cache:clear && php82 artisan route:clear
+php82 artisan route:list --path=custom-home_design
+curl -sk "https://YOUR_HOST/api/modules/custom-home_design/assets/boot.js" | head -c 200
+```
+
 ## [0.2.8] - 2026-09-10
 
 ### Fixed

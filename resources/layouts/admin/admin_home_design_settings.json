@@ -364,7 +364,7 @@
                         "handler": "setState",
                         "params": {
                           "target": "local",
-                          "form.hide_header_board_slugs_text": "{{(($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs_text) || (Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs) ? (($response.data?.data ?? $response.data ?? $response).hide_header_board_slugs.join(', ')) : '') || _local.form?.hide_header_board_slugs_text || ''}}"
+                          "form.hide_header_board_slugs_text": "{{$event.target.value}}"
                         }
                       }
                     ]
