@@ -74,19 +74,39 @@
   function injectHomeDesignJs() {
     var sid = "chd-hd-js-dom"; // NOT chd_home_design_js (layout script id)
     if (document.getElementById(sid)) return;
+    if (window.__chdHomeDesignJsLoading) return;
     var existing = document.querySelector('script[src*="custom-home_design/assets/home-design"]');
     if (existing) return;
-    var scr = document.createElement("script");
-    scr.id = sid;
-    scr.src = "/api/modules/custom-home_design/assets/home-design.js";
-    scr.async = false;
-    scr.onerror = function () {
-      /* silent — module misinstalled; never raise layout failure toast */
-      try {
-        scr.remove();
-      } catch (e) {}
-    };
-    (document.head || document.documentElement).appendChild(scr);
+    window.__chdHomeDesignJsLoading = true;
+    var urls = [
+      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.13",
+      "/api/modules/custom-home_design/assets/home-design?v=0.2.13",
+    ];
+    var idx = 0;
+    function tryNext() {
+      if (idx >= urls.length) {
+        try {
+          console.warn("[custom-home_design] home-design.js failed to load — footer/board JS inactive. Run: php82 artisan module:update custom-home_design --source=bundled --force && php82 artisan hooks:clear && php82 artisan cache:clear && php82 artisan route:clear");
+        } catch (eW) {}
+        window.__chdHomeDesignJsLoading = false;
+        return;
+      }
+      var scr = document.createElement("script");
+      if (idx === 0) scr.id = sid;
+      scr.src = urls[idx++];
+      scr.async = false;
+      scr.onload = function () {
+        window.__chdHomeDesignJsLoading = false;
+      };
+      scr.onerror = function () {
+        try {
+          scr.remove();
+        } catch (e) {}
+        tryNext();
+      };
+      (document.head || document.documentElement).appendChild(scr);
+    }
+    tryNext();
   }
 
   injectHomeDesignJs();

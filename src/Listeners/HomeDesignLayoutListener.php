@@ -21,6 +21,7 @@ use Modules\Custom\HomeDesign\Services\HomeDesignSettingService;
  * Desktop top-nav hide: boot.js critical CSS + home-design.js; header data-chd-hide-top-nav (no MutationObserver since 0.2.1).
  * 0.2.10: ALL hook entry points + apply() swallow Throwable — never site-wide HTTP 500.
  * 0.2.12: board hide apply hardened (slug/name/id/href); business beside shop name; footer link icons.
+ * 0.2.13: global boards hide consistency; business beside brand; emoji footer icons; admin checkboxes.
  */
 class HomeDesignLayoutListener implements HookListenerInterface
 {
@@ -226,7 +227,7 @@ class HomeDesignLayoutListener implements HookListenerInterface
      * Business notice (0.2.12):
      *  - Always set Footer props.businessInfo when enabled (feat Footer renders under siteName).
      *  - Do NOT insert awkward sibling block before footer (0.2.11 path) — official ignores
-     *    businessInfo, so home-design.js places text under the shop-name H3 inside footer.
+     *    businessInfo, so home-design.js places text BESIDE shop-name/logo (H3) in footer.
      *  - Clear legacy mount/sibling nodes left from older versions.
      */
     private function fillBusinessInfoMount(array $layout, HomeDesignSetting $settings): array
@@ -394,34 +395,64 @@ class HomeDesignLayoutListener implements HookListenerInterface
 
         $officialExpr = '{{boards.data ?? []}}';
 
-        // EMPTY only: restore official unfiltered expression (clear leftover filters).
+        // EMPTY (0.2.13): ALWAYS force official unfiltered expression on EVERY page.
+        // Live feat/_user_base hardcodes filter(!qna/inquiry) — must overwrite globally
+        // (home + board + shop + …). Never leave .filter( or data-chd-hide-board-slugs.
         if ($slugs === []) {
             $layout = $this->updateNodeById($layout, 'desktop_header', static function (array $node) use ($officialExpr): array {
                 if (! isset($node['props']) || ! is_array($node['props'])) {
                     $node['props'] = [];
                 }
-                $current = $node['props']['boards'] ?? null;
-                if (is_string($current) && str_contains($current, '.filter(')) {
-                    $node['props']['boards'] = $officialExpr;
-                } elseif ($current === null || $current === '') {
-                    $node['props']['boards'] = $officialExpr;
+                $node['props']['boards'] = $officialExpr;
+                unset($node['props']['data-chd-hide-board-slugs']);
+                if (isset($node['responsive']) && is_array($node['responsive'])) {
+                    foreach ($node['responsive'] as $bp => $bpVal) {
+                        if (! is_array($bpVal)) {
+                            continue;
+                        }
+                        if (! isset($bpVal['props']) || ! is_array($bpVal['props'])) {
+                            $bpVal['props'] = [];
+                        }
+                        unset($bpVal['props']['data-chd-hide-board-slugs']);
+                        if (isset($bpVal['props']['boards']) && is_string($bpVal['props']['boards'])
+                            && str_contains($bpVal['props']['boards'], 'boards.data')) {
+                            $bpVal['props']['boards'] = $officialExpr;
+                        }
+                        $node['responsive'][$bp] = $bpVal;
+                    }
                 }
 
                 return $node;
             });
 
             return $this->mapNodes($layout, function (array $node) use ($officialExpr): array {
+                // Any Header-like boards prop (id may differ across pages)
+                if (($node['name'] ?? '') === 'Header' || ($node['id'] ?? '') === 'desktop_header') {
+                    if (! isset($node['props']) || ! is_array($node['props'])) {
+                        $node['props'] = [];
+                    }
+                    if (isset($node['props']['boards']) && is_string($node['props']['boards'])
+                        && str_contains($node['props']['boards'], 'boards.data')) {
+                        $node['props']['boards'] = $officialExpr;
+                    }
+                    unset($node['props']['data-chd-hide-board-slugs']);
+                }
                 if (isset($node['iteration']) && is_array($node['iteration'])) {
                     $src = $node['iteration']['source'] ?? null;
-                    if (is_string($src) && str_contains($src, 'boards.data') && str_contains($src, '.filter(')) {
+                    if (is_string($src) && str_contains($src, 'boards.data')) {
                         $node['iteration']['source'] = $officialExpr;
                     }
                 }
                 if (isset($node['props']) && is_array($node['props'])) {
                     $src = $node['props']['source'] ?? null;
-                    if (is_string($src) && str_contains($src, 'boards.data') && str_contains($src, '.filter(')) {
+                    if (is_string($src) && str_contains($src, 'boards.data')) {
                         $node['props']['source'] = $officialExpr;
                     }
+                    if (isset($node['props']['boards']) && is_string($node['props']['boards'])
+                        && str_contains($node['props']['boards'], 'boards.data')) {
+                        $node['props']['boards'] = $officialExpr;
+                    }
+                    unset($node['props']['data-chd-hide-board-slugs']);
                 }
 
                 return $node;
@@ -882,14 +913,17 @@ class HomeDesignLayoutListener implements HookListenerInterface
             return $node;
         });
 
-        if (! is_array($groups) || $groups === []) {
-            return $layout;
-        }
-
+        // 0.2.13: official Footer ignores link.icon — always set linkGroups with
+        // emoji-prefixed labels (admin JSON or Korean defaults) so icons show without JS.
         try {
-            $groups = HomeDesignSettingService::enrichFooterLinkGroupIcons($groups);
+            if (! is_array($groups) || $groups === []) {
+                $groups = HomeDesignSettingService::defaultFooterLinkGroupsWithEmojis();
+            } else {
+                $groups = HomeDesignSettingService::enrichFooterLinkGroupIcons($groups);
+                $groups = HomeDesignSettingService::prependFooterLinkEmojis($groups);
+            }
         } catch (\Throwable) {
-            // keep original groups
+            $groups = HomeDesignSettingService::defaultFooterLinkGroupsWithEmojis();
         }
 
         return $this->updateNodeById($layout, 'footer', static function (array $node) use ($groups): array {
