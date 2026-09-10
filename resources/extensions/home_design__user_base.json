@@ -1,5 +1,5 @@
 {
-  "_comment": "공식 sirsoft-basic _user_base: 사업자 고지 마운트만. scripts는 Listener(ensureScripts)가 모듈 활성 시에만 주입 — 미설치/라우트 없음일 때 extension scripts 404 UI 경고 방지.",
+  "_comment": "공식 sirsoft-basic _user_base: 사업자 고지 마운트. position prepend = footer 앞 형제(G7). composite Footer children 미렌더. 실제 고지 HTML은 Listener가 footer 앞 sibling(chd_business_info_block)로 삽입. scripts는 Listener ensureScripts만.",
   "target_layout": "_user_base",
   "priority": 70,
   "data_sources": [],
@@ -20,7 +20,8 @@
           },
           "children": []
         }
-      ]
+      ],
+      "comment": "G7 prepend=sibling before footer; Listener also inserts chd_business_info_block"
     }
   ]
 }

@@ -356,36 +356,114 @@ class HomeDesignSettingService
     }
 
     /**
+     * Read sirsoft-ecommerce basic_info from the REAL G7 storage (NOT a DB table).
+     *
+     * SSoT (docs/extension/module-settings.md + EcommerceSettingsService):
+     *   storage disk `modules` → `{root}/sirsoft-ecommerce/settings/basic_info.json`
+     *   typically `storage/app/modules/sirsoft-ecommerce/settings/basic_info.json`
+     * Helpers: EcommerceSettingsService::getSettings('basic_info'),
+     *          g7_module_settings(), module_setting() — all file-backed.
+     * There is no g7_module_settings / ecommerce_settings SQL table.
+     *
      * @return array<string, mixed>
      */
     private function readEcommerceBasicInfo(): array
     {
         $basic = null;
 
-        // 1) module_setting helper (preferred)
-        if (function_exists('module_setting')) {
+        // 1) EcommerceSettingsService (same class admin UI / checkout uses)
+        try {
+            $fqcn = 'Modules\\Sirsoft\\Ecommerce\\Services\\EcommerceSettingsService';
+            if (class_exists($fqcn)) {
+                $svc = app($fqcn);
+                if (is_object($svc) && method_exists($svc, 'getSettings')) {
+                    $got = $svc->getSettings('basic_info');
+                    if (is_array($got) && $got !== []) {
+                        $basic = $got;
+                    }
+                } elseif (is_object($svc) && method_exists($svc, 'getSetting')) {
+                    $got = $svc->getSetting('basic_info');
+                    if (is_array($got) && $got !== []) {
+                        $basic = $got;
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            $basic = null;
+        }
+
+        // 2) Config mirror populated at bootstrap (g7_settings.modules.*)
+        if ((! is_array($basic) || $basic === []) && function_exists('g7_module_settings')) {
             try {
-                $basic = module_setting('sirsoft-ecommerce', 'basic_info', null);
+                $got = g7_module_settings('sirsoft-ecommerce', 'basic_info');
+                if (is_array($got) && $got !== []) {
+                    $basic = $got;
+                }
             } catch (\Throwable) {
-                $basic = null;
             }
         }
 
-        // 2) storage JSON (G7 category file)
+        // 3) module_setting / module_settings helpers → ModuleSettingsService → file
+        if ((! is_array($basic) || $basic === []) && function_exists('module_setting')) {
+            try {
+                $got = module_setting('sirsoft-ecommerce', 'basic_info', null);
+                if (is_array($got) && $got !== []) {
+                    $basic = $got;
+                }
+            } catch (\Throwable) {
+            }
+        }
+        if ((! is_array($basic) || $basic === []) && function_exists('module_settings')) {
+            try {
+                $got = module_settings('sirsoft-ecommerce', 'basic_info');
+                if (is_array($got) && $got !== []) {
+                    $basic = $got;
+                }
+            } catch (\Throwable) {
+            }
+        }
+
+        // 4) Direct file read via ExtensionStoragePath + known fallbacks
         if (! is_array($basic) || $basic === []) {
             $paths = [];
-            if (function_exists('storage_path')) {
-                $paths[] = storage_path('app/modules/sirsoft-ecommerce/settings/basic_info.json');
-                $paths[] = storage_path('app/modules/sirsoft-ecommerce/settings/basic_info/setting.json');
+            try {
+                if (class_exists('App\\Support\\ExtensionStoragePath')) {
+                    $dir = \App\Support\ExtensionStoragePath::module('sirsoft-ecommerce', 'settings');
+                    if (is_string($dir) && $dir !== '') {
+                        $paths[] = rtrim($dir, '/\\').'/basic_info.json';
+                    }
+                }
+            } catch (\Throwable) {
             }
-            if (function_exists('base_path')) {
-                $paths[] = base_path('storage/app/modules/sirsoft-ecommerce/settings/basic_info.json');
+            try {
+                if (function_exists('storage_path')) {
+                    $paths[] = storage_path('app/modules/sirsoft-ecommerce/settings/basic_info.json');
+                }
+            } catch (\Throwable) {
             }
-            foreach ($paths as $path) {
-                if (! is_string($path) || ! is_readable($path)) {
+            try {
+                if (function_exists('base_path')) {
+                    $paths[] = base_path('storage/app/modules/sirsoft-ecommerce/settings/basic_info.json');
+                }
+            } catch (\Throwable) {
+            }
+            try {
+                $root = config('filesystems.disks.modules.root');
+                if (is_string($root) && $root !== '') {
+                    $paths[] = rtrim($root, '/\\').'/sirsoft-ecommerce/settings/basic_info.json';
+                }
+            } catch (\Throwable) {
+            }
+
+            foreach (array_unique($paths) as $filePath) {
+                if (! is_string($filePath) || ! is_readable($filePath)) {
                     continue;
                 }
-                $decoded = json_decode((string) file_get_contents($path), true);
+                try {
+                    $decoded = json_decode((string) file_get_contents($filePath), true);
+                } catch (\Throwable) {
+                    continue;
+                }
                 if (is_array($decoded) && $decoded !== []) {
                     $basic = $decoded;
                     break;
@@ -397,21 +475,26 @@ class HomeDesignSettingService
             return [];
         }
 
-        // Unwrap common envelopes: {data:{...}}, {value:{...}}, JSON string
+        // Unwrap common envelopes
         if (isset($basic['data']) && is_array($basic['data']) && $this->looksLikeBasicInfo($basic['data'])) {
             $basic = $basic['data'];
         } elseif (isset($basic['value']) && is_array($basic['value']) && $this->looksLikeBasicInfo($basic['value'])) {
             $basic = $basic['value'];
         } elseif (isset($basic['basic_info']) && is_array($basic['basic_info'])) {
             $basic = $basic['basic_info'];
+        } elseif (isset($basic['defaults']['basic_info']) && is_array($basic['defaults']['basic_info'])) {
+            $basic = $basic['defaults']['basic_info'];
         }
 
-        // Alternate key aliases seen in some ecommerce schemas
+        // Merge admin split fields (same as EcommerceSettingsService::processSplitFields)
+        $basic = $this->mergeEcommerceSplitFields($basic);
+
+        // Alternate key aliases
         $aliases = [
             'company_name' => ['shop_name', 'store_name', 'name', 'company'],
             'ceo_name' => ['representative', 'representative_name', 'owner_name', 'ceo'],
-            'business_number' => ['biz_no', 'business_no', 'brn', '사업자등록번호'],
-            'mail_order_number' => ['mailorder_number', 'online_marketing_number', '통신판매업신고'],
+            'business_number' => ['biz_no', 'business_no', 'brn'],
+            'mail_order_number' => ['mailorder_number', 'online_marketing_number', 'telecom_number'],
             'base_address' => ['address1', 'addr1', 'road_address'],
             'detail_address' => ['address2', 'addr2', 'address_detail'],
             'phone' => ['tel', 'telephone', 'contact_phone', 'cs_phone'],
@@ -426,6 +509,47 @@ class HomeDesignSettingService
                     $basic[$canonical] = $basic[$alt];
                     break;
                 }
+            }
+        }
+
+        return $basic;
+    }
+
+    /**
+     * Merge ecommerce admin split inputs into canonical fields.
+     *
+     * @param  array<string, mixed>  $basic
+     * @return array<string, mixed>
+     */
+    private function mergeEcommerceSplitFields(array $basic): array
+    {
+        if (empty($basic['business_number']) && (isset($basic['business_number_1']) || isset($basic['business_number_2']))) {
+            $parts = [
+                (string) ($basic['business_number_1'] ?? ''),
+                (string) ($basic['business_number_2'] ?? ''),
+                (string) ($basic['business_number_3'] ?? ''),
+            ];
+            $joined = implode('-', array_values(array_filter($parts, static fn ($p) => $p !== '')));
+            if ($joined !== '') {
+                $basic['business_number'] = $joined;
+            }
+        }
+        if (empty($basic['phone']) && (isset($basic['phone_1']) || isset($basic['phone_2']))) {
+            $parts = [
+                (string) ($basic['phone_1'] ?? ''),
+                (string) ($basic['phone_2'] ?? ''),
+                (string) ($basic['phone_3'] ?? ''),
+            ];
+            $joined = implode('-', array_values(array_filter($parts, static fn ($p) => $p !== '')));
+            if ($joined !== '') {
+                $basic['phone'] = $joined;
+            }
+        }
+        if (empty($basic['email']) && isset($basic['email_id'])) {
+            $id = trim((string) ($basic['email_id'] ?? ''));
+            $domain = trim((string) ($basic['email_domain'] ?? ''));
+            if ($id !== '' && $domain !== '') {
+                $basic['email'] = $id.'@'.$domain;
             }
         }
 
