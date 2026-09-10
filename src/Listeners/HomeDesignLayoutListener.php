@@ -20,6 +20,7 @@ use Modules\Custom\HomeDesign\Services\HomeDesignSettingService;
  *
  * Header search icon + dark-mode click toggle are applied by home-design.js (0.2.5+; 0.2.8 robust selectors).
  * Desktop top-nav hide: boot.js critical CSS + home-design.js; header data-chd-hide-top-nav (no MutationObserver since 0.2.1).
+ * 0.2.10: ALL hook entry points + apply() swallow Throwable — never site-wide HTTP 500.
  */
 class HomeDesignLayoutListener implements HookListenerInterface
 {
@@ -65,70 +66,125 @@ class HomeDesignLayoutListener implements HookListenerInterface
 
     public function handle(...$args): void
     {
+        // no-op — never throw
     }
 
+    /**
+     * CRITICAL: hook filters must NEVER throw — a Throwable here becomes site-wide HTTP 500.
+     * Broken 미설치 / missing table / unbound service must soft-fail to the original layout.
+     */
     public function filterChildLayout(mixed $childLayout = null, mixed $parentLayout = null): mixed
     {
-        if (! is_array($childLayout)) {
+        try {
+            if (! is_array($childLayout)) {
+                return $childLayout;
+            }
+
+            return $this->apply($childLayout);
+        } catch (\Throwable) {
             return $childLayout;
         }
-
-        return $this->apply($childLayout);
     }
 
     public function filterMergedLayout(mixed $merged = null, mixed $parentLayout = null, mixed $childLayout = null): mixed
     {
-        if (! is_array($merged)) {
+        try {
+            if (! is_array($merged)) {
+                return $merged;
+            }
+            if (empty($merged['layout_name']) && is_array($childLayout) && ! empty($childLayout['layout_name'])) {
+                $merged['layout_name'] = $childLayout['layout_name'];
+            }
+
+            return $this->apply($merged);
+        } catch (\Throwable) {
             return $merged;
         }
-        if (empty($merged['layout_name']) && is_array($childLayout) && ! empty($childLayout['layout_name'])) {
-            $merged['layout_name'] = $childLayout['layout_name'];
-        }
-
-        return $this->apply($merged);
     }
 
     public function afterExtensions(mixed $layout = null, mixed $templateId = null): mixed
     {
-        if (! is_array($layout)) {
+        try {
+            if (! is_array($layout)) {
+                return $layout;
+            }
+
+            return $this->apply($layout);
+        } catch (\Throwable) {
             return $layout;
         }
-
-        return $this->apply($layout);
     }
 
     private function apply(array $layout): array
     {
-        $settings = $this->settings();
-        // Module manager activation is enough — do not gate on settings.enabled (removed from admin in 0.2.4).
-        if (! $settings) {
+        try {
+            $settings = $this->settings();
+            // Module manager activation is enough — do not gate on settings.enabled (removed from admin in 0.2.4).
+            if (! $settings) {
+                return $layout;
+            }
+
+            // Always try to ensure script when we touch layouts that include chrome.
+            $layoutName = (string) ($layout['layout_name'] ?? '');
+            $hasChrome = false;
+            try {
+                $hasChrome = $this->findById($layout, 'desktop_header') !== null
+                    || $this->findById($layout, 'main_content') !== null
+                    || $this->findById($layout, 'footer') !== null
+                    || $this->findById($layout, self::BUSINESS_MOUNT_ID) !== null
+                    || $layoutName === '_user_base'
+                    || $layoutName === 'home';
+            } catch (\Throwable) {
+                $hasChrome = ($layoutName === '_user_base' || $layoutName === 'home');
+            }
+
+            if (! $hasChrome) {
+                return $layout;
+            }
+
+            $px = (int) ($settings->content_max_width_px ?? HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX);
+            if ($px < 320 || $px > 2560) {
+                $px = HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX;
+            }
+
+            // Each patch isolated — one failure must not abort the rest or the request.
+            try {
+                $layout = $this->patchMainContentWidth($layout, $px);
+            } catch (\Throwable) {
+            }
+            try {
+                $layout = $this->patchContentColumnWidths($layout, $px);
+            } catch (\Throwable) {
+            }
+            try {
+                $layout = $this->patchHomeContentWidth($layout, $px);
+            } catch (\Throwable) {
+            }
+            try {
+                $layout = $this->patchDesktopHeaderBoards($layout, $settings->hide_header_board_slugs ?? []);
+            } catch (\Throwable) {
+            }
+            try {
+                $layout = $this->patchFooterLinkGroups($layout, $settings->footer_link_groups ?? null);
+            } catch (\Throwable) {
+            }
+            try {
+                $layout = $this->fillBusinessInfoMount($layout, $settings);
+            } catch (\Throwable) {
+            }
+            try {
+                $layout = $this->patchHideDesktopTopNavAttr($layout, $settings);
+            } catch (\Throwable) {
+            }
+            try {
+                $layout = $this->ensureScripts($layout);
+            } catch (\Throwable) {
+            }
+
+            return $layout;
+        } catch (\Throwable) {
             return $layout;
         }
-
-        // Always try to ensure script when we touch layouts that include chrome.
-        $layoutName = (string) ($layout['layout_name'] ?? '');
-        $hasChrome = $this->findById($layout, 'desktop_header') !== null
-            || $this->findById($layout, 'main_content') !== null
-            || $this->findById($layout, 'footer') !== null
-            || $this->findById($layout, self::BUSINESS_MOUNT_ID) !== null
-            || $layoutName === '_user_base'
-            || $layoutName === 'home';
-
-        if (! $hasChrome) {
-            return $layout;
-        }
-
-        $px = (int) $settings->content_max_width_px;
-        $layout = $this->patchMainContentWidth($layout, $px);
-        $layout = $this->patchContentColumnWidths($layout, $px);
-        $layout = $this->patchHomeContentWidth($layout, $px);
-        $layout = $this->patchDesktopHeaderBoards($layout, $settings->hide_header_board_slugs ?? []);
-        $layout = $this->patchFooterLinkGroups($layout, $settings->footer_link_groups);
-        $layout = $this->fillBusinessInfoMount($layout, $settings);
-        $layout = $this->patchHideDesktopTopNavAttr($layout, $settings);
-        $layout = $this->ensureScripts($layout);
-
-        return $layout;
     }
 
     private function settings(): ?HomeDesignSetting
@@ -138,8 +194,28 @@ class HomeDesignLayoutListener implements HookListenerInterface
         }
         $this->cacheLoaded = true;
         try {
-            $this->cached = app(HomeDesignSettingService::class)->get();
-        } catch (\Throwable $e) {
+            if (! class_exists(HomeDesignSettingService::class)) {
+                $this->cached = null;
+
+                return null;
+            }
+            /** @var HomeDesignSettingService|null $svc */
+            $svc = null;
+            try {
+                $svc = app(HomeDesignSettingService::class);
+            } catch (\Throwable) {
+                // Unbound / half-installed module — soft fail
+                $this->cached = null;
+
+                return null;
+            }
+            if (! $svc) {
+                $this->cached = null;
+
+                return null;
+            }
+            $this->cached = $svc->get();
+        } catch (\Throwable) {
             $this->cached = null;
         }
 
