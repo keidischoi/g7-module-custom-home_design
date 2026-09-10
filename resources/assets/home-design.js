@@ -3,6 +3,7 @@
  * 0.2.2: business_info from sirsoft-ecommerce basic_info (public settings API).
  * 0.2.4: content_max_width_px also drives #main_content_area / home lower
  *        max-w-7xl content columns (not full-bleed heroes).
+ *        settings.enabled gate removed (module manager activation is enough).
  * CSS applied on settings fetch; SPA popstate/pushState debounced re-apply CSS only.
  * Business HTML: prefer PHP-filled mount; JS injects only once when mount is empty.
  */
@@ -37,7 +38,14 @@
       })
       .then(function (body) {
         var data = body && (body.data !== undefined ? body.data : body);
-        if (data && data.data && typeof data.data === "object" && data.enabled === undefined) {
+        // Unwrap double-wrapped { data: { data: settings } } payloads.
+        if (
+          data &&
+          data.data &&
+          typeof data.data === "object" &&
+          data.content_max_width_px === undefined &&
+          data.data.content_max_width_px !== undefined
+        ) {
           data = data.data;
         }
         return data || {};
@@ -94,6 +102,7 @@
       if (el.getAttribute && el.getAttribute("data-chd-full-bleed") === "1") continue;
       try {
         el.style.maxWidth = n + "px";
+        el.style.marginInline = "auto";
       } catch (err) {}
     }
   }
@@ -109,7 +118,11 @@
       n +
       "px;}" +
       contentColumnSelector() +
-      "{max-width:var(--chd-content-max-width)!important;}";
+      "{max-width:var(--chd-content-max-width)!important;" +
+      "margin-inline:auto;}" +
+      "body{--chd-content-max-width:" +
+      n +
+      "px;}";
 
     if (hide) {
       css +=
@@ -235,19 +248,12 @@
 
   function applyCssOnly(settings) {
     lastSettings = settings || {};
-    if (!lastSettings.enabled) {
-      clearStyle();
-      return;
-    }
+    // Module is active if this script loaded — no settings.enabled gate.
     renderStyle(lastSettings);
   }
 
   function applyInitial(settings) {
     lastSettings = settings || {};
-    if (!lastSettings.enabled) {
-      clearStyle();
-      return;
-    }
     renderStyle(lastSettings);
     injectBusinessInfoOnce(lastSettings);
   }

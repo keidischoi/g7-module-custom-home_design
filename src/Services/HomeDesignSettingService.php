@@ -15,7 +15,8 @@ class HomeDesignSettingService
 
         return HomeDesignSetting::query()->create([
             'id' => HomeDesignSetting::SINGLETON_ID,
-            'enabled' => false,
+            // Module manager activation is enough — keep column true for legacy rows.
+            'enabled' => true,
             'content_max_width_px' => HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX,
             'hide_desktop_top_nav' => false,
             'hide_header_board_slugs' => HomeDesignSetting::DEFAULT_HIDE_BOARD_SLUGS,
@@ -52,8 +53,18 @@ class HomeDesignSettingService
             'business_address',
             'business_phone',
             'business_email',
+            'enabled', // admin toggle removed — module activation controls availability
         ] as $legacyKey) {
             unset($data[$legacyKey]);
+        }
+
+        // Always keep design active while the module is installed/enabled in G7.
+        $data['enabled'] = true;
+
+        foreach (['hide_desktop_top_nav', 'business_info_enabled'] as $boolKey) {
+            if (array_key_exists($boolKey, $data)) {
+                $data[$boolKey] = (bool) $data[$boolKey];
+            }
         }
 
         if (isset($data['hide_header_board_slugs']) && is_string($data['hide_header_board_slugs'])) {

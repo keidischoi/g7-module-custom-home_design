@@ -46,7 +46,7 @@ php82 artisan hooks:clear
 php82 artisan cache:clear
 ```
 
-관리자: **홈 디자인** (`/admin/home-design`) — 신규 설치 시 `enabled` 기본 OFF. 관리자에서 켜세요.
+관리자: **홈 디자인** (`/admin/home-design`) — 모듈이 G7에서 활성화되어 있으면 디자인 설정이 바로 적용됩니다(별도 「모듈 사용」토글 없음).
 
 ## Business notice & footer links (0.2.2+)
 
@@ -77,7 +77,7 @@ php82 artisan hooks:clear && php82 artisan cache:clear
 
 ## How it works
 
-1. **Migration / model** — `home_design_settings` 싱글톤 (`enabled` 기본 false)
+1. **Migration / model** — `home_design_settings` 싱글톤 (`enabled` 컬럼은 레거시; 런타임은 모듈 활성화로 게이트)
 2. **Hook** (`HomeDesignLayoutListener`) — `_user_base` 의 `main_content` 폭, `desktop_header.boards` 필터, `footer.linkGroups`, **사업자 고지(이커머스 basic_info) 마운트 children 서버 렌더**, 스크립트 엔트리
 3. **Layout extension** — `_user_base` 에 `home-design.js` + `chd_business_info_mount`
 4. **JS (0.2.1+)** — CSS 변수·상단 네비 숨김만; MutationObserver 없음; SPA는 debounce CSS 재적용; 사업자 HTML은 마운트 비어 있을 때만 1회

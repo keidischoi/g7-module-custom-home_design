@@ -1,5 +1,5 @@
 {
-  "_comment": "공식 sirsoft-basic _user_base: home-design.js 로드 + 푸터 직전 사업자 고지 마운트. feat Header/Footer React 불필요.",
+  "_comment": "공식 sirsoft-basic _user_base: home-design.js(AssetController) 로드 + 푸터 직전 사업자 고지 Div 마운트. 커스텀 Component 없음.",
   "target_layout": "_user_base",
   "priority": 70,
   "data_sources": [],
@@ -25,7 +25,7 @@
   ],
   "scripts": [
     {
-      "id": "chd_home_design",
+      "id": "chd_home_design_js",
       "src": "/api/modules/custom-home_design/assets/home-design.js"
     }
   ]
