@@ -1,6 +1,7 @@
-/*! custom-home_design — max-width CSS var, hide desktop top nav, business info before footer
- * Behavior ported from keidischoi/g7-template-sirsoft-basic feat/open-in-new-tab-1.1.51
- * without requiring feat Header/Footer React components on official sirsoft-basic.
+/*! custom-home_design — max-width CSS var, hide desktop top nav, business info (once)
+ * 0.2.1: MutationObserver removed (was fighting React footer remounts → infinite loop).
+ * CSS applied on settings fetch; SPA popstate/pushState debounced re-apply CSS only.
+ * Business HTML: prefer PHP-filled mount; JS injects only once when mount is empty.
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -9,10 +10,17 @@
   var SETTINGS_URL = "/api/modules/custom-home_design/settings";
   var STYLE_ID = "chd-home-design-style";
   var BUSINESS_ID = "chd_business_info_block";
+  var MOUNT_ID = "chd_business_info_mount";
   var DEFAULT_MAX = 1240;
+  var SPA_DEBOUNCE_MS = 300;
 
   /** @type {object|null} */
   var lastSettings = null;
+  /** @type {string} */
+  var lastBusinessSig = "";
+  /** @type {number|null} */
+  var spaTimer = null;
+  var businessInjectedOnce = false;
 
   function fetchSettings() {
     return fetch(SETTINGS_URL, {
@@ -25,7 +33,6 @@
         return r.json();
       })
       .then(function (body) {
-        // G7 success envelope: { success, data: {...} } or data nested
         var data = body && (body.data !== undefined ? body.data : body);
         if (data && data.data && typeof data.data === "object" && data.enabled === undefined) {
           data = data.data;
@@ -85,12 +92,12 @@
     }
   }
 
-  function applyMaxWidth(px) {
-    renderStyle(Object.assign({}, lastSettings || {}, { content_max_width_px: px }));
-  }
-
-  function applyHideDesktopTopNav(hide) {
-    renderStyle(Object.assign({}, lastSettings || {}, { hide_desktop_top_nav: hide }));
+  function clearStyle() {
+    var el = document.getElementById(STYLE_ID);
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+    try {
+      document.documentElement.style.removeProperty("--chd-content-max-width");
+    } catch (e) {}
   }
 
   function escapeHtml(s) {
@@ -101,9 +108,6 @@
       .replace(/"/g, "&quot;");
   }
 
-  /**
-   * feat Footer businessInfo — 번개장터형 "A  |  B  |  C"
-   */
   function buildBusinessParts(bi) {
     if (!bi || typeof bi !== "object") return [];
     var parts = [];
@@ -117,35 +121,70 @@
     return parts;
   }
 
-  function removeBusinessBlock() {
-    var old = document.getElementById(BUSINESS_ID);
-    if (old && old.parentNode) old.parentNode.removeChild(old);
-    var mount = document.getElementById("chd_business_info_mount");
-    if (mount) mount.innerHTML = "";
+  function businessSignature(settings) {
+    if (!settings || !settings.business_info_enabled) return "";
+    return buildBusinessParts(settings.business_info).join("  |  ");
   }
 
-  function injectBusinessInfo(settings) {
-    removeBusinessBlock();
+  /**
+   * Inject business HTML only when mount is empty (or missing block).
+   * Never wipe/rebuild if the same signature is already present.
+   * Prefer PHP listener server-rendered children; this is a one-shot fallback.
+   */
+  function injectBusinessInfoOnce(settings) {
     if (!settings || !settings.business_info_enabled) return;
 
-    var parts = buildBusinessParts(settings.business_info);
-    if (!parts.length) return;
+    var sig = businessSignature(settings);
+    if (!sig) return;
+
+    var existing = document.getElementById(BUSINESS_ID);
+    if (existing) {
+      var existingSig = existing.getAttribute("data-chd-sig") || "";
+      if (existingSig === sig || existing.textContent.trim() === sig) {
+        lastBusinessSig = sig;
+        businessInjectedOnce = true;
+        return;
+      }
+      // Different signature already in DOM (e.g. PHP) — leave it alone.
+      if (existingSig || existing.textContent.trim()) {
+        lastBusinessSig = existingSig || existing.textContent.trim();
+        businessInjectedOnce = true;
+        return;
+      }
+    }
+
+    var mount = document.getElementById(MOUNT_ID);
+    if (mount && mount.children && mount.children.length > 0) {
+      // PHP (or prior inject) already filled mount — do not wipe/rebuild.
+      lastBusinessSig = sig;
+      businessInjectedOnce = true;
+      return;
+    }
+
+    if (businessInjectedOnce && lastBusinessSig === sig) {
+      return;
+    }
 
     var html =
       '<div id="' +
       BUSINESS_ID +
-      '" class="w-full border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900" data-chd-role="business-info">' +
+      '" class="w-full border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900" data-chd-role="business-info" data-chd-sig="' +
+      escapeHtml(sig) +
+      '">' +
       '<div class="chd-bi-inner mx-auto px-4 sm:px-6 lg:px-8 py-3" style="max-width:var(--chd-content-max-width,1240px)">' +
       '<p class="text-xs leading-relaxed text-gray-500 dark:text-gray-400 text-left">' +
-      escapeHtml(parts.join("  |  ")) +
+      escapeHtml(sig) +
       "</p></div></div>";
 
-    var mount = document.getElementById("chd_business_info_mount");
     if (mount) {
       mount.innerHTML = html;
+      lastBusinessSig = sig;
+      businessInjectedOnce = true;
       return;
     }
 
+    // No mount (extension missing): one-shot insert before footer, never again.
+    if (businessInjectedOnce) return;
     var footer =
       document.getElementById("footer") ||
       document.querySelector('[id="footer"]') ||
@@ -155,74 +194,71 @@
       wrap.innerHTML = html;
       var node = wrap.firstChild;
       footer.parentNode.insertBefore(node, footer);
-      return;
+      lastBusinessSig = sig;
+      businessInjectedOnce = true;
     }
   }
 
-  function applyAll(settings) {
+  function applyCssOnly(settings) {
     lastSettings = settings || {};
     if (!lastSettings.enabled) {
-      removeBusinessBlock();
-      var el = document.getElementById(STYLE_ID);
-      if (el && el.parentNode) el.parentNode.removeChild(el);
-      try {
-        document.documentElement.style.removeProperty("--chd-content-max-width");
-      } catch (e) {}
+      clearStyle();
       return;
     }
     renderStyle(lastSettings);
-    injectBusinessInfo(lastSettings);
+  }
+
+  function applyInitial(settings) {
+    lastSettings = settings || {};
+    if (!lastSettings.enabled) {
+      clearStyle();
+      return;
+    }
+    renderStyle(lastSettings);
+    injectBusinessInfoOnce(lastSettings);
   }
 
   function refresh() {
     fetchSettings()
-      .then(applyAll)
+      .then(applyInitial)
       .catch(function () {
         /* module may be inactive */
       });
   }
 
-  function schedule() {
-    refresh();
+  function scheduleSpaCssOnly() {
+    if (spaTimer) clearTimeout(spaTimer);
+    spaTimer = setTimeout(function () {
+      spaTimer = null;
+      if (lastSettings) applyCssOnly(lastSettings);
+      else refresh();
+    }, SPA_DEBOUNCE_MS);
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", schedule);
+    document.addEventListener("DOMContentLoaded", refresh);
   } else {
-    schedule();
+    refresh();
   }
 
-  // SPA route changes — re-apply DOM injections
+  // SPA route changes — re-apply CSS only (debounced). Do NOT rebuild business HTML.
   try {
     var _push = history.pushState;
     history.pushState = function () {
       var r = _push.apply(this, arguments);
-      setTimeout(function () {
-        if (lastSettings) applyAll(lastSettings);
-        else refresh();
-      }, 50);
+      scheduleSpaCssOnly();
       return r;
     };
-    window.addEventListener("popstate", function () {
-      setTimeout(function () {
-        if (lastSettings) applyAll(lastSettings);
-        else refresh();
-      }, 50);
-    });
+    var _replace = history.replaceState;
+    if (typeof _replace === "function") {
+      history.replaceState = function () {
+        var r = _replace.apply(this, arguments);
+        scheduleSpaCssOnly();
+        return r;
+      };
+    }
+    window.addEventListener("popstate", scheduleSpaCssOnly);
   } catch (e) {}
 
-  // Mutation: footer remounts
-  try {
-    var obs = new MutationObserver(function () {
-      if (!lastSettings || !lastSettings.enabled) return;
-      if (lastSettings.business_info_enabled && !document.getElementById(BUSINESS_ID)) {
-        injectBusinessInfo(lastSettings);
-      }
-      var mc = document.getElementById("main_content");
-      if (mc && lastSettings.content_max_width_px) {
-        applyMaxWidth(lastSettings.content_max_width_px);
-      }
-    });
-    obs.observe(document.documentElement, { childList: true, subtree: true });
-  } catch (e2) {}
+  // MutationObserver intentionally removed in 0.2.1 (infinite remount loop with React footer).
 })();
