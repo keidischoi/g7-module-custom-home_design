@@ -105,6 +105,24 @@ class Module extends AbstractModule
         ];
     }
 
+
+    /**
+     * Explicit routes map (belt-and-suspenders with AbstractModule auto-detect).
+     * Ensures src/routes/api.php is registered when the module is installed.
+     *
+     * @return array<string, string>
+     */
+    public function getRoutes(): array
+    {
+        $api = $this->getModulePath().'/src/routes/api.php';
+        $routes = [];
+        if (is_file($api)) {
+            $routes['api'] = $api;
+        }
+
+        return $routes;
+    }
+
     /**
      * @return array<int, class-string>
      */

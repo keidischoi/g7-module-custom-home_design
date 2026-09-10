@@ -344,6 +344,8 @@ class HomeDesignSettingService
     private function readEcommerceBasicInfo(): array
     {
         $basic = null;
+
+        // 1) module_setting helper (preferred)
         if (function_exists('module_setting')) {
             try {
                 $basic = module_setting('sirsoft-ecommerce', 'basic_info', null);
@@ -351,17 +353,80 @@ class HomeDesignSettingService
                 $basic = null;
             }
         }
+
+        // 2) storage JSON (G7 category file)
         if (! is_array($basic) || $basic === []) {
-            $path = storage_path('app/modules/sirsoft-ecommerce/settings/basic_info.json');
-            if (is_readable($path)) {
+            $paths = [];
+            if (function_exists('storage_path')) {
+                $paths[] = storage_path('app/modules/sirsoft-ecommerce/settings/basic_info.json');
+                $paths[] = storage_path('app/modules/sirsoft-ecommerce/settings/basic_info/setting.json');
+            }
+            if (function_exists('base_path')) {
+                $paths[] = base_path('storage/app/modules/sirsoft-ecommerce/settings/basic_info.json');
+            }
+            foreach ($paths as $path) {
+                if (! is_string($path) || ! is_readable($path)) {
+                    continue;
+                }
                 $decoded = json_decode((string) file_get_contents($path), true);
-                $basic = is_array($decoded) ? $decoded : [];
-            } else {
-                $basic = [];
+                if (is_array($decoded) && $decoded !== []) {
+                    $basic = $decoded;
+                    break;
+                }
+            }
+        }
+
+        if (! is_array($basic)) {
+            return [];
+        }
+
+        // Unwrap common envelopes: {data:{...}}, {value:{...}}, JSON string
+        if (isset($basic['data']) && is_array($basic['data']) && $this->looksLikeBasicInfo($basic['data'])) {
+            $basic = $basic['data'];
+        } elseif (isset($basic['value']) && is_array($basic['value']) && $this->looksLikeBasicInfo($basic['value'])) {
+            $basic = $basic['value'];
+        } elseif (isset($basic['basic_info']) && is_array($basic['basic_info'])) {
+            $basic = $basic['basic_info'];
+        }
+
+        // Alternate key aliases seen in some ecommerce schemas
+        $aliases = [
+            'company_name' => ['shop_name', 'store_name', 'name', 'company'],
+            'ceo_name' => ['representative', 'representative_name', 'owner_name', 'ceo'],
+            'business_number' => ['biz_no', 'business_no', 'brn', '사업자등록번호'],
+            'mail_order_number' => ['mailorder_number', 'online_marketing_number', '통신판매업신고'],
+            'base_address' => ['address1', 'addr1', 'road_address'],
+            'detail_address' => ['address2', 'addr2', 'address_detail'],
+            'phone' => ['tel', 'telephone', 'contact_phone', 'cs_phone'],
+            'email' => ['mail', 'contact_email', 'cs_email'],
+        ];
+        foreach ($aliases as $canonical => $alts) {
+            if (! empty($basic[$canonical])) {
+                continue;
+            }
+            foreach ($alts as $alt) {
+                if (! empty($basic[$alt])) {
+                    $basic[$canonical] = $basic[$alt];
+                    break;
+                }
             }
         }
 
         return $basic;
+    }
+
+    /**
+     * @param  array<string, mixed>  $arr
+     */
+    private function looksLikeBasicInfo(array $arr): bool
+    {
+        foreach (['company_name', 'ceo_name', 'business_number', 'shop_name', 'phone', 'email', 'base_address'] as $k) {
+            if (array_key_exists($k, $arr)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
 
