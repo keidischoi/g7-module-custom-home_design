@@ -18,13 +18,17 @@ use Modules\Custom\HomeDesign\Services\HomeDesignSettingService;
  *  - ensure home-design.js script entry (extension also loads it)
  *
  * Header search icon + dark-mode click toggle are applied by home-design.js (0.2.5).
- * Desktop top-nav hide CSS is applied by home-design.js (no MutationObserver since 0.2.1).
+ * Desktop top-nav hide: boot.js critical CSS + home-design.js; header data-chd-hide-top-nav (no MutationObserver since 0.2.1).
  */
 class HomeDesignLayoutListener implements HookListenerInterface
 {
     private const SCRIPT_ID = 'chd_home_design_js';
 
     private const SCRIPT_SRC = '/api/modules/custom-home_design/assets/home-design.js';
+
+    private const BOOT_SCRIPT_ID = 'chd_home_design_boot_js';
+
+    private const BOOT_SCRIPT_SRC = '/api/modules/custom-home_design/assets/boot.js';
 
     private const BUSINESS_MOUNT_ID = 'chd_business_info_mount';
 
@@ -120,7 +124,8 @@ class HomeDesignLayoutListener implements HookListenerInterface
         $layout = $this->patchDesktopHeaderBoards($layout, $settings->hide_header_board_slugs ?? []);
         $layout = $this->patchFooterLinkGroups($layout, $settings->footer_link_groups);
         $layout = $this->fillBusinessInfoMount($layout, $settings);
-        $layout = $this->ensureScript($layout);
+        $layout = $this->patchHideDesktopTopNavAttr($layout, $settings);
+        $layout = $this->ensureScripts($layout);
 
         return $layout;
     }
@@ -146,7 +151,7 @@ class HomeDesignLayoutListener implements HookListenerInterface
      */
     private function fillBusinessInfoMount(array $layout, HomeDesignSetting $settings): array
     {
-        if (! $settings->business_info_enabled) {
+        if (! filter_var($settings->business_info_enabled, FILTER_VALIDATE_BOOLEAN)) {
             return $this->updateNodeById($layout, self::BUSINESS_MOUNT_ID, static function (array $node): array {
                 $node['children'] = [];
 
@@ -607,27 +612,72 @@ class HomeDesignLayoutListener implements HookListenerInterface
         });
     }
 
-    private function ensureScript(array $layout): array
+    /**
+     * Mark desktop header so CSS can target hide even if #id is missing on some builds.
+     */
+    private function patchHideDesktopTopNavAttr(array $layout, HomeDesignSetting $settings): array
+    {
+        $hide = (bool) $settings->hide_desktop_top_nav;
+
+        return $this->updateNodeById($layout, 'desktop_header', static function (array $node) use ($hide): array {
+            if (! isset($node['props']) || ! is_array($node['props'])) {
+                $node['props'] = [];
+            }
+            if ($hide) {
+                $node['props']['data-chd-hide-top-nav'] = '1';
+                $cls = (string) ($node['props']['className'] ?? '');
+                if (! str_contains($cls, 'chd-hide-top-nav')) {
+                    $node['props']['className'] = trim($cls.' chd-hide-top-nav');
+                }
+            } else {
+                unset($node['props']['data-chd-hide-top-nav']);
+                $cls = (string) ($node['props']['className'] ?? '');
+                $cls = trim(preg_replace('/\bchd-hide-top-nav\b/', '', $cls) ?? $cls);
+                $node['props']['className'] = $cls;
+            }
+
+            return $node;
+        });
+    }
+
+    /**
+     * Ensure boot.js (embedded settings) loads before home-design.js.
+     */
+    private function ensureScripts(array $layout): array
     {
         if (! isset($layout['scripts']) || ! is_array($layout['scripts'])) {
             $layout['scripts'] = [];
         }
 
+        $hasBoot = false;
+        $hasMain = false;
         foreach ($layout['scripts'] as $script) {
             if (! is_array($script)) {
                 continue;
             }
             $id = (string) ($script['id'] ?? '');
             $src = (string) ($script['src'] ?? '');
+            if ($id === self::BOOT_SCRIPT_ID || str_contains($src, 'assets/boot.js')) {
+                $hasBoot = true;
+            }
             if ($id === self::SCRIPT_ID || $id === 'chd_home_design' || str_contains($src, 'home-design.js')) {
-                return $layout;
+                $hasMain = true;
             }
         }
 
-        $layout['scripts'][] = [
-            'id' => self::SCRIPT_ID,
-            'src' => self::SCRIPT_SRC,
-        ];
+        if (! $hasBoot) {
+            // Prepend boot so it runs before main when arrays are appended in order
+            array_unshift($layout['scripts'], [
+                'id' => self::BOOT_SCRIPT_ID,
+                'src' => self::BOOT_SCRIPT_SRC,
+            ]);
+        }
+        if (! $hasMain) {
+            $layout['scripts'][] = [
+                'id' => self::SCRIPT_ID,
+                'src' => self::SCRIPT_SRC,
+            ];
+        }
 
         return $layout;
     }

@@ -89,6 +89,7 @@ php82 artisan hooks:clear && php82 artisan cache:clear
 ## Public API
 
 - `GET /api/modules/custom-home_design/settings` — JS용 공개 설정
+- `GET /api/modules/custom-home_design/assets/boot.js` — embedded settings + critical CSS
 - `GET /api/modules/custom-home_design/assets/home-design.js`
 
 ## Admin API

@@ -25,24 +25,22 @@ class UpdateHomeDesignSettingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // module-level `enabled` is unused (module manager activation is enough)
             'content_max_width_px' => ['sometimes', 'integer', 'min:320', 'max:2560'],
             'hide_desktop_top_nav' => ['required', 'boolean'],
             'header_search_icon_mode' => ['required', 'boolean'],
             'header_theme_click_toggle' => ['required', 'boolean'],
+            'business_info_enabled' => ['required', 'boolean'],
+            // Comma-separated slugs (preferred) OR legacy JSON array / *_json
+            'hide_header_board_slugs_text' => ['present', 'nullable', 'string'],
             'hide_header_board_slugs' => ['sometimes'],
             'hide_header_board_slugs_json' => ['sometimes', 'nullable'],
             'footer_link_groups' => ['sometimes', 'nullable'],
-            'footer_link_groups_json' => ['sometimes', 'nullable'],
-            'business_info_enabled' => ['required', 'boolean'],
+            'footer_link_groups_json' => ['present', 'nullable'],
         ];
     }
 
     protected function prepareForValidation(): void
     {
-        // Admin settings form is a full replace. Layout engines often omit JSON keys
-        // whose expression evaluates to false — treat missing checkbox keys as false
-        // so unchecked boxes actually persist off.
         $boolMerge = [];
         foreach (self::BOOL_KEYS as $boolKey) {
             if ($this->exists($boolKey)) {
@@ -57,25 +55,54 @@ class UpdateHomeDesignSettingRequest extends FormRequest
             $this->merge(['content_max_width_px' => (int) $this->input('content_max_width_px')]);
         }
 
-        // If the layout engine embeds JSON textareas as arrays/objects, re-encode to strings
-        // so the service decode path stays consistent.
-        foreach (['hide_header_board_slugs_json', 'footer_link_groups_json'] as $jsonKey) {
-            if (! $this->exists($jsonKey)) {
-                continue;
-            }
-            $v = $this->input($jsonKey);
-            if (is_array($v)) {
+        // Slugs: prefer comma-separated text; always materialize the key for `present`
+        if (! $this->exists('hide_header_board_slugs_text')) {
+            if ($this->exists('hide_header_board_slugs_json')) {
                 $this->merge([
-                    $jsonKey => json_encode($v, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+                    'hide_header_board_slugs_text' => $this->jsonSlugsToCsv($this->input('hide_header_board_slugs_json')),
                 ]);
-            } elseif ($v === null) {
-                $this->merge([$jsonKey => '']);
+            } elseif ($this->exists('hide_header_board_slugs')) {
+                $this->merge([
+                    'hide_header_board_slugs_text' => $this->arraySlugsToCsv($this->input('hide_header_board_slugs')),
+                ]);
             } else {
-                $this->merge([$jsonKey => (string) $v]);
+                $this->merge(['hide_header_board_slugs_text' => '']);
+            }
+        } else {
+            $v = $this->input('hide_header_board_slugs_text');
+            if (is_array($v)) {
+                $this->merge(['hide_header_board_slugs_text' => $this->arraySlugsToCsv($v)]);
+            } elseif ($v === null) {
+                $this->merge(['hide_header_board_slugs_text' => '']);
+            } else {
+                $this->merge(['hide_header_board_slugs_text' => (string) $v]);
             }
         }
 
-        // Drop legacy module-enable flag from payload if a stale client still sends it.
+        if (! $this->exists('footer_link_groups_json')) {
+            if ($this->exists('footer_link_groups')) {
+                $groups = $this->input('footer_link_groups');
+                $this->merge([
+                    'footer_link_groups_json' => is_array($groups)
+                        ? json_encode($groups, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+                        : (string) ($groups ?? ''),
+                ]);
+            } else {
+                $this->merge(['footer_link_groups_json' => '']);
+            }
+        }
+
+        $fg = $this->input('footer_link_groups_json');
+        if (is_array($fg)) {
+            $this->merge([
+                'footer_link_groups_json' => json_encode($fg, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+            ]);
+        } elseif ($fg === null) {
+            $this->merge(['footer_link_groups_json' => '']);
+        } else {
+            $this->merge(['footer_link_groups_json' => (string) $fg]);
+        }
+
         if ($this->exists('enabled')) {
             $all = $this->all();
             unset($all['enabled']);
@@ -84,9 +111,53 @@ class UpdateHomeDesignSettingRequest extends FormRequest
     }
 
     /**
-     * Never use bare (bool)$v — (bool)"false" === true in PHP.
-     * Also treat string "false" from layout expression stringification.
+     * @return array<string, mixed>
      */
+    public function settingsPayload(): array
+    {
+        $payload = $this->validated();
+        $payload['hide_header_board_slugs_text'] = (string) $this->input('hide_header_board_slugs_text', '');
+        $payload['footer_link_groups_json'] = (string) $this->input('footer_link_groups_json', '');
+
+        return $payload;
+    }
+
+    private function arraySlugsToCsv(mixed $slugs): string
+    {
+        if (! is_array($slugs)) {
+            return is_string($slugs) ? $slugs : '';
+        }
+        $parts = [];
+        foreach ($slugs as $s) {
+            if (! is_string($s) && ! is_numeric($s)) {
+                continue;
+            }
+            $t = trim((string) $s);
+            if ($t !== '') {
+                $parts[] = $t;
+            }
+        }
+
+        return implode(', ', $parts);
+    }
+
+    private function jsonSlugsToCsv(mixed $raw): string
+    {
+        if (is_array($raw)) {
+            return $this->arraySlugsToCsv($raw);
+        }
+        if (! is_string($raw) || trim($raw) === '') {
+            return '';
+        }
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            return $this->arraySlugsToCsv($decoded);
+        }
+
+        // Already comma text
+        return trim($raw);
+    }
+
     private function coerceBool(mixed $v): bool
     {
         if (is_bool($v)) {

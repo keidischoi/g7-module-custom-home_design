@@ -68,17 +68,57 @@ class HomeDesignSettingService
             );
         }
 
-        if (array_key_exists('hide_header_board_slugs_json', $data) && ! array_key_exists('hide_header_board_slugs', $data)) {
-            $data['hide_header_board_slugs'] = $this->decodeJsonArray($data['hide_header_board_slugs_json'] ?? '[]');
-        }
-        if (array_key_exists('footer_link_groups_json', $data) && ! array_key_exists('footer_link_groups', $data)) {
-            $raw = $data['footer_link_groups_json'] ?? '';
-            $data['footer_link_groups'] = ($raw === null || trim((string) $raw) === '')
-                ? null
-                : $this->decodeJsonValue($raw);
+        // Board slugs: prefer comma-separated text (admin UX). Still accept legacy JSON.
+        if (array_key_exists('hide_header_board_slugs_text', $data)) {
+            $data['hide_header_board_slugs'] = $this->parseCommaSeparatedSlugs($data['hide_header_board_slugs_text'] ?? '');
+        } elseif (array_key_exists('hide_header_board_slugs_json', $data)) {
+            $rawSlugs = $data['hide_header_board_slugs_json'];
+            if ($rawSlugs === null || (is_string($rawSlugs) && trim($rawSlugs) === '')) {
+                $data['hide_header_board_slugs'] = [];
+            } elseif (is_array($rawSlugs)) {
+                $data['hide_header_board_slugs'] = array_values($rawSlugs);
+            } else {
+                // Allow accidental comma text in the old json field
+                $str = trim((string) $rawSlugs);
+                if ($str !== '' && $str[0] !== '[' && $str[0] !== '{') {
+                    $data['hide_header_board_slugs'] = $this->parseCommaSeparatedSlugs($str);
+                } else {
+                    $data['hide_header_board_slugs'] = $this->decodeJsonArray($str);
+                }
+            }
+        } elseif (array_key_exists('hide_header_board_slugs', $data)) {
+            $slugs = $data['hide_header_board_slugs'];
+            if (is_array($slugs)) {
+                $data['hide_header_board_slugs'] = array_values($slugs);
+            } elseif (is_string($slugs)) {
+                $trim = trim($slugs);
+                $data['hide_header_board_slugs'] = ($trim !== '' && ($trim[0] ?? '') !== '[')
+                    ? $this->parseCommaSeparatedSlugs($trim)
+                    : $this->decodeJsonArray($trim === '' ? '[]' : $trim);
+            } else {
+                $data['hide_header_board_slugs'] = [];
+            }
         }
 
-        unset($data['hide_header_board_slugs_json'], $data['footer_link_groups_json']);
+        if (array_key_exists('footer_link_groups_json', $data)) {
+            $rawGroups = $data['footer_link_groups_json'];
+            if ($rawGroups === null || (is_string($rawGroups) && trim($rawGroups) === '')) {
+                $data['footer_link_groups'] = null;
+            } elseif (is_array($rawGroups)) {
+                $data['footer_link_groups'] = $rawGroups;
+            } else {
+                $data['footer_link_groups'] = $this->decodeJsonValue((string) $rawGroups);
+            }
+        } elseif (array_key_exists('footer_link_groups', $data) && is_string($data['footer_link_groups'])) {
+            $trim = trim($data['footer_link_groups']);
+            $data['footer_link_groups'] = $trim === '' ? null : $this->decodeJsonValue($trim);
+        }
+
+        unset(
+            $data['hide_header_board_slugs_json'],
+            $data['hide_header_board_slugs_text'],
+            $data['footer_link_groups_json']
+        );
 
         foreach ([
             'business_company_name',
@@ -132,7 +172,11 @@ class HomeDesignSettingService
         if (! array_key_exists('footer_link_groups', $data)) {
             $data['footer_link_groups'] = null;
         }
+        if (! array_key_exists('hide_header_board_slugs', $data)) {
+            $data['hide_header_board_slugs'] = [];
+        }
 
+        // Always write both JSON columns on every admin save (full-form replace).
         $this->upsertSingleton($data);
 
         $row = HomeDesignSetting::query()->find(HomeDesignSetting::SINGLETON_ID);

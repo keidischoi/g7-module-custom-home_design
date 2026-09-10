@@ -30,7 +30,10 @@
                 "header_theme_click_toggle": "Dark mode: click to toggle (no dropdown)",
                 "header_theme_click_toggle_hint": "Default ON. Sun/moon icon click immediately toggles light↔dark. No dropdown menu.",
                 "hide_header_board_slugs_json_example_label": "Example JSON",
-                "footer_link_groups_json_example_label": "Example JSON"
+                "footer_link_groups_json_example_label": "Example JSON",
+                "hide_header_board_slugs": "Board slugs to hide from header",
+                "hide_header_board_slugs_hint": "Comma-separated slugs. Leave empty to show all boards.",
+                "hide_header_board_slugs_example_label": "Example"
             }
         }
     }

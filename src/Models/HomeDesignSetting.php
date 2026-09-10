@@ -125,6 +125,10 @@ class HomeDesignSetting extends Model
                 ? (bool) $this->header_theme_click_toggle
                 : true,
             'hide_header_board_slugs' => $slugs,
+            // Admin input: comma-separated (not JSON). Keep *_json for older clients.
+            'hide_header_board_slugs_text' => $slugs === []
+                ? ''
+                : implode(', ', $slugs),
             'hide_header_board_slugs_json' => $slugs === []
                 ? '[]'
                 : json_encode($slugs, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),

@@ -41,6 +41,19 @@
   var themeClickBound = false;
   var outsideClickBound = false;
 
+  function coerceBool(v, defaultOn) {
+    if (v === undefined || v === null) return !!defaultOn;
+    if (v === true || v === 1 || v === "1" || v === "true" || v === "on" || v === "yes") return true;
+    if (v === false || v === 0 || v === "0" || v === "false" || v === "off" || v === "no" || v === "") return false;
+    return !!v;
+  }
+
+  function settingOn(settings, key, defaultOn) {
+    if (!settings) return !!defaultOn;
+    return coerceBool(settings[key], defaultOn);
+  }
+
+
   function fetchSettings() {
     return fetch(SETTINGS_URL, {
       method: "GET",
@@ -62,7 +75,13 @@
         ) {
           data = data.data;
         }
-        return data || {};
+        data = data || {};
+        ["hide_desktop_top_nav", "business_info_enabled", "header_search_icon_mode", "header_theme_click_toggle"].forEach(function (k) {
+          if (data[k] !== undefined && data[k] !== null) {
+            data[k] = coerceBool(data[k], k.indexOf("header_") === 0);
+          }
+        });
+        return data;
       });
   }
 
@@ -116,17 +135,10 @@
     }
   }
 
-  function settingOn(settings, key, defaultOn) {
-    if (!settings || settings[key] === undefined || settings[key] === null) {
-      return !!defaultOn;
-    }
-    return !!settings[key];
-  }
-
   function renderStyle(settings) {
     var n = parseInt(settings && settings.content_max_width_px, 10);
     if (!n || n < 320) n = DEFAULT_MAX;
-    var hide = !!(settings && settings.hide_desktop_top_nav);
+    var hide = coerceBool(settings && settings.hide_desktop_top_nav, false);
     var searchIcon = settingOn(settings, "header_search_icon_mode", true);
     var themeClick = settingOn(settings, "header_theme_click_toggle", true);
     document.documentElement.style.setProperty("--chd-content-max-width", n + "px");
@@ -156,14 +168,21 @@
         "@media (min-width:1024px){" +
         "html.chd-hide-desktop-top-nav #desktop_header nav," +
         "body.chd-hide-desktop-top-nav #desktop_header nav," +
+        "html.chd-hide-desktop-top-nav header.sticky nav," +
+        "body.chd-hide-desktop-top-nav header.sticky nav," +
+        "#desktop_header nav," +
         "#desktop_header nav.border-t," +
         "#desktop_header nav[class*='border-t']," +
         "#desktop_header nav:has([data-testid='nav-home'])," +
         "#desktop_header nav:has([data-testid='nav-popular'])," +
         "#desktop_header nav:has([data-testid='nav-shop'])," +
         "header#desktop_header > nav," +
-        "#desktop_header > nav{" +
-        "display:none!important;visibility:hidden!important;height:0!important;overflow:hidden!important;}" +
+        "#desktop_header > nav," +
+        "header[data-chd-hide-top-nav='1'] nav," +
+        "header.chd-hide-top-nav nav," +
+        "[data-chd-hide-top-nav='1'] nav," +
+        ".chd-hide-top-nav nav{" +
+        "display:none!important;visibility:hidden!important;height:0!important;max-height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;border:0!important;}" +
         "}";
     }
 
@@ -257,7 +276,7 @@
   }
 
   function businessSignature(settings) {
-    if (!settings || !settings.business_info_enabled) return "";
+    if (!settings || !coerceBool(settings.business_info_enabled, false)) return "";
     return buildBusinessParts(settings.business_info).join("  |  ");
   }
 
@@ -279,7 +298,7 @@
   }
 
   function injectBusinessInfoOnce(settings) {
-    if (!settings || !settings.business_info_enabled) {
+    if (!settings || !coerceBool(settings.business_info_enabled, false)) {
       clearBusinessInfo();
       return;
     }
@@ -741,12 +760,26 @@
     setTimeout(ensureHeaderUx, 1500);
   }
 
+
+  function applyFromBoot() {
+    try {
+      var boot = window.__CHD_HOME_DESIGN__;
+      if (boot && typeof boot === "object") {
+        applyInitial(boot);
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
   function refresh() {
     fetchSettings()
       .then(applyInitial)
       .catch(function () {
-        /* module may be inactive */
+        /* keep boot settings if API fails */
+        applyFromBoot();
       });
+  }
   }
 
   function scheduleSpaCssOnly() {
@@ -758,10 +791,17 @@
     }, SPA_DEBOUNCE_MS);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", refresh);
-  } else {
+  function start() {
+    // Instant apply from boot.js embedded settings (DB flags without waiting on fetch)
+    applyFromBoot();
+    // Then refresh from public API (source of truth)
     refresh();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
   }
 
   try {

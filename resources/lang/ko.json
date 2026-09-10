@@ -30,7 +30,10 @@
                 "header_theme_click_toggle": "다크모드: 클릭 즉시 전환 (드롭다운 없음)",
                 "header_theme_click_toggle_hint": "기본 ON. 해/달 아이콘 클릭 시 light↔dark를 바로 전환합니다. 드롭다운 메뉴는 표시하지 않습니다.",
                 "hide_header_board_slugs_json_example_label": "예시 JSON",
-                "footer_link_groups_json_example_label": "예시 JSON"
+                "footer_link_groups_json_example_label": "예시 JSON",
+                "hide_header_board_slugs": "헤더에서 숨길 게시판 slug",
+                "hide_header_board_slugs_hint": "쉼표로 구분해서 입력합니다. 비우면 모든 게시판을 표시합니다.",
+                "hide_header_board_slugs_example_label": "예시"
             }
         }
     }
