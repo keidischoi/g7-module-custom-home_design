@@ -11,7 +11,7 @@ use Modules\Custom\HomeDesign\Services\HomeDesignSettingService;
  *
  * Ports layout differences from keidischoi/g7-template-sirsoft-basic
  * feat/open-in-new-tab-1.1.51:
- *  - main_content desktop max width (settings content_max_width_px, default 1240)
+ *  - main_content + main_content_area content-column max-w-* (settings content_max_width_px, default 1240)
  *  - desktop_header boards filter by hide_header_board_slugs (feat: qna, inquiry)
  *  - footer props.linkGroups when footer_link_groups is set (official Footer supports it)
  *  - server-render business info from sirsoft-ecommerce basic_info into chd_business_info_mount
@@ -109,7 +109,9 @@ class HomeDesignLayoutListener implements HookListenerInterface
             return $layout;
         }
 
-        $layout = $this->patchMainContentWidth($layout, (int) $settings->content_max_width_px);
+        $px = (int) $settings->content_max_width_px;
+        $layout = $this->patchMainContentWidth($layout, $px);
+        $layout = $this->patchContentColumnWidths($layout, $px);
         $layout = $this->patchDesktopHeaderBoards($layout, $settings->hide_header_board_slugs ?? []);
         $layout = $this->patchFooterLinkGroups($layout, $settings->footer_link_groups);
         $layout = $this->fillBusinessInfoMount($layout, $settings);
@@ -339,6 +341,133 @@ class HomeDesignLayoutListener implements HookListenerInterface
 
             return $node;
         });
+    }
+
+    /**
+     * Align other content-column Containers (feat ad_global_top/bottom inner
+     * max-w-7xl wraps under main_content_area, nested home max-w-* boxes) to
+     * the same content_max_width_px. Skips bare w-full full-bleed wrappers
+     * that have no max-w-* utility.
+     */
+    private function patchContentColumnWidths(array $layout, int $px): array
+    {
+        $px = max(320, min(2560, $px > 0 ? $px : HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX));
+
+        $area = $this->findById($layout, 'main_content_area');
+        if ($area === null) {
+            // Still walk whole layout for stray content-column max-w nodes
+            // when area id is missing (partial merges).
+            return $this->mapNodes($layout, function (array $node) use ($px): array {
+                return $this->maybePatchMaxWidthNode($node, $px, skipMainContent: true);
+            });
+        }
+
+        $patchedArea = $this->mapNodes($area, function (array $node) use ($px): array {
+            return $this->maybePatchMaxWidthNode($node, $px, skipMainContent: true);
+        });
+
+        return $this->updateNodeById($layout, 'main_content_area', static fn (array $node): array => $patchedArea);
+    }
+
+    /**
+     * @param  callable(array): array  $mutator
+     */
+    private function mapNodes(array $node, callable $mutator): array
+    {
+        $node = $mutator($node);
+
+        foreach (['children', 'components', 'content'] as $key) {
+            if (! isset($node[$key]) || ! is_array($node[$key])) {
+                continue;
+            }
+            foreach ($node[$key] as $i => $child) {
+                if (is_array($child)) {
+                    $node[$key][$i] = $this->mapNodes($child, $mutator);
+                }
+            }
+        }
+
+        if (isset($node['slots']) && is_array($node['slots'])) {
+            foreach ($node['slots'] as $sk => $slot) {
+                if (! is_array($slot)) {
+                    continue;
+                }
+                if (array_is_list($slot)) {
+                    foreach ($slot as $i => $child) {
+                        if (is_array($child)) {
+                            $node['slots'][$sk][$i] = $this->mapNodes($child, $mutator);
+                        }
+                    }
+                } else {
+                    $node['slots'][$sk] = $this->mapNodes($slot, $mutator);
+                }
+            }
+        }
+
+        return $node;
+    }
+
+    /**
+     * If node className (props or desktop responsive) contains max-w-*, replace
+     * with inline maxWidth = $px and mark data-chd-max-width. main_content is
+     * handled by patchMainContentWidth — skip when requested.
+     */
+    private function maybePatchMaxWidthNode(array $node, int $px, bool $skipMainContent = false): array
+    {
+        if ($skipMainContent && ($node['id'] ?? null) === 'main_content') {
+            return $node;
+        }
+
+        $hasMaxW = false;
+
+        if (isset($node['props']) && is_array($node['props'])) {
+            [$node['props'], $hit] = $this->stripMaxWAndSetWidth($node['props'], $px);
+            $hasMaxW = $hasMaxW || $hit;
+        }
+
+        if (isset($node['responsive']['desktop']['props']) && is_array($node['responsive']['desktop']['props'])) {
+            [$node['responsive']['desktop']['props'], $hit] = $this->stripMaxWAndSetWidth(
+                $node['responsive']['desktop']['props'],
+                $px
+            );
+            $hasMaxW = $hasMaxW || $hit;
+        }
+
+        if ($hasMaxW) {
+            if (! isset($node['props']) || ! is_array($node['props'])) {
+                $node['props'] = [];
+            }
+            $node['props']['data-chd-max-width'] = (string) $px;
+        }
+
+        return $node;
+    }
+
+    /**
+     * @param  array<string, mixed>  $props
+     * @return array{0: array<string, mixed>, 1: bool}
+     */
+    private function stripMaxWAndSetWidth(array $props, int $px): array
+    {
+        $className = (string) ($props['className'] ?? '');
+        if ($className === '' || ! preg_match('/\bmax-w-[A-Za-z0-9\[\]\-\/]+\b/', $className)) {
+            return [$props, false];
+        }
+
+        $className = trim(preg_replace('/\bmax-w-[A-Za-z0-9\[\]\-\/]+\b/', '', $className) ?? $className);
+        if ($className === '') {
+            $className = 'mx-auto';
+        }
+        if (! str_contains($className, 'mx-auto')) {
+            $className .= ' mx-auto';
+        }
+        $props['className'] = trim($className);
+
+        $style = isset($props['style']) && is_array($props['style']) ? $props['style'] : [];
+        $style['maxWidth'] = $px.'px';
+        $props['style'] = $style;
+
+        return [$props, true];
     }
 
     private function patchFooterLinkGroups(array $layout, mixed $groups): array

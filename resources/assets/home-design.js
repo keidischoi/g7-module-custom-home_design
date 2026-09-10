@@ -1,6 +1,8 @@
 /*! custom-home_design — max-width CSS var, hide desktop top nav, business info (once)
  * 0.2.1: MutationObserver removed (was fighting React footer remounts → infinite loop).
  * 0.2.2: business_info from sirsoft-ecommerce basic_info (public settings API).
+ * 0.2.4: content_max_width_px also drives #main_content_area / home lower
+ *        max-w-7xl content columns (not full-bleed heroes).
  * CSS applied on settings fetch; SPA popstate/pushState debounced re-apply CSS only.
  * Business HTML: prefer PHP-filled mount; JS injects only once when mount is empty.
  */
@@ -52,6 +54,50 @@
     return el;
   }
 
+  /**
+   * Content-column selectors (official + feat/_user_base):
+   *  - #main_content and nested max-w-7xl
+   *  - #main_content_area .max-w-7xl (ad_global_top/bottom inner Containers
+   *    that sit above/below home — same content column as main)
+   *  - header / footer / business inner max-w-7xl
+   * Full-bleed heroes stay full width: they use w-full without max-w-* so they
+   * are not matched. Do not target bare w-full wrappers.
+   */
+  function contentColumnSelector() {
+    return (
+      "#main_content," +
+      "#main_content.max-w-7xl," +
+      "#main_content_area .max-w-7xl," +
+      "#main_content .max-w-7xl," +
+      "[data-chd-max-width]," +
+      "#desktop_header .max-w-7xl," +
+      "#footer .max-w-7xl," +
+      "#chd_business_info_mount .max-w-7xl," +
+      "#chd_business_info_block .chd-bi-inner," +
+      /* common content-column pattern under main area / home slot */
+      "#main_content_area [class*='max-w-7xl']," +
+      "#main_content [class*='max-w-7xl']"
+    );
+  }
+
+  function applyInlineMaxWidth(n) {
+    var sel = contentColumnSelector();
+    var nodes;
+    try {
+      nodes = document.querySelectorAll(sel);
+    } catch (e) {
+      nodes = [];
+    }
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      // Skip full-bleed / intentionally unconstrained wrappers
+      if (el.getAttribute && el.getAttribute("data-chd-full-bleed") === "1") continue;
+      try {
+        el.style.maxWidth = n + "px";
+      } catch (err) {}
+    }
+  }
+
   function renderStyle(settings) {
     var n = parseInt(settings && settings.content_max_width_px, 10);
     if (!n || n < 320) n = DEFAULT_MAX;
@@ -62,15 +108,8 @@
       ":root{--chd-content-max-width:" +
       n +
       "px;}" +
-      "#main_content," +
-      "#main_content.max-w-7xl," +
-      "[data-chd-max-width]," +
-      "#desktop_header nav .max-w-7xl," +
-      "#desktop_header .max-w-7xl," +
-      "#footer .max-w-7xl," +
-      "#chd_business_info_mount .max-w-7xl," +
-      "#chd_business_info_block .chd-bi-inner{" +
-      "max-width:var(--chd-content-max-width)!important;}";
+      contentColumnSelector() +
+      "{max-width:var(--chd-content-max-width)!important;}";
 
     if (hide) {
       css +=
@@ -84,13 +123,7 @@
     }
 
     ensureStyleEl().textContent = css;
-
-    var mc = document.getElementById("main_content");
-    if (mc) {
-      try {
-        mc.style.maxWidth = n + "px";
-      } catch (e) {}
-    }
+    applyInlineMaxWidth(n);
   }
 
   function clearStyle() {
