@@ -15,7 +15,7 @@ class HomeDesignSettingService
 
         return HomeDesignSetting::query()->create([
             'id' => HomeDesignSetting::SINGLETON_ID,
-            'enabled' => true,
+            'enabled' => false,
             'content_max_width_px' => HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX,
             'hide_desktop_top_nav' => false,
             'hide_header_board_slugs' => HomeDesignSetting::DEFAULT_HIDE_BOARD_SLUGS,

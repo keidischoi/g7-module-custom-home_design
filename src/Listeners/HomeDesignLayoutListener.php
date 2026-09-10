@@ -14,16 +14,20 @@ use Modules\Custom\HomeDesign\Services\HomeDesignSettingService;
  *  - main_content desktop max width (settings content_max_width_px, default 1240)
  *  - desktop_header boards filter by hide_header_board_slugs (feat: qna, inquiry)
  *  - footer props.linkGroups when footer_link_groups is set (official Footer supports it)
+ *  - server-render business info into chd_business_info_mount (avoid JS↔React loop)
  *  - ensure home-design.js script entry (extension also loads it)
  *
- * Desktop top-nav hide + business-info HTML are applied by home-design.js
- * (official Header/Footer lack those props).
+ * Desktop top-nav hide CSS is applied by home-design.js (no MutationObserver since 0.2.1).
  */
 class HomeDesignLayoutListener implements HookListenerInterface
 {
     private const SCRIPT_ID = 'chd_home_design';
 
     private const SCRIPT_SRC = '/api/modules/custom-home_design/assets/home-design.js';
+
+    private const BUSINESS_MOUNT_ID = 'chd_business_info_mount';
+
+    private const BUSINESS_BLOCK_ID = 'chd_business_info_block';
 
     private ?HomeDesignSetting $cached = null;
 
@@ -98,6 +102,7 @@ class HomeDesignLayoutListener implements HookListenerInterface
         $hasChrome = $this->findById($layout, 'desktop_header') !== null
             || $this->findById($layout, 'main_content') !== null
             || $this->findById($layout, 'footer') !== null
+            || $this->findById($layout, self::BUSINESS_MOUNT_ID) !== null
             || ($layout['layout_name'] ?? '') === '_user_base';
 
         if (! $hasChrome) {
@@ -107,6 +112,7 @@ class HomeDesignLayoutListener implements HookListenerInterface
         $layout = $this->patchMainContentWidth($layout, (int) $settings->content_max_width_px);
         $layout = $this->patchDesktopHeaderBoards($layout, $settings->hide_header_board_slugs ?? []);
         $layout = $this->patchFooterLinkGroups($layout, $settings->footer_link_groups);
+        $layout = $this->fillBusinessInfoMount($layout, $settings);
         $layout = $this->ensureScript($layout);
 
         return $layout;
@@ -125,6 +131,125 @@ class HomeDesignLayoutListener implements HookListenerInterface
         }
 
         return $this->cached;
+    }
+
+    /**
+     * Server-render business notice into the layout extension mount so JS does not
+     * need to inject HTML (avoids MutationObserver ↔ React remount loops).
+     */
+    private function fillBusinessInfoMount(array $layout, HomeDesignSetting $settings): array
+    {
+        if (! $settings->business_info_enabled) {
+            return $this->updateNodeById($layout, self::BUSINESS_MOUNT_ID, static function (array $node): array {
+                $node['children'] = [];
+
+                return $node;
+            });
+        }
+
+        $parts = $this->buildBusinessParts($settings);
+        if ($parts === []) {
+            return $this->updateNodeById($layout, self::BUSINESS_MOUNT_ID, static function (array $node): array {
+                $node['children'] = [];
+
+                return $node;
+            });
+        }
+
+        $text = implode('  |  ', $parts);
+        $px = max(320, min(2560, (int) ($settings->content_max_width_px ?: HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX)));
+        $block = $this->buildBusinessInfoBlock($text, $px);
+
+        $updated = $this->updateNodeById($layout, self::BUSINESS_MOUNT_ID, static function (array $node) use ($block): array {
+            $node['children'] = [$block];
+
+            return $node;
+        });
+
+        // If mount was not found (extension not yet applied), leave layout as-is;
+        // JS one-shot fallback may fill an empty mount later.
+        return $updated;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function buildBusinessParts(HomeDesignSetting $settings): array
+    {
+        $parts = [];
+        $company = trim((string) ($settings->business_company_name ?? ''));
+        $rep = trim((string) ($settings->business_representative ?? ''));
+        $number = trim((string) ($settings->business_number ?? ''));
+        $mailOrder = trim((string) ($settings->business_mail_order_number ?? ''));
+        $address = trim((string) ($settings->business_address ?? ''));
+        $phone = trim((string) ($settings->business_phone ?? ''));
+        $email = trim((string) ($settings->business_email ?? ''));
+
+        if ($company !== '') {
+            $parts[] = $company;
+        }
+        if ($rep !== '') {
+            $parts[] = '대표 '.$rep;
+        }
+        if ($number !== '') {
+            $parts[] = '사업자등록번호 '.$number;
+        }
+        if ($mailOrder !== '') {
+            $parts[] = '통신판매업신고 '.$mailOrder;
+        }
+        if ($address !== '') {
+            $parts[] = $address;
+        }
+        if ($phone !== '') {
+            $parts[] = '전화 '.$phone;
+        }
+        if ($email !== '') {
+            $parts[] = '이메일 '.$email;
+        }
+
+        return $parts;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildBusinessInfoBlock(string $text, int $px): array
+    {
+        return [
+            'id' => self::BUSINESS_BLOCK_ID,
+            'type' => 'basic',
+            'name' => 'Div',
+            'props' => [
+                'id' => self::BUSINESS_BLOCK_ID,
+                'className' => 'w-full border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900',
+                'data-chd-role' => 'business-info',
+                'data-chd-sig' => $text,
+            ],
+            'children' => [
+                [
+                    'id' => 'chd_business_info_inner',
+                    'type' => 'basic',
+                    'name' => 'Div',
+                    'props' => [
+                        'className' => 'chd-bi-inner mx-auto px-4 sm:px-6 lg:px-8 py-3',
+                        'style' => [
+                            'maxWidth' => $px.'px',
+                        ],
+                    ],
+                    'children' => [
+                        [
+                            'id' => 'chd_business_info_text',
+                            'type' => 'basic',
+                            'name' => 'P',
+                            'props' => [
+                                'className' => 'text-xs leading-relaxed text-gray-500 dark:text-gray-400 text-left',
+                            ],
+                            'text' => $text,
+                        ],
+                    ],
+                ],
+            ],
+        ];
     }
 
     /**

@@ -10,7 +10,7 @@
       "components": [
         {
           "id": "chd_business_info_mount",
-          "comment": "사업자 고지 주입 포인트 (JS가 설정 활성 시 HTML 채움)",
+          "comment": "사업자 고지 마운트 — PHP listener가 children 채움 (JS는 비어 있을 때만 1회 fallback)",
           "type": "basic",
           "name": "Div",
           "props": {
