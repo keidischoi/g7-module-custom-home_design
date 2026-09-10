@@ -1,0 +1,755 @@
+{
+  "version": "1.0.0",
+  "meta": {
+    "title": "$t:custom-home_design.admin.settings.title",
+    "description": "$t:custom-home_design.admin.settings.description"
+  },
+  "layout_name": "admin_home_design_settings",
+  "permissions": [
+    "custom-home_design.design.read",
+    "custom-home_design.design.update"
+  ],
+  "extends": "_admin_base",
+  "data_sources": [
+    {
+      "id": "settings",
+      "type": "api",
+      "endpoint": "/api/modules/custom-home_design/admin/settings",
+      "method": "GET",
+      "auto_fetch": true,
+      "auth_required": true,
+      "initLocal": "form",
+      "refetchOnMount": true,
+      "fallback": {
+        "data": null
+      }
+    }
+  ],
+  "init_actions": [
+    {
+      "handler": "setState",
+      "params": {
+        "target": "local",
+        "errors": null,
+        "saving": false
+      }
+    }
+  ],
+  "slots": {
+    "content": [
+      {
+        "id": "chd_settings_wrapper",
+        "type": "basic",
+        "name": "Div",
+        "dataKey": "form",
+        "trackChanges": true,
+        "props": {
+          "className": "admin-page-content w-full max-w-3xl"
+        },
+        "children": [
+          {
+            "id": "chd_settings_header",
+            "type": "basic",
+            "name": "Div",
+            "props": {
+              "className": "flex-between mb-6"
+            },
+            "children": [
+              {
+                "type": "basic",
+                "name": "H1",
+                "props": {
+                  "className": "text-page-heading"
+                },
+                "text": "$t:custom-home_design.admin.settings.title"
+              }
+            ]
+          },
+          {
+            "id": "error_message_box",
+            "type": "basic",
+            "name": "Div",
+            "if": "{{_local.errors && Object.keys(_local.errors).length > 0}}",
+            "props": {
+              "className": "alert-danger mb-6"
+            },
+            "children": [
+              {
+                "type": "basic",
+                "name": "P",
+                "text": "$t:custom-home_design.admin.settings.validation_error"
+              }
+            ]
+          },
+          {
+            "type": "basic",
+            "name": "Div",
+            "props": {
+              "className": "mb-8 p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+            },
+            "children": [
+              {
+                "type": "basic",
+                "name": "H2",
+                "props": {
+                  "className": "text-lg font-semibold mb-4"
+                },
+                "text": "$t:custom-home_design.admin.settings.sections.general"
+              },
+              {
+                "id": "field_enabled",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Div",
+                    "props": {
+                      "className": "flex items-center gap-2"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Checkbox",
+                        "props": {
+                          "name": "enabled",
+                          "autoBinding": false,
+                          "checked": "{{!!_local.form?.enabled}}"
+                        },
+                        "actions": [
+                          {
+                            "type": "change",
+                            "handler": "setState",
+                            "params": {
+                              "target": "local",
+                              "form.enabled": "{{$event.target.checked}}"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "props": {
+                          "className": "text-sm"
+                        },
+                        "text": "$t:custom-home_design.admin.settings.fields.enabled"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "text-xs text-gray-500 mt-1"
+                    },
+                    "text": "$t:custom-home_design.admin.settings.fields.enabled_hint"
+                  }
+                ]
+              },
+              {
+                "id": "field_width",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Label",
+                    "props": {
+                      "className": "form-label"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "text": "$t:custom-home_design.admin.settings.fields.content_max_width_px"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "Input",
+                    "props": {
+                      "type": "number",
+                      "name": "content_max_width_px",
+                      "className": "input w-full",
+                      "placeholder": "1240",
+                      "min": 320,
+                      "max": 2560
+                    }
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "text-xs text-gray-500 mt-1"
+                    },
+                    "text": "$t:custom-home_design.admin.settings.fields.content_max_width_px_hint"
+                  }
+                ]
+              },
+              {
+                "id": "field_hide_nav",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Div",
+                    "props": {
+                      "className": "flex items-center gap-2"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Checkbox",
+                        "props": {
+                          "name": "hide_desktop_top_nav",
+                          "autoBinding": false,
+                          "checked": "{{!!_local.form?.hide_desktop_top_nav}}"
+                        },
+                        "actions": [
+                          {
+                            "type": "change",
+                            "handler": "setState",
+                            "params": {
+                              "target": "local",
+                              "form.hide_desktop_top_nav": "{{$event.target.checked}}"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "props": {
+                          "className": "text-sm"
+                        },
+                        "text": "$t:custom-home_design.admin.settings.fields.hide_desktop_top_nav"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "text-xs text-gray-500 mt-1"
+                    },
+                    "text": "$t:custom-home_design.admin.settings.fields.hide_desktop_top_nav_hint"
+                  }
+                ]
+              },
+              {
+                "id": "field_slugs",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Label",
+                    "props": {
+                      "className": "form-label"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "text": "$t:custom-home_design.admin.settings.fields.hide_header_board_slugs_json"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "Textarea",
+                    "props": {
+                      "name": "hide_header_board_slugs_json",
+                      "className": "input w-full font-mono text-sm",
+                      "rows": 4,
+                      "placeholder": "[\"qna\", \"inquiry\"]"
+                    }
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "text-xs text-gray-500 mt-1"
+                    },
+                    "text": "$t:custom-home_design.admin.settings.fields.hide_header_board_slugs_json_hint"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "basic",
+            "name": "Div",
+            "props": {
+              "className": "mb-8 p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+            },
+            "children": [
+              {
+                "type": "basic",
+                "name": "H2",
+                "props": {
+                  "className": "text-lg font-semibold mb-4"
+                },
+                "text": "$t:custom-home_design.admin.settings.sections.footer"
+              },
+              {
+                "id": "field_link_groups",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Label",
+                    "props": {
+                      "className": "form-label"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "text": "$t:custom-home_design.admin.settings.fields.footer_link_groups_json"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "Textarea",
+                    "props": {
+                      "name": "footer_link_groups_json",
+                      "className": "input w-full font-mono text-sm",
+                      "rows": 10,
+                      "placeholder": "[{\"title\":\"커뮤니티\",\"links\":[{\"label\":\"홈\",\"href\":\"/\"}]}]"
+                    }
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "text-xs text-gray-500 mt-1"
+                    },
+                    "text": "$t:custom-home_design.admin.settings.fields.footer_link_groups_json_hint"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "basic",
+            "name": "Div",
+            "props": {
+              "className": "mb-8 p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+            },
+            "children": [
+              {
+                "type": "basic",
+                "name": "H2",
+                "props": {
+                  "className": "text-lg font-semibold mb-4"
+                },
+                "text": "$t:custom-home_design.admin.settings.sections.business"
+              },
+              {
+                "id": "field_bi_enabled",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Div",
+                    "props": {
+                      "className": "flex items-center gap-2"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Checkbox",
+                        "props": {
+                          "name": "business_info_enabled",
+                          "autoBinding": false,
+                          "checked": "{{!!_local.form?.business_info_enabled}}"
+                        },
+                        "actions": [
+                          {
+                            "type": "change",
+                            "handler": "setState",
+                            "params": {
+                              "target": "local",
+                              "form.business_info_enabled": "{{$event.target.checked}}"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "props": {
+                          "className": "text-sm"
+                        },
+                        "text": "$t:custom-home_design.admin.settings.fields.business_info_enabled"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "text-xs text-gray-500 mt-1"
+                    },
+                    "text": "$t:custom-home_design.admin.settings.fields.business_info_enabled_hint"
+                  }
+                ]
+              },
+              {
+                "id": "field_bi_company",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Label",
+                    "props": {
+                      "className": "form-label"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "text": "$t:custom-home_design.admin.settings.fields.business_company_name"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "Input",
+                    "props": {
+                      "type": "text",
+                      "name": "business_company_name",
+                      "className": "input w-full"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "field_bi_rep",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Label",
+                    "props": {
+                      "className": "form-label"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "text": "$t:custom-home_design.admin.settings.fields.business_representative"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "Input",
+                    "props": {
+                      "type": "text",
+                      "name": "business_representative",
+                      "className": "input w-full"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "field_bi_num",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Label",
+                    "props": {
+                      "className": "form-label"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "text": "$t:custom-home_design.admin.settings.fields.business_number"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "Input",
+                    "props": {
+                      "type": "text",
+                      "name": "business_number",
+                      "className": "input w-full"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "field_bi_mail",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Label",
+                    "props": {
+                      "className": "form-label"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "text": "$t:custom-home_design.admin.settings.fields.business_mail_order_number"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "Input",
+                    "props": {
+                      "type": "text",
+                      "name": "business_mail_order_number",
+                      "className": "input w-full"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "field_bi_addr",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Label",
+                    "props": {
+                      "className": "form-label"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "text": "$t:custom-home_design.admin.settings.fields.business_address"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "Input",
+                    "props": {
+                      "type": "text",
+                      "name": "business_address",
+                      "className": "input w-full"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "field_bi_phone",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Label",
+                    "props": {
+                      "className": "form-label"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "text": "$t:custom-home_design.admin.settings.fields.business_phone"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "Input",
+                    "props": {
+                      "type": "text",
+                      "name": "business_phone",
+                      "className": "input w-full"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "field_bi_email",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Label",
+                    "props": {
+                      "className": "form-label"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "text": "$t:custom-home_design.admin.settings.fields.business_email"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "Input",
+                    "props": {
+                      "type": "email",
+                      "name": "business_email",
+                      "className": "input w-full"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "chd_settings_footer",
+            "type": "basic",
+            "name": "Div",
+            "props": {
+              "className": "flex justify-end gap-2 mt-6"
+            },
+            "children": [
+              {
+                "id": "footer_save_button",
+                "type": "basic",
+                "name": "Button",
+                "props": {
+                  "type": "button",
+                  "disabled": "{{_local.saving}}",
+                  "className": "btn btn-primary flex-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                },
+                "text": "$t:custom-home_design.admin.settings.save",
+                "actions": [
+                  {
+                    "type": "click",
+                    "handler": "sequence",
+                    "actions": [
+                      {
+                        "handler": "setState",
+                        "params": {
+                          "target": "local",
+                          "saving": true,
+                          "errors": null
+                        }
+                      },
+                      {
+                        "handler": "apiCall",
+                        "auth_required": true,
+                        "target": "/api/modules/custom-home_design/admin/settings",
+                        "params": {
+                          "method": "PUT",
+                          "body": {
+                            "enabled": "{{!!_local.form?.enabled}}",
+                            "content_max_width_px": "{{_local.form?.content_max_width_px ?? 1240}}",
+                            "hide_desktop_top_nav": "{{!!_local.form?.hide_desktop_top_nav}}",
+                            "hide_header_board_slugs_json": "{{_local.form?.hide_header_board_slugs_json ?? '[]'}}",
+                            "footer_link_groups_json": "{{_local.form?.footer_link_groups_json ?? ''}}",
+                            "business_info_enabled": "{{!!_local.form?.business_info_enabled}}",
+                            "business_company_name": "{{_local.form?.business_company_name ?? ''}}",
+                            "business_representative": "{{_local.form?.business_representative ?? ''}}",
+                            "business_number": "{{_local.form?.business_number ?? ''}}",
+                            "business_mail_order_number": "{{_local.form?.business_mail_order_number ?? ''}}",
+                            "business_address": "{{_local.form?.business_address ?? ''}}",
+                            "business_phone": "{{_local.form?.business_phone ?? ''}}",
+                            "business_email": "{{_local.form?.business_email ?? ''}}"
+                          }
+                        },
+                        "onSuccess": [
+                          {
+                            "handler": "setState",
+                            "params": {
+                              "target": "local",
+                              "saving": false,
+                              "hasChanges": false,
+                              "form": "{{$response.data ?? $response}}"
+                            }
+                          },
+                          {
+                            "handler": "toast",
+                            "params": {
+                              "type": "success",
+                              "message": "$t:custom-home_design.admin.settings.update_success"
+                            }
+                          }
+                        ],
+                        "onError": [
+                          {
+                            "handler": "setState",
+                            "params": {
+                              "target": "local",
+                              "saving": false,
+                              "errors": "{{$error?.errors ?? { general: [$error?.message || 'error'] }}}"
+                            }
+                          },
+                          {
+                            "handler": "toast",
+                            "params": {
+                              "type": "error",
+                              "message": "$t:custom-home_design.admin.settings.update_failed"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

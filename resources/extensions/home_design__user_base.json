@@ -1,0 +1,32 @@
+{
+  "_comment": "공식 sirsoft-basic _user_base: home-design.js 로드 + 푸터 직전 사업자 고지 마운트. feat Header/Footer React 불필요.",
+  "target_layout": "_user_base",
+  "priority": 70,
+  "data_sources": [],
+  "injections": [
+    {
+      "target_id": "footer",
+      "position": "prepend",
+      "components": [
+        {
+          "id": "chd_business_info_mount",
+          "comment": "사업자 고지 주입 포인트 (JS가 설정 활성 시 HTML 채움)",
+          "type": "basic",
+          "name": "Div",
+          "props": {
+            "id": "chd_business_info_mount",
+            "className": "w-full",
+            "data-chd-role": "business-info-mount"
+          },
+          "children": []
+        }
+      ]
+    }
+  ],
+  "scripts": [
+    {
+      "id": "chd_home_design",
+      "src": "/api/modules/custom-home_design/assets/home-design.js"
+    }
+  ]
+}

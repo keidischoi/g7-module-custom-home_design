@@ -1,0 +1,13 @@
+{
+    "version": "1.0.0",
+    "routes": [
+        {
+            "path": "*/admin/home-design",
+            "layout": "admin_home_design_settings",
+            "auth_required": true,
+            "meta": {
+                "title": "$t:custom-home_design.admin.settings.title"
+            }
+        }
+    ]
+}

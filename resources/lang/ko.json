@@ -1,0 +1,38 @@
+{
+    "admin": {
+        "settings": {
+            "title": "홈 디자인",
+            "description": "공식 sirsoft-basic 기준 콘텐츠 폭·상단 메뉴·푸터 사업자 고지를 설정합니다.",
+            "save": "저장",
+            "validation_error": "입력값을 확인해 주세요.",
+            "update_success": "홈 디자인 설정을 저장했습니다.",
+            "update_failed": "저장에 실패했습니다.",
+            "sections": {
+                "general": "레이아웃",
+                "footer": "푸터 링크",
+                "business": "사업자 고지"
+            },
+            "fields": {
+                "enabled": "모듈 사용",
+                "enabled_hint": "끄면 훅/JS 적용을 중단합니다.",
+                "content_max_width_px": "콘텐츠 최대 폭 (px)",
+                "content_max_width_px_hint": "기본 1240. 공식 테마 max-w-7xl(1280) 대신 적용됩니다.",
+                "hide_desktop_top_nav": "데스크톱 상단 탭 네비 숨기기",
+                "hide_desktop_top_nav_hint": "Header 하단 보드/홈/쇼핑 탭 네비를 CSS로 숨깁니다 (공식 테마 호환).",
+                "hide_header_board_slugs_json": "헤더에서 숨길 게시판 slug (JSON 배열)",
+                "hide_header_board_slugs_json_hint": "예: [\"qna\", \"inquiry\"] — feat 테마와 동일 기본값.",
+                "footer_link_groups_json": "푸터 linkGroups (JSON, 선택)",
+                "footer_link_groups_json_hint": "비우면 테마 기본 링크 그룹을 사용합니다. 공식 Footer props.linkGroups 로 전달.",
+                "business_info_enabled": "사업자 고지 블록 표시",
+                "business_info_enabled_hint": "푸터 직전에 HTML을 주입합니다 (공식 Footer에 businessInfo prop 없음).",
+                "business_company_name": "상호",
+                "business_representative": "대표자",
+                "business_number": "사업자등록번호",
+                "business_mail_order_number": "통신판매업신고",
+                "business_address": "사업장 주소",
+                "business_phone": "대표 전화",
+                "business_email": "대표 이메일"
+            }
+        }
+    }
+}
