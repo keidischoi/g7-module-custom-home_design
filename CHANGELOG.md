@@ -3,6 +3,18 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.3] - 2026-09-10
+
+### Fixed
+
+- **관리자 설정 JSON 필드 바인딩**: `hide_header_board_slugs_json`, `footer_link_groups_json` Textarea에 `value`/`onChange`를 `_local.form`에 연결 — 저장 후에도 값이 유지됨
+- `content_max_width_px` Input도 동일하게 controlled 바인딩
+- 저장 `onSuccess`에서 `toAdminArray` 응답의 `*_json`·폭 필드를 form에 명시 반영
+
+### Changed
+
+- 설정 페이지 wrapper를 `max-w-3xl` → `w-full max-w-none` (전체 너비)
+
 ## [0.2.2] - 2026-09-10
 
 ### Changed
