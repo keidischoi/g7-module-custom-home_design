@@ -14,7 +14,7 @@ use Modules\Custom\HomeDesign\Services\HomeDesignSettingService;
  *  - main_content desktop max width (settings content_max_width_px, default 1240)
  *  - desktop_header boards filter by hide_header_board_slugs (feat: qna, inquiry)
  *  - footer props.linkGroups when footer_link_groups is set (official Footer supports it)
- *  - server-render business info into chd_business_info_mount (avoid JS↔React loop)
+ *  - server-render business info from sirsoft-ecommerce basic_info into chd_business_info_mount
  *  - ensure home-design.js script entry (extension also loads it)
  *
  * Desktop top-nav hide CSS is applied by home-design.js (no MutationObserver since 0.2.1).
@@ -147,7 +147,7 @@ class HomeDesignLayoutListener implements HookListenerInterface
             });
         }
 
-        $parts = $this->buildBusinessParts($settings);
+        $parts = $this->buildBusinessParts();
         if ($parts === []) {
             return $this->updateNodeById($layout, self::BUSINESS_MOUNT_ID, static function (array $node): array {
                 $node['children'] = [];
@@ -172,18 +172,26 @@ class HomeDesignLayoutListener implements HookListenerInterface
     }
 
     /**
+     * Build display parts from sirsoft-ecommerce basic_info (feat Footer mapping).
+     *
      * @return list<string>
      */
-    private function buildBusinessParts(HomeDesignSetting $settings): array
+    private function buildBusinessParts(): array
     {
+        try {
+            $bi = app(HomeDesignSettingService::class)->getEcommerceBusinessInfo();
+        } catch (\Throwable) {
+            $bi = [];
+        }
+
         $parts = [];
-        $company = trim((string) ($settings->business_company_name ?? ''));
-        $rep = trim((string) ($settings->business_representative ?? ''));
-        $number = trim((string) ($settings->business_number ?? ''));
-        $mailOrder = trim((string) ($settings->business_mail_order_number ?? ''));
-        $address = trim((string) ($settings->business_address ?? ''));
-        $phone = trim((string) ($settings->business_phone ?? ''));
-        $email = trim((string) ($settings->business_email ?? ''));
+        $company = trim((string) ($bi['companyName'] ?? ''));
+        $rep = trim((string) ($bi['representative'] ?? ''));
+        $number = trim((string) ($bi['businessNumber'] ?? ''));
+        $mailOrder = trim((string) ($bi['mailOrderNumber'] ?? ''));
+        $address = trim((string) ($bi['address'] ?? ''));
+        $phone = trim((string) ($bi['phone'] ?? ''));
+        $email = trim((string) ($bi['email'] ?? ''));
 
         if ($company !== '') {
             $parts[] = $company;

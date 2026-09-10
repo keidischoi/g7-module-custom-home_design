@@ -1,5 +1,6 @@
 /*! custom-home_design — max-width CSS var, hide desktop top nav, business info (once)
  * 0.2.1: MutationObserver removed (was fighting React footer remounts → infinite loop).
+ * 0.2.2: business_info from sirsoft-ecommerce basic_info (public settings API).
  * CSS applied on settings fetch; SPA popstate/pushState debounced re-apply CSS only.
  * Business HTML: prefer PHP-filled mount; JS injects only once when mount is empty.
  */

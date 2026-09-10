@@ -25,13 +25,6 @@ class UpdateHomeDesignSettingRequest extends FormRequest
             'footer_link_groups' => ['sometimes', 'nullable'],
             'footer_link_groups_json' => ['sometimes', 'nullable', 'string'],
             'business_info_enabled' => ['sometimes', 'boolean'],
-            'business_company_name' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'business_representative' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'business_number' => ['sometimes', 'nullable', 'string', 'max:64'],
-            'business_mail_order_number' => ['sometimes', 'nullable', 'string', 'max:128'],
-            'business_address' => ['sometimes', 'nullable', 'string', 'max:512'],
-            'business_phone' => ['sometimes', 'nullable', 'string', 'max:64'],
-            'business_email' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];
     }
 

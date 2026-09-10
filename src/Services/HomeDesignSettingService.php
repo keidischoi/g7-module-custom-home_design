@@ -43,6 +43,19 @@ class HomeDesignSettingService
 
         unset($data['hide_header_board_slugs_json'], $data['footer_link_groups_json']);
 
+        // 사업자 문자열은 이커머스 basic_info 에서만 표시 — 로컬 컬럼 저장 중단
+        foreach ([
+            'business_company_name',
+            'business_representative',
+            'business_number',
+            'business_mail_order_number',
+            'business_address',
+            'business_phone',
+            'business_email',
+        ] as $legacyKey) {
+            unset($data[$legacyKey]);
+        }
+
         if (isset($data['hide_header_board_slugs']) && is_string($data['hide_header_board_slugs'])) {
             $data['hide_header_board_slugs'] = $this->decodeJsonArray($data['hide_header_board_slugs']);
         }
@@ -66,6 +79,72 @@ class HomeDesignSettingService
         $row->save();
 
         return $row->fresh() ?? $row;
+    }
+
+
+    /**
+     * sirsoft-ecommerce basic_info 에서 사업자 고지용 필드 조회.
+     * feat 테마와 동일 매핑: company_name, ceo_name, business_number,
+     * mail_order_number, base_address+detail_address, phone, email.
+     *
+     * @return array{
+     *   companyName: string,
+     *   representative: string,
+     *   businessNumber: string,
+     *   mailOrderNumber: string,
+     *   address: string,
+     *   phone: string,
+     *   email: string
+     * }
+     */
+    public function getEcommerceBusinessInfo(): array
+    {
+        $basic = $this->readEcommerceBasicInfo();
+
+        $base = trim((string) ($basic['base_address'] ?? ''));
+        $detail = trim((string) ($basic['detail_address'] ?? ''));
+        $address = trim($base.($base !== '' && $detail !== '' ? ' ' : '').$detail);
+        // Also accept a single "address" key if present
+        if ($address === '' && isset($basic['address'])) {
+            $address = trim((string) $basic['address']);
+        }
+
+        return [
+            'companyName' => trim((string) ($basic['company_name'] ?? '')),
+            'representative' => trim((string) ($basic['ceo_name'] ?? '')),
+            'businessNumber' => trim((string) ($basic['business_number'] ?? '')),
+            'mailOrderNumber' => trim((string) ($basic['mail_order_number'] ?? '')),
+            'address' => $address,
+            'phone' => trim((string) ($basic['phone'] ?? '')),
+            'email' => trim((string) ($basic['email'] ?? '')),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function readEcommerceBasicInfo(): array
+    {
+        $basic = null;
+        if (function_exists('module_setting')) {
+            try {
+                $basic = module_setting('sirsoft-ecommerce', 'basic_info', null);
+            } catch (\Throwable) {
+                $basic = null;
+            }
+        }
+        if (! is_array($basic) || $basic === []) {
+            // Fallback: storage category file (module_setting unavailable / empty)
+            $path = storage_path('app/modules/sirsoft-ecommerce/settings/basic_info.json');
+            if (is_readable($path)) {
+                $decoded = json_decode((string) file_get_contents($path), true);
+                $basic = is_array($decoded) ? $decoded : [];
+            } else {
+                $basic = [];
+            }
+        }
+
+        return $basic;
     }
 
     /**

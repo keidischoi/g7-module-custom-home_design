@@ -21,10 +21,13 @@ class SettingsController extends PublicBaseController
     {
         try {
             $row = $this->service->get();
+            $bi = $row->business_info_enabled
+                ? $this->service->getEcommerceBusinessInfo()
+                : null;
 
             return $this->success(
                 'custom-home_design::messages.settings.fetch_success',
-                $row->toPublicArray()
+                $row->toPublicArray($bi)
             );
         } catch (\Exception $e) {
             return $this->error('custom-home_design::messages.settings.fetch_failed', 500, $e->getMessage());
