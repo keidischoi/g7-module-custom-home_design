@@ -6,6 +6,8 @@
  *        settings.enabled gate removed (module manager activation is enough).
  * 0.2.5: header search/dark UX; home mid Container maxWidth; admin bool round-trip;
  *        expanded mid-home width selectors; icons in right header cluster.
+ * 0.2.6: remove business block when disabled; broader desktop top-nav hide selectors;
+ *        body.chd-hide-desktop-top-nav class; settings fetch failure never breaks page.
  * CSS applied on settings fetch; SPA popstate/pushState debounced re-apply CSS only.
  * Business HTML: prefer PHP-filled mount; JS injects only once when mount is empty.
  * Header widgets: ensure-if-missing on load + SPA debounce (no MutationObserver).
@@ -144,14 +146,24 @@
       n +
       "px;}";
 
+    try {
+      document.documentElement.classList.toggle("chd-hide-desktop-top-nav", hide);
+      document.body && document.body.classList.toggle("chd-hide-desktop-top-nav", hide);
+    } catch (e) {}
+
     if (hide) {
       css +=
         "@media (min-width:1024px){" +
+        "html.chd-hide-desktop-top-nav #desktop_header nav," +
+        "body.chd-hide-desktop-top-nav #desktop_header nav," +
         "#desktop_header nav.border-t," +
         "#desktop_header nav[class*='border-t']," +
         "#desktop_header nav:has([data-testid='nav-home'])," +
-        "#desktop_header nav:has([data-testid='nav-popular']){" +
-        "display:none!important;}" +
+        "#desktop_header nav:has([data-testid='nav-popular'])," +
+        "#desktop_header nav:has([data-testid='nav-shop'])," +
+        "header#desktop_header > nav," +
+        "#desktop_header > nav{" +
+        "display:none!important;visibility:hidden!important;height:0!important;overflow:hidden!important;}" +
         "}";
     }
 
@@ -249,8 +261,28 @@
     return buildBusinessParts(settings.business_info).join("  |  ");
   }
 
+  function clearBusinessInfo() {
+    var existing = document.getElementById(BUSINESS_ID);
+    if (existing && existing.parentNode) {
+      try {
+        existing.parentNode.removeChild(existing);
+      } catch (e) {}
+    }
+    var mount = document.getElementById(MOUNT_ID);
+    if (mount) {
+      try {
+        mount.innerHTML = "";
+      } catch (e2) {}
+    }
+    lastBusinessSig = "";
+    businessInjectedOnce = false;
+  }
+
   function injectBusinessInfoOnce(settings) {
-    if (!settings || !settings.business_info_enabled) return;
+    if (!settings || !settings.business_info_enabled) {
+      clearBusinessInfo();
+      return;
+    }
 
     var sig = businessSignature(settings);
     if (!sig) return;

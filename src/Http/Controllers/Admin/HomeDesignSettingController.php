@@ -32,14 +32,20 @@ class HomeDesignSettingController extends AdminBaseController
     public function update(UpdateHomeDesignSettingRequest $request): JsonResponse
     {
         try {
-            $row = $this->service->update($request->validated());
+            // validated() after prepareForValidation — bools always present (missing ⇒ false).
+            $payload = $request->validated();
+            $row = $this->service->update($payload);
 
+            // Re-read admin array from persisted row (not request echo).
             return $this->success(
                 'custom-home_design::messages.settings.update_success',
                 $row->toAdminArray()
             );
         } catch (\InvalidArgumentException $e) {
             return $this->error('custom-home_design::messages.settings.invalid_json', 422, $e->getMessage());
+        } catch (\RuntimeException $e) {
+            // e.g. table missing — surface message so admin toast/errors show migrate hint
+            return $this->error('custom-home_design::messages.settings.update_failed', 500, $e->getMessage());
         } catch (\Exception $e) {
             return $this->error('custom-home_design::messages.settings.update_failed', 500, $e->getMessage());
         }

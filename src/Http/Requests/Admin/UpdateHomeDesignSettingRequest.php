@@ -6,6 +6,14 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateHomeDesignSettingRequest extends FormRequest
 {
+    /** Full-form boolean keys — missing (unchecked / stripped false) ⇒ false. */
+    private const BOOL_KEYS = [
+        'hide_desktop_top_nav',
+        'header_search_icon_mode',
+        'header_theme_click_toggle',
+        'business_info_enabled',
+    ];
+
     public function authorize(): bool
     {
         return true;
@@ -19,24 +27,32 @@ class UpdateHomeDesignSettingRequest extends FormRequest
         return [
             // module-level `enabled` is unused (module manager activation is enough)
             'content_max_width_px' => ['sometimes', 'integer', 'min:320', 'max:2560'],
-            'hide_desktop_top_nav' => ['sometimes', 'boolean'],
-            'header_search_icon_mode' => ['sometimes', 'boolean'],
-            'header_theme_click_toggle' => ['sometimes', 'boolean'],
+            'hide_desktop_top_nav' => ['required', 'boolean'],
+            'header_search_icon_mode' => ['required', 'boolean'],
+            'header_theme_click_toggle' => ['required', 'boolean'],
             'hide_header_board_slugs' => ['sometimes'],
             'hide_header_board_slugs_json' => ['sometimes', 'nullable'],
             'footer_link_groups' => ['sometimes', 'nullable'],
             'footer_link_groups_json' => ['sometimes', 'nullable'],
-            'business_info_enabled' => ['sometimes', 'boolean'],
+            'business_info_enabled' => ['required', 'boolean'],
         ];
     }
 
     protected function prepareForValidation(): void
     {
-        foreach (['hide_desktop_top_nav', 'header_search_icon_mode', 'header_theme_click_toggle', 'business_info_enabled'] as $boolKey) {
+        // Admin settings form is a full replace. Layout engines often omit JSON keys
+        // whose expression evaluates to false — treat missing checkbox keys as false
+        // so unchecked boxes actually persist off.
+        $boolMerge = [];
+        foreach (self::BOOL_KEYS as $boolKey) {
             if ($this->exists($boolKey)) {
-                $this->merge([$boolKey => $this->coerceBool($this->input($boolKey))]);
+                $boolMerge[$boolKey] = $this->coerceBool($this->input($boolKey));
+            } else {
+                $boolMerge[$boolKey] = false;
             }
         }
+        $this->merge($boolMerge);
+
         if ($this->exists('content_max_width_px')) {
             $this->merge(['content_max_width_px' => (int) $this->input('content_max_width_px')]);
         }
@@ -69,6 +85,7 @@ class UpdateHomeDesignSettingRequest extends FormRequest
 
     /**
      * Never use bare (bool)$v — (bool)"false" === true in PHP.
+     * Also treat string "false" from layout expression stringification.
      */
     private function coerceBool(mixed $v): bool
     {

@@ -35,6 +35,9 @@ class HomeDesignSetting extends Model
 
     protected $table = 'home_design_settings';
 
+    /** @var list<string> Empty guarded — rely on $fillable only. */
+    protected $guarded = [];
+
     /** business_* string columns kept in DB but no longer fillable (0.2.2+) */
     protected $fillable = [
         'enabled',

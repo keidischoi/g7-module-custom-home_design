@@ -3,6 +3,21 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.6] - 2026-09-10
+
+### Fixed
+
+- **DB 저장 실패 (핵심)**: 관리자 PUT이 싱글톤 `home_design_settings` id=1에 **실제로 upsert**되도록 `HomeDesignSettingService::update()`를 Query Builder `update`/`insert`로 재작성. Eloquent `fill`/`save` 무반응·누락 컬럼 SQL 오류를 우회. JSON 컬럼은 QB용으로 명시 `json_encode`. 저장 후 id=1 재조회로 검증.
+- **체크박스 false 미전송**: 레이아웃 엔진이 JSON `false` 키를 생략하는 경우 → FormRequest에서 누락 bool을 **false로 merge**. 관리자 body는 **0/1 정수**로 전송(생략 불가). `(bool)"false"` PHP 함정 유지 방지.
+- **마이그레이션 미실행**: 테이블 없으면 명확한 500 메시지(`php82 artisan migrate --force`). 000001은 `hasTable` + id=1 seed 가드. 000002 미적용 시 `header_*` 컬럼만 스킵하고 나머지 필드는 저장.
+- **get() never fatal**: 테이블/쿼리 실패 시 인메모리 기본값. update는 테이블 필수.
+- **프론트 적용**: `business_info_enabled=false`면 사업자 블록/마운트 비움. `hide_desktop_top_nav` CSS 선택자 확대 + `html/body.chd-hide-desktop-top-nav`.
+- **관리자 UI**: 체크박스 Label 래핑·실불린 onChange; JSON 예시는 help **아래** static Text(placeholder 아님); 저장 onSuccess가 API `toAdminArray` 키로 폼 복원.
+
+### Changed
+
+- 버전 `0.2.6`. 설치 후 **반드시** `php82 artisan migrate --force` (테이블 `home_design_settings`).
+
 ## [0.2.5] - 2026-09-10
 
 ### Fixed

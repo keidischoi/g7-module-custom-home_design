@@ -1,6 +1,6 @@
 # custom-home_design
 
-Gnuboard7 홈 디자인 애드온 모듈 (`0.2.5`).
+Gnuboard7 홈 디자인 애드온 모듈 (`0.2.6`).
 
 공식 **gnuboard `sirsoft-basic`** 테마에서 메뉴·콘텐츠 폭·푸터 사업자 고지를
 Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 직접 수정 없음.**
@@ -26,7 +26,12 @@ Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 �
 
 ## Install (서버, php82)
 
-모듈을 `modules/` 또는 `modules/_bundled` 에 배치한 뒤:
+모듈을 `modules/` 또는 `modules/_bundled` 에 배치한 뒤.
+
+> **중요:** 설정이 저장되지 않으면 거의 항상 **마이그레이션 미실행**입니다.
+> 테이블명: `home_design_settings` (싱글톤 `id=1`). 아래 `migrate --force` 를 꼭 실행하세요.
+
+설치/업데이트 후:
 
 ```bash
 php82 artisan module:update custom-home_design --source=bundled --force --layout-strategy=overwrite
@@ -48,6 +53,21 @@ php82 artisan cache:clear
 ```
 
 관리자: **홈 디자인** (`/admin/home-design`) — 모듈이 G7에서 활성화되어 있으면 디자인 설정이 바로 적용됩니다(별도 「모듈 사용」토글 없음).
+
+
+## Diagnose DB persistence (NAS)
+
+```bash
+# 테이블/행 확인 (네임스페이스 주의: Modules\\Custom\\HomeDesign\\...)
+php82 artisan tinker --execute="echo json_encode(\\Modules\\Custom\\HomeDesign\\Models\\HomeDesignSetting::query()->find(1));"
+
+# 또는
+php82 artisan db:show
+php82 artisan migrate:status | grep home_design
+```
+
+관리자 저장 API: `PUT /api/modules/custom-home_design/admin/settings` (Sanctum + `custom-home_design.design.update`).
+메뉴: `/admin/home-design` → layout `admin_home_design_settings`.
 
 ## Business notice & footer links (0.2.2+)
 
