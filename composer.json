@@ -1,0 +1,15 @@
+{
+    "name": "modules/custom-home_design",
+    "description": "Custom home design module for Gnuboard7 (menu/icons/home layout via Event Hooks)",
+    "type": "library",
+    "version": "0.1.0",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Modules\\Custom\\HomeDesign\\": "src/"
+        }
+    },
+    "require": {
+        "php": "^8.2"
+    }
+}

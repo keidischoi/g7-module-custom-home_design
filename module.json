@@ -1,0 +1,20 @@
+{
+    "identifier": "custom-home_design",
+    "vendor": "custom",
+    "name": {
+        "ko": "홈 디자인",
+        "en": "Home Design"
+    },
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": {
+        "ko": "공식 sirsoft-basic 홈 메뉴 위치·아이콘·홈 화면 디자인용 Event Hook 애드온 (광고 슬롯과 분리)",
+        "en": "Event Hook add-on for home menu position, icons, and home layout on official sirsoft-basic (separate from ad slots)"
+    },
+    "g7_version": ">=7.0.0",
+    "github_url": "https://github.com/keidischoi/g7-module-custom-home_design",
+    "dependencies": {
+        "modules": {},
+        "plugins": {}
+    }
+}
