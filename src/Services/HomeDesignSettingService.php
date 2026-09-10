@@ -195,24 +195,41 @@ class HomeDesignSettingService
      */
     public function getEcommerceBusinessInfo(): array
     {
-        $basic = $this->readEcommerceBasicInfo();
-
-        $base = trim((string) ($basic['base_address'] ?? ''));
-        $detail = trim((string) ($basic['detail_address'] ?? ''));
-        $address = trim($base.($base !== '' && $detail !== '' ? ' ' : '').$detail);
-        if ($address === '' && isset($basic['address'])) {
-            $address = trim((string) $basic['address']);
-        }
-
-        return [
-            'companyName' => trim((string) ($basic['company_name'] ?? '')),
-            'representative' => trim((string) ($basic['ceo_name'] ?? '')),
-            'businessNumber' => trim((string) ($basic['business_number'] ?? '')),
-            'mailOrderNumber' => trim((string) ($basic['mail_order_number'] ?? '')),
-            'address' => $address,
-            'phone' => trim((string) ($basic['phone'] ?? '')),
-            'email' => trim((string) ($basic['email'] ?? '')),
+        $empty = [
+            'companyName' => '',
+            'representative' => '',
+            'businessNumber' => '',
+            'mailOrderNumber' => '',
+            'address' => '',
+            'phone' => '',
+            'email' => '',
         ];
+
+        try {
+            $basic = $this->readEcommerceBasicInfo();
+            if (! is_array($basic)) {
+                return $empty;
+            }
+
+            $base = trim((string) ($basic['base_address'] ?? ''));
+            $detail = trim((string) ($basic['detail_address'] ?? ''));
+            $address = trim($base.($base !== '' && $detail !== '' ? ' ' : '').$detail);
+            if ($address === '' && isset($basic['address'])) {
+                $address = trim((string) $basic['address']);
+            }
+
+            return [
+                'companyName' => trim((string) ($basic['company_name'] ?? '')),
+                'representative' => trim((string) ($basic['ceo_name'] ?? '')),
+                'businessNumber' => trim((string) ($basic['business_number'] ?? '')),
+                'mailOrderNumber' => trim((string) ($basic['mail_order_number'] ?? '')),
+                'address' => $address,
+                'phone' => trim((string) ($basic['phone'] ?? '')),
+                'email' => trim((string) ($basic['email'] ?? '')),
+            ];
+        } catch (\Throwable) {
+            return $empty;
+        }
     }
 
     /**

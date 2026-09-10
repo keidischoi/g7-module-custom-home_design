@@ -1,6 +1,6 @@
 # custom-home_design
 
-Gnuboard7 홈 디자인 애드온 모듈 (`0.2.9`).
+Gnuboard7 홈 디자인 애드온 모듈 (`0.2.10`).
 
 공식 **gnuboard `sirsoft-basic`** 테마에서 메뉴·콘텐츠 폭·푸터 사업자 고지를
 Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 직접 수정 없음.**

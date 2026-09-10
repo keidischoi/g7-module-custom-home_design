@@ -3,6 +3,33 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.10] - 2026-09-10
+
+### Fixed
+
+- **Site HTTP 500 safety**: `HomeDesignLayoutListener` hook entry points
+  (`filterChildLayout` / `filterMergedLayout` / `afterExtensions`) and `apply()`
+  now swallow **all** `Throwable` and return the original layout.
+  Each patch step is isolated. `settings()` soft-fails if the service class /
+  container binding is missing (broken 미설치 / half-copied module).
+- **Public settings API**: never returns 500 — falls back to safe defaults JSON 200.
+- **getEcommerceBusinessInfo()**: outer try/catch → empty array (no throw).
+
+### Emergency (live 500)
+
+```bash
+php82 artisan module:disable custom-home_design
+php82 artisan hooks:clear
+php82 artisan cache:clear
+php82 artisan route:clear
+# then re-install clean 0.2.10 when ready:
+# php82 artisan module:install custom-home_design --source=bundled
+```
+
+### Changed
+
+- Version `0.2.10`.
+
 ## [0.2.9] - 2026-09-10
 
 ### Fixed
