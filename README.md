@@ -1,6 +1,6 @@
 # custom-home_design
 
-Gnuboard7 홈 디자인 애드온 모듈 (`0.2.4`).
+Gnuboard7 홈 디자인 애드온 모듈 (`0.2.5`).
 
 공식 **gnuboard `sirsoft-basic`** 테마에서 메뉴·콘텐츠 폭·푸터 사업자 고지를
 Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 직접 수정 없음.**
@@ -15,7 +15,8 @@ Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 �
 |------|--------|
 | `main_content`·홈 하단 콘텐츠 컬럼 최대 폭 (기본 **1240px**) | 광고 배너 → [`custom-ad_slots`](https://github.com/keidischoi/g7-module-custom-ad_slots) |
 | 데스크톱 상단 탭 네비 숨김 (CSS) | feat 테마 Header/Footer React 컴포넌트 의존 |
-| 헤더 게시판 slug 필터 (`qna`, `inquiry` 기본) | 테마 소스 패치 / zip 배포 |
+| 헤더 검색 아이콘+슬라이드 패널 / 다크모드 클릭 토글 (JS) | |
+| 헤더 게시판 slug 필터 (기본 빈 배열 — 명시 slug만 숨김) | 테마 소스 패치 / zip 배포 |
 | 푸터 `linkGroups` (공식 Footer props) | |
 | 푸터 직전 사업자 고지 (표시 ON만; 내용은 sirsoft-ecommerce basic_info) | |
 

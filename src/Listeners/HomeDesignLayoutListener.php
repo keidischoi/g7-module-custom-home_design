@@ -12,11 +12,12 @@ use Modules\Custom\HomeDesign\Services\HomeDesignSettingService;
  * Ports layout differences from keidischoi/g7-template-sirsoft-basic
  * feat/open-in-new-tab-1.1.51:
  *  - main_content + main_content_area content-column max-w-* (settings content_max_width_px, default 1240)
- *  - desktop_header boards filter by hide_header_board_slugs (feat: qna, inquiry)
+ *  - desktop_header boards filter by hide_header_board_slugs (default empty — show all)
  *  - footer props.linkGroups when footer_link_groups is set (official Footer supports it)
  *  - server-render business info from sirsoft-ecommerce basic_info into chd_business_info_mount
  *  - ensure home-design.js script entry (extension also loads it)
  *
+ * Header search icon + dark-mode click toggle are applied by home-design.js (0.2.5).
  * Desktop top-nav hide CSS is applied by home-design.js (no MutationObserver since 0.2.1).
  */
 class HomeDesignLayoutListener implements HookListenerInterface
@@ -100,11 +101,13 @@ class HomeDesignLayoutListener implements HookListenerInterface
         }
 
         // Always try to ensure script when we touch layouts that include chrome.
+        $layoutName = (string) ($layout['layout_name'] ?? '');
         $hasChrome = $this->findById($layout, 'desktop_header') !== null
             || $this->findById($layout, 'main_content') !== null
             || $this->findById($layout, 'footer') !== null
             || $this->findById($layout, self::BUSINESS_MOUNT_ID) !== null
-            || ($layout['layout_name'] ?? '') === '_user_base';
+            || $layoutName === '_user_base'
+            || $layoutName === 'home';
 
         if (! $hasChrome) {
             return $layout;
@@ -113,6 +116,7 @@ class HomeDesignLayoutListener implements HookListenerInterface
         $px = (int) $settings->content_max_width_px;
         $layout = $this->patchMainContentWidth($layout, $px);
         $layout = $this->patchContentColumnWidths($layout, $px);
+        $layout = $this->patchHomeContentWidth($layout, $px);
         $layout = $this->patchDesktopHeaderBoards($layout, $settings->hide_header_board_slugs ?? []);
         $layout = $this->patchFooterLinkGroups($layout, $settings->footer_link_groups);
         $layout = $this->fillBusinessInfoMount($layout, $settings);
@@ -333,11 +337,18 @@ class HomeDesignLayoutListener implements HookListenerInterface
 
             $style = isset($props['style']) && is_array($props['style']) ? $props['style'] : [];
             $style['maxWidth'] = $px.'px';
+            $style['width'] = '100%';
+            $style['marginInline'] = 'auto';
             $props['style'] = $style;
 
             if (! isset($node['props']) || ! is_array($node['props'])) {
                 $node['props'] = [];
             }
+            $baseStyle = isset($node['props']['style']) && is_array($node['props']['style']) ? $node['props']['style'] : [];
+            $baseStyle['maxWidth'] = $px.'px';
+            $baseStyle['width'] = '100%';
+            $baseStyle['marginInline'] = 'auto';
+            $node['props']['style'] = $baseStyle;
             $node['props']['data-chd-max-width'] = (string) $px;
 
             return $node;
@@ -426,12 +437,17 @@ class HomeDesignLayoutListener implements HookListenerInterface
             $hasMaxW = $hasMaxW || $hit;
         }
 
-        if (isset($node['responsive']['desktop']['props']) && is_array($node['responsive']['desktop']['props'])) {
-            [$node['responsive']['desktop']['props'], $hit] = $this->stripMaxWAndSetWidth(
-                $node['responsive']['desktop']['props'],
-                $px
-            );
-            $hasMaxW = $hasMaxW || $hit;
+        if (isset($node['responsive']) && is_array($node['responsive'])) {
+            foreach ($node['responsive'] as $bp => $bpVal) {
+                if (! is_array($bpVal) || ! isset($bpVal['props']) || ! is_array($bpVal['props'])) {
+                    continue;
+                }
+                [$node['responsive'][$bp]['props'], $hit] = $this->stripMaxWAndSetWidth(
+                    $bpVal['props'],
+                    $px
+                );
+                $hasMaxW = $hasMaxW || $hit;
+            }
         }
 
         if ($hasMaxW) {
@@ -450,25 +466,129 @@ class HomeDesignLayoutListener implements HookListenerInterface
      */
     private function stripMaxWAndSetWidth(array $props, int $px): array
     {
+        $hit = false;
         $className = (string) ($props['className'] ?? '');
-        if ($className === '' || ! preg_match('/\bmax-w-[A-Za-z0-9\[\]\-\/]+\b/', $className)) {
-            return [$props, false];
+        if ($className !== '' && preg_match('/\bmax-w-[A-Za-z0-9\[\]\-\/]+\b/', $className)) {
+            $className = trim(preg_replace('/\bmax-w-[A-Za-z0-9\[\]\-\/]+\b/', '', $className) ?? $className);
+            if ($className === '') {
+                $className = 'mx-auto';
+            }
+            if (! str_contains($className, 'mx-auto')) {
+                $className .= ' mx-auto';
+            }
+            $props['className'] = trim($className);
+            $hit = true;
         }
-
-        $className = trim(preg_replace('/\bmax-w-[A-Za-z0-9\[\]\-\/]+\b/', '', $className) ?? $className);
-        if ($className === '') {
-            $className = 'mx-auto';
-        }
-        if (! str_contains($className, 'mx-auto')) {
-            $className .= ' mx-auto';
-        }
-        $props['className'] = trim($className);
 
         $style = isset($props['style']) && is_array($props['style']) ? $props['style'] : [];
-        $style['maxWidth'] = $px.'px';
-        $props['style'] = $style;
+        if (isset($style['maxWidth']) || isset($style['max-width'])) {
+            // Theme hardcoded maxWidth (1240px / 80rem / etc.) — align to setting.
+            $hit = true;
+        }
+        if ($hit || isset($props['data-chd-max-width'])) {
+            $style['maxWidth'] = $px.'px';
+            unset($style['max-width']);
+            $props['style'] = $style;
+            $hit = true;
+        }
 
-        return [$props, true];
+        return [$props, $hit];
+    }
+
+    /**
+     * Home layout mid/lower section wrappers: root Container + any nested
+     * Containers/Divs that constrain width. Full-bleed heroes (w-full only,
+     * carousel) are skipped. Also runs when child layout_name === home.
+     */
+    private function patchHomeContentWidth(array $layout, int $px): array
+    {
+        $px = max(320, min(2560, $px > 0 ? $px : HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX));
+        $layoutName = (string) ($layout['layout_name'] ?? '');
+
+        // Always walk slots.content when present (home / merged pages).
+        if (isset($layout['slots']['content']) && is_array($layout['slots']['content'])) {
+            foreach ($layout['slots']['content'] as $i => $child) {
+                if (is_array($child)) {
+                    $layout['slots']['content'][$i] = $this->mapNodes($child, function (array $node) use ($px): array {
+                        return $this->maybePatchHomeWidthNode($node, $px);
+                    });
+                }
+            }
+        }
+
+        if ($layoutName === 'home') {
+            $layout = $this->mapNodes($layout, function (array $node) use ($px): array {
+                return $this->maybePatchHomeWidthNode($node, $px);
+            });
+        }
+
+        return $layout;
+    }
+
+    /**
+     * Patch home mid-section width nodes:
+     *  - layout Container (home root / section wrappers)
+     *  - any max-w-* / style.maxWidth
+     * Skip obvious full-bleed: class is only w-full / mb-* without max-w, or hero/carousel ids.
+     */
+    private function maybePatchHomeWidthNode(array $node, int $px): array
+    {
+        $id = strtolower((string) ($node['id'] ?? ''));
+        $name = (string) ($node['name'] ?? '');
+        if (str_contains($id, 'hero') || str_contains($id, 'carousel') || str_contains($id, 'full_bleed') || str_contains($id, 'full-bleed')) {
+            return $node;
+        }
+
+        $patched = $this->maybePatchMaxWidthNode($node, $px, skipMainContent: false);
+
+        // Home root / section Containers: force maxWidth even without max-w-* class
+        // so nested grids grow with content_max_width_px (parent main_content alone
+        // is not always enough when React remounts child slot trees).
+        $isContainer = ($node['type'] ?? '') === 'layout' && $name === 'Container';
+        if ($isContainer) {
+            $className = (string) (($patched['props']['className'] ?? '') ?: '');
+            $isFullBleed = $className !== ''
+                && preg_match('/\bw-full\b/', $className)
+                && ! preg_match('/\bmax-w-/', $className)
+                && ! preg_match('/\bmx-auto\b/', $className)
+                && ! preg_match('/\bpx-/', $className); // home root uses px-4/6/8 — not full-bleed
+
+            if (! $isFullBleed) {
+                if (! isset($patched['props']) || ! is_array($patched['props'])) {
+                    $patched['props'] = [];
+                }
+                $style = isset($patched['props']['style']) && is_array($patched['props']['style'])
+                    ? $patched['props']['style']
+                    : [];
+                $style['maxWidth'] = $px.'px';
+                $style['width'] = '100%';
+                $style['marginInline'] = 'auto';
+                $patched['props']['style'] = $style;
+                $patched['props']['data-chd-max-width'] = (string) $px;
+
+                // Also set on each responsive breakpoint props
+                if (isset($patched['responsive']) && is_array($patched['responsive'])) {
+                    foreach ($patched['responsive'] as $bp => $bpVal) {
+                        if (! is_array($bpVal)) {
+                            continue;
+                        }
+                        if (! isset($bpVal['props']) || ! is_array($bpVal['props'])) {
+                            $bpVal['props'] = [];
+                        }
+                        $bpStyle = isset($bpVal['props']['style']) && is_array($bpVal['props']['style'])
+                            ? $bpVal['props']['style']
+                            : [];
+                        $bpStyle['maxWidth'] = $px.'px';
+                        $bpStyle['width'] = '100%';
+                        $bpStyle['marginInline'] = 'auto';
+                        $bpVal['props']['style'] = $bpStyle;
+                        $patched['responsive'][$bp] = $bpVal;
+                    }
+                }
+            }
+        }
+
+        return $patched;
     }
 
     private function patchFooterLinkGroups(array $layout, mixed $groups): array

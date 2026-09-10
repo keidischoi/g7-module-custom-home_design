@@ -3,6 +3,25 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.5] - 2026-09-10
+
+### Fixed
+
+- **관리자 저장 라운드트립 (모든 필드)**: `HomeDesignSettingService::get()`가 존재하지 않는 `normalizeLegacyHideBoardSlugs()`를 호출해 조회/저장이 전부 실패하던 치명 버그 수정. 메서드 구현 + 레거시 `["qna","inquiry"]` → `[]` 리셋
+- **체크박스/불리언 저장**: `(bool)"false" === true` PHP 함정 제거 — FormRequest/Service 공통 `coerceBool()`. onSuccess는 `!!missing→false` 대신 `?? _local.form` 폴백으로 토글 유지 (`hide_desktop_top_nav`, `business_info_enabled`, `header_*` 포함)
+- **JSON Textarea**: `rows=18` + `min-h-[18rem] h-72` + inline `height/minHeight: 18rem` (접혀 보이지 않게)
+- **게시판 기본 숨김 제거**: `hide_header_board_slugs` 기본 `[]`. 마이그레이션이 레거시 기본값만 `[]`로 리셋
+- **홈 중간(미드) 박스 폭**: `layout_name=home`도 패치 대상. home 루트 `Container`와 중첩 Container에 `style.maxWidth/width` 주입. `style.maxWidth` 하드코드·모든 responsive breakpoint의 `max-w-*` 제거 후 설정 px 적용. JS 선택자·`!important`로 mid/lower·`max-w-*` 강제
+
+### Added
+
+- **헤더 검색 아이콘 모드** (`header_search_icon_mode`, 기본 ON): 가운데 검색창 숨김, 우측 액션 클러스터(장바구니 왼쪽) 돋보기 → 클릭 시 패널 슬라이드
+- **다크모드 클릭 즉시 토글** (`header_theme_click_toggle`, 기본 ON): 드롭다운 숨김, `g7_color_scheme` + `data-theme`/`dark`로 light↔dark. `G7Core.dispatch(setTheme)` 우선
+
+### Changed
+
+- `hide_desktop_top_nav`는 전체 상단 탭 네비 CSS 숨김으로 유지(개별 보드 필터와 분리)
+
 ## [0.2.4] - 2026-09-10
 
 ### Fixed

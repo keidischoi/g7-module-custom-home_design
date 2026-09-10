@@ -20,11 +20,15 @@
                 "hide_desktop_top_nav": "Hide desktop top tab nav",
                 "hide_desktop_top_nav_hint": "Hides Header board/home/shop tab nav via CSS (official theme compatible).",
                 "hide_header_board_slugs_json": "Board slugs to hide in header (JSON array)",
-                "hide_header_board_slugs_json_hint": "e.g. [\"qna\", \"inquiry\"] — same default as feat theme.",
+                "hide_header_board_slugs_json_hint": "e.g. [\"qna\", \"inquiry\"] — empty [] shows all boards. Default is an empty array.",
                 "footer_link_groups_json": "Footer linkGroups (JSON)",
                 "footer_link_groups_json_hint": "JSON array of {title, links:[{label,href}]} — empty uses theme default linkGroups; when set, replaces Footer props.linkGroups entirely. Prefer FAQ href /faq (feat) over official /page/faq. See textarea placeholder for an example.",
                 "business_info_enabled": "Show business notice block",
-                "business_info_enabled_hint": "Shows business info from ecommerce basic settings"
+                "business_info_enabled_hint": "Shows business info from ecommerce basic settings",
+                "header_search_icon_mode": "Search: icon only (slide panel on click)",
+                "header_search_icon_mode_hint": "Default ON. Hides the center search input and shows a right-side icon. Click slides a search panel down (same as feat theme).",
+                "header_theme_click_toggle": "Dark mode: click to toggle (no dropdown)",
+                "header_theme_click_toggle_hint": "Default ON. Sun/moon icon click immediately toggles light↔dark. No dropdown menu."
             }
         }
     }

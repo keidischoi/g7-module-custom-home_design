@@ -20,6 +20,8 @@ class UpdateHomeDesignSettingRequest extends FormRequest
             // module-level `enabled` is unused (module manager activation is enough)
             'content_max_width_px' => ['sometimes', 'integer', 'min:320', 'max:2560'],
             'hide_desktop_top_nav' => ['sometimes', 'boolean'],
+            'header_search_icon_mode' => ['sometimes', 'boolean'],
+            'header_theme_click_toggle' => ['sometimes', 'boolean'],
             'hide_header_board_slugs' => ['sometimes'],
             'hide_header_board_slugs_json' => ['sometimes', 'nullable'],
             'footer_link_groups' => ['sometimes', 'nullable'],
@@ -30,14 +32,9 @@ class UpdateHomeDesignSettingRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        foreach (['hide_desktop_top_nav', 'business_info_enabled'] as $boolKey) {
+        foreach (['hide_desktop_top_nav', 'header_search_icon_mode', 'header_theme_click_toggle', 'business_info_enabled'] as $boolKey) {
             if ($this->exists($boolKey)) {
-                $v = $this->input($boolKey);
-                if (is_string($v)) {
-                    $this->merge([$boolKey => filter_var($v, FILTER_VALIDATE_BOOLEAN)]);
-                } elseif (is_int($v) || is_float($v)) {
-                    $this->merge([$boolKey => (bool) $v]);
-                }
+                $this->merge([$boolKey => $this->coerceBool($this->input($boolKey))]);
             }
         }
         if ($this->exists('content_max_width_px')) {
@@ -68,5 +65,31 @@ class UpdateHomeDesignSettingRequest extends FormRequest
             unset($all['enabled']);
             $this->replace($all);
         }
+    }
+
+    /**
+     * Never use bare (bool)$v — (bool)"false" === true in PHP.
+     */
+    private function coerceBool(mixed $v): bool
+    {
+        if (is_bool($v)) {
+            return $v;
+        }
+        if (is_int($v) || is_float($v)) {
+            return (int) $v === 1;
+        }
+        if (is_string($v)) {
+            $trim = strtolower(trim($v));
+            if ($trim === '' || $trim === '0' || $trim === 'false' || $trim === 'off' || $trim === 'no' || $trim === 'null') {
+                return false;
+            }
+            if ($trim === '1' || $trim === 'true' || $trim === 'on' || $trim === 'yes') {
+                return true;
+            }
+
+            return (bool) filter_var($v, FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return (bool) $v;
     }
 }
