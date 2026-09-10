@@ -5,11 +5,11 @@
         "ko": "홈 디자인",
         "en": "Home Design"
     },
-    "version": "0.1.0",
+    "version": "0.2.0",
     "license": "MIT",
     "description": {
-        "ko": "공식 sirsoft-basic 홈 메뉴 위치·아이콘·홈 화면 디자인용 Event Hook 애드온 (광고 슬롯과 분리)",
-        "en": "Event Hook add-on for home menu position, icons, and home layout on official sirsoft-basic (separate from ad slots)"
+        "ko": "공식 sirsoft-basic 기준 콘텐츠 폭·상단 메뉴 숨김·게시판 필터·푸터 링크/사업자 고지를 Event Hook으로 제공 (광고는 custom-ad_slots)",
+        "en": "Content width, desktop top-nav hide, board slug filter, footer link groups and business notice via Event Hooks on official sirsoft-basic"
     },
     "g7_version": ">=7.0.0",
     "github_url": "https://github.com/keidischoi/g7-module-custom-home_design",

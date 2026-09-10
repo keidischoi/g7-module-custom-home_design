@@ -7,8 +7,12 @@ use App\Extension\AbstractModule;
 /**
  * 홈 디자인 모듈
  *
- * 공식 sirsoft-basic 기준 메뉴 위치·아이콘·홈 화면 디자인을
- * Event Hook / Layout Extensions로 제공한다. (테마 직접 수정 없음)
+ * 공식 gnuboard sirsoft-basic 기준 메뉴·콘텐츠 폭·푸터 사업자 고지를
+ * Event Hook / Layout Extensions / 주입 JS 로 제공한다. (테마 파일 수정 없음)
+ *
+ * 참고: keidischoi/g7-template-sirsoft-basic feat/open-in-new-tab-1.1.51 의
+ * Header/Footer 레이아웃 차이(게시판 필터, businessInfo, linkGroups, 폭)를
+ * 공식 테마 컴포넌트에 의존하지 않는 방식으로 이식한다.
  * 광고 배너는 custom-ad_slots 모듈을 사용한다.
  */
 class Module extends AbstractModule
@@ -45,8 +49,8 @@ class Module extends AbstractModule
                         'en' => 'Home Design',
                     ],
                     'description' => [
-                        'ko' => '홈 메뉴·아이콘·레이아웃 설정',
-                        'en' => 'Configure home menu, icons, and layout',
+                        'ko' => '홈 메뉴·레이아웃·사업자 고지 설정',
+                        'en' => 'Configure home menu, layout, and business notice',
                     ],
                     'permissions' => [
                         [
@@ -86,7 +90,19 @@ class Module extends AbstractModule
      */
     public function getAdminMenus(): array
     {
-        return [];
+        return [
+            [
+                'name' => [
+                    'ko' => '홈 디자인',
+                    'en' => 'Home Design',
+                ],
+                'slug' => 'custom-home_design',
+                'url' => '/admin/home-design',
+                'icon' => 'fas fa-home',
+                'order' => 81,
+                'permission' => 'custom-home_design.design.read',
+            ],
+        ];
     }
 
     /**
@@ -94,6 +110,8 @@ class Module extends AbstractModule
      */
     public function getHookListeners(): array
     {
-        return [];
+        return [
+            \Modules\Custom\HomeDesign\Listeners\HomeDesignLayoutListener::class,
+        ];
     }
 }
