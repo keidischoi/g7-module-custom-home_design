@@ -1,6 +1,6 @@
 # custom-home_design
 
-Gnuboard7 홈 디자인 애드온 모듈 (`0.2.11`).
+Gnuboard7 홈 디자인 애드온 모듈 (`0.2.12`).
 
 공식 **gnuboard `sirsoft-basic`** 테마에서 메뉴·콘텐츠 폭·푸터 사업자 고지를
 Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 직접 수정 없음.**
@@ -24,7 +24,7 @@ Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 �
 (`layouts/_user_base.json`, `Footer.tsx` businessInfo/linkGroups, Header 보드 필터).
 라이브 사이트에는 feat React 기능이 없어도 동작하도록 훅+JS로 이식했습니다.
 
-## 0.2.11 notes
+## 0.2.12 notes
 
 - Search panel input: hide CSS scoped to header bar `.h-16 > form` only (panel form visible when open).
 - Boards: `hide_header_board_slugs=[]` restores `{{boards.data ?? []}}` (qna/inquiry shown; overflow may sit in official “더보기” when >5).
@@ -152,10 +152,18 @@ php82 artisan tinker --execute="echo json_encode(\Modules\Custom\HomeDesign\Mode
 - **사업자 고지**: 관리자에는 토글 `사업자 고지 블록 표시`만 있습니다. ON이면
   `sirsoft-ecommerce` 모듈 설정 `basic_info`의 `company_name`, `ceo_name`,
   `business_number`, `mail_order_number`, `base_address`+`detail_address`,
-  `phone`, `email`을 읽어 푸터 직전에 표시합니다. (feat `_user_base` 와 동일 매핑)
+  `phone`, `email`을 읽어 푸터 **상점명(H3) 바로 아래**에 표시합니다 (feat Footer `businessInfo` 위치). 공식 테마는 JS로 동일 배치.
 - **푸터 linkGroups**: `footer_link_groups_json`에
-  `[{ "title", "links":[{ "label", "href" }] }]` JSON을 넣으면 테마 기본을 덮어씁니다.
-  비우면 테마 기본. FAQ는 `/faq` 권장 (공식 Footer 기본은 `/page/faq`).
+  `[{ "title", "links":[{ "label", "href", "icon?" }] }]` JSON을 넣으면 테마 기본을 덮어씁니다.
+  흔한 href는 저장/적용 시 `icon` 자동 보강. 공식 Footer는 icon 미지원 → JS가 라벨 앞 SVG 삽입. FAQ는 `/faq` 권장.
+
+## Toast when module off (`chd_home_design_*`)
+
+0.2.12+ never registers those layout script ids. If an older version left them cached:
+
+```bash
+php82 artisan hooks:clear && php82 artisan cache:clear
+```
 
 ## Emergency disable (무한 로딩 시)
 
@@ -178,7 +186,7 @@ php82 artisan hooks:clear && php82 artisan cache:clear
 ## How it works
 
 1. **Migration / model** — `home_design_settings` 싱글톤 (`enabled` 컬럼은 레거시; 런타임은 모듈 활성화로 게이트)
-2. **Hook** (`HomeDesignLayoutListener`) — `_user_base` 의 `main_content` 폭, `desktop_header.boards` 필터, `footer.linkGroups`, **사업자 고지(이커머스 basic_info) 마운트 children 서버 렌더**, 스크립트 엔트리
-3. **Layout extension** — `_user_base` 에 `chd_business_info_mount`만 (scripts 없음 → 미설치 시 404 UI 경고 방지)
-4. **Listener scripts** — 모듈 활성 시에만 `boot.js` + `home-design.js`를 layout `scripts`에 주입 (ad_slots `cas_hero_carousel` 과 동일 `{id,src}`)
-5. **JS** — 폭 CSS `!important`·검색 패널(헤더↓/네비↑)·아이콘 순서(검색→다크모드); MutationObserver 없음
+2. **Hook** (`HomeDesignLayoutListener`) — 폭·boards 필터·footer linkGroups(+icon enrich)·Footer `businessInfo`·config Div; **layout scripts[] 에 chd_home_design_* 절대 미등록**
+3. **Layout extension** — scripts/injections 없음 (미설치·비활성 시 실패 토스트 방지)
+4. **Module assets** — `loading.strategy=global` → `dist/js/module.iife.js` (모듈 활성 시에만 ModuleAssetLoader). IIFE가 `home-design.js` DOM 주입
+5. **JS** — 사업자 고지(상점명 아래)·푸터 링크 아이콘·게시판 slug 숨김 fallback·검색/다크모드; MutationObserver 없음

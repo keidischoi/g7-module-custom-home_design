@@ -1,27 +1,7 @@
 {
-  "_comment": "공식 sirsoft-basic _user_base: 사업자 고지 마운트. position prepend = footer 앞 형제(G7). composite Footer children 미렌더. 실제 고지 HTML은 Listener가 footer 앞 sibling(chd_business_info_block)로 삽입. scripts는 Listener ensureScripts만.",
+  "_comment": "0.2.12: NO scripts array (never chd_home_design_* — G7 failure toast when module off). Business notice via Footer businessInfo prop + JS under shop name. Optional empty mount kept hidden by Listener.",
   "target_layout": "_user_base",
   "priority": 70,
   "data_sources": [],
-  "injections": [
-    {
-      "target_id": "footer",
-      "position": "prepend",
-      "components": [
-        {
-          "id": "chd_business_info_mount",
-          "comment": "사업자 고지 마운트 — PHP listener가 children 채움 (JS는 비어 있을 때만 1회 fallback)",
-          "type": "basic",
-          "name": "Div",
-          "props": {
-            "id": "chd_business_info_mount",
-            "className": "w-full",
-            "data-chd-role": "business-info-mount"
-          },
-          "children": []
-        }
-      ],
-      "comment": "G7 prepend=sibling before footer; Listener also inserts chd_business_info_block"
-    }
-  ]
+  "injections": []
 }

@@ -171,6 +171,10 @@ class HomeDesignSettingService
             $data['hide_header_board_slugs'] = [];
         }
 
+        if (is_array($data['footer_link_groups'] ?? null)) {
+            $data['footer_link_groups'] = self::enrichFooterLinkGroupIcons($data['footer_link_groups']);
+        }
+
         // Always write both JSON columns on every admin save (full-form replace).
         $this->upsertSingleton($data);
 
@@ -288,6 +292,86 @@ class HomeDesignSettingService
             }
             DB::table('home_design_settings')->insert($row);
         }
+    }
+
+
+    /**
+     * Feat Footer link.icon kinds (home|flame|layout|building|help|message|file|shield|refresh).
+     * Auto-fill when admin JSON omits icon for common hrefs. Safe no-op for unknown links.
+     *
+     * @param  mixed  $groups
+     * @return list<array<string, mixed>>|null
+     */
+    public static function enrichFooterLinkGroupIcons(mixed $groups): mixed
+    {
+        if (! is_array($groups) || $groups === []) {
+            return $groups;
+        }
+
+        $map = self::defaultFooterIconByHref();
+        $out = [];
+        foreach ($groups as $group) {
+            if (! is_array($group)) {
+                $out[] = $group;
+                continue;
+            }
+            $links = $group['links'] ?? null;
+            if (! is_array($links)) {
+                $out[] = $group;
+                continue;
+            }
+            $newLinks = [];
+            foreach ($links as $link) {
+                if (! is_array($link)) {
+                    $newLinks[] = $link;
+                    continue;
+                }
+                $icon = isset($link['icon']) ? trim((string) $link['icon']) : '';
+                if ($icon === '') {
+                    $href = (string) ($link['href'] ?? '');
+                    $path = self::normalizeFooterHref($href);
+                    if (isset($map[$path])) {
+                        $link['icon'] = $map[$path];
+                    }
+                }
+                $newLinks[] = $link;
+            }
+            $group['links'] = $newLinks;
+            $out[] = $group;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function defaultFooterIconByHref(): array
+    {
+        return [
+            '/' => 'home',
+            '/boards/popular' => 'flame',
+            '/boards' => 'layout',
+            '/page/about' => 'building',
+            '/faq' => 'help',
+            '/page/faq' => 'help',
+            '/board/inquiry' => 'message',
+            '/page/contact' => 'message',
+            '/page/terms' => 'file',
+            '/page/privacy' => 'shield',
+            '/page/refund' => 'refresh',
+        ];
+    }
+
+    public static function normalizeFooterHref(string $href): string
+    {
+        $path = explode('?', $href, 2)[0];
+        $path = rtrim(trim($path), '/');
+        if ($path === '') {
+            return '/';
+        }
+
+        return $path[0] === '/' ? $path : '/'.$path;
     }
 
     /**
