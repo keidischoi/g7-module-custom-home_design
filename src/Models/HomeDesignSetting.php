@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool $enabled
  * @property int $content_max_width_px
  * @property bool $hide_desktop_top_nav
+ * @property bool $header_search_icon_mode
+ * @property bool $header_theme_click_toggle
  * @property array|null $hide_header_board_slugs
  * @property array|null $footer_link_groups
  * @property bool $business_info_enabled
@@ -28,8 +30,8 @@ class HomeDesignSetting extends Model
 
     public const DEFAULT_CONTENT_MAX_WIDTH_PX = 1240;
 
-    /** @var list<string> feat 테마와 동일한 기본 숨김 slug */
-    public const DEFAULT_HIDE_BOARD_SLUGS = ['qna', 'inquiry'];
+    /** @var list<string> 기본은 숨기지 않음 — 관리자가 명시한 slug만 필터 */
+    public const DEFAULT_HIDE_BOARD_SLUGS = [];
 
     protected $table = 'home_design_settings';
 
@@ -38,6 +40,8 @@ class HomeDesignSetting extends Model
         'enabled',
         'content_max_width_px',
         'hide_desktop_top_nav',
+        'header_search_icon_mode',
+        'header_theme_click_toggle',
         'hide_header_board_slugs',
         'footer_link_groups',
         'business_info_enabled',
@@ -47,6 +51,8 @@ class HomeDesignSetting extends Model
         'enabled' => 'boolean',
         'content_max_width_px' => 'integer',
         'hide_desktop_top_nav' => 'boolean',
+        'header_search_icon_mode' => 'boolean',
+        'header_theme_click_toggle' => 'boolean',
         'hide_header_board_slugs' => 'array',
         'footer_link_groups' => 'array',
         'business_info_enabled' => 'boolean',
@@ -73,6 +79,12 @@ class HomeDesignSetting extends Model
             'enabled' => true, // module activation is the gate; settings toggle removed in 0.2.4
             'content_max_width_px' => (int) ($this->content_max_width_px ?: self::DEFAULT_CONTENT_MAX_WIDTH_PX),
             'hide_desktop_top_nav' => (bool) $this->hide_desktop_top_nav,
+            'header_search_icon_mode' => $this->header_search_icon_mode !== null
+                ? (bool) $this->header_search_icon_mode
+                : true,
+            'header_theme_click_toggle' => $this->header_theme_click_toggle !== null
+                ? (bool) $this->header_theme_click_toggle
+                : true,
             'hide_header_board_slugs' => array_values($this->hide_header_board_slugs ?? []),
             'footer_link_groups' => $this->footer_link_groups,
             'business_info_enabled' => (bool) $this->business_info_enabled,
@@ -103,8 +115,16 @@ class HomeDesignSetting extends Model
             'enabled' => true,
             'content_max_width_px' => (int) ($this->content_max_width_px ?: self::DEFAULT_CONTENT_MAX_WIDTH_PX),
             'hide_desktop_top_nav' => (bool) $this->hide_desktop_top_nav,
+            'header_search_icon_mode' => $this->header_search_icon_mode !== null
+                ? (bool) $this->header_search_icon_mode
+                : true,
+            'header_theme_click_toggle' => $this->header_theme_click_toggle !== null
+                ? (bool) $this->header_theme_click_toggle
+                : true,
             'hide_header_board_slugs' => $slugs,
-            'hide_header_board_slugs_json' => json_encode($slugs, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+            'hide_header_board_slugs_json' => $slugs === []
+                ? '[]'
+                : json_encode($slugs, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
             'footer_link_groups' => $groups,
             'footer_link_groups_json' => $groups === null
                 ? ''

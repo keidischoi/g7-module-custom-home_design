@@ -33,13 +33,13 @@ return new class extends Migration
             });
         }
 
-        // feat/open-in-new-tab-1.1.51 기본 게시판 필터(qna, inquiry) + 폭 1240
+        // 0.2.5+: hide_header_board_slugs 기본 빈 배열 (사용자 명시 목록만 숨김)
         DB::table('home_design_settings')->insert([
             'id' => 1,
             'enabled' => false,
             'content_max_width_px' => 1240,
             'hide_desktop_top_nav' => false,
-            'hide_header_board_slugs' => json_encode(['qna', 'inquiry'], JSON_UNESCAPED_UNICODE),
+            'hide_header_board_slugs' => json_encode([], JSON_UNESCAPED_UNICODE),
             'footer_link_groups' => null,
             'business_info_enabled' => false,
             'business_company_name' => null,

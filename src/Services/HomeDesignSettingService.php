@@ -6,10 +6,15 @@ use Modules\Custom\HomeDesign\Models\HomeDesignSetting;
 
 class HomeDesignSettingService
 {
+    /** @var list<string> Exact pre-0.2.5 seed — reset to [] when still this value. */
+    private const LEGACY_DEFAULT_HIDE_SLUGS = ['inquiry', 'qna'];
+
     public function get(): HomeDesignSetting
     {
         $row = HomeDesignSetting::query()->find(HomeDesignSetting::SINGLETON_ID);
         if ($row) {
+            $this->normalizeLegacyHideBoardSlugs($row);
+
             return $row;
         }
 
@@ -19,6 +24,8 @@ class HomeDesignSettingService
             'enabled' => true,
             'content_max_width_px' => HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX,
             'hide_desktop_top_nav' => false,
+            'header_search_icon_mode' => true,
+            'header_theme_click_toggle' => true,
             'hide_header_board_slugs' => HomeDesignSetting::DEFAULT_HIDE_BOARD_SLUGS,
             'footer_link_groups' => null,
             'business_info_enabled' => false,
@@ -61,9 +68,9 @@ class HomeDesignSettingService
         // Always keep design active while the module is installed/enabled in G7.
         $data['enabled'] = true;
 
-        foreach (['hide_desktop_top_nav', 'business_info_enabled'] as $boolKey) {
+        foreach (['hide_desktop_top_nav', 'header_search_icon_mode', 'header_theme_click_toggle', 'business_info_enabled'] as $boolKey) {
             if (array_key_exists($boolKey, $data)) {
-                $data[$boolKey] = (bool) $data[$boolKey];
+                $data[$boolKey] = $this->coerceBool($data[$boolKey]);
             }
         }
 
@@ -91,7 +98,6 @@ class HomeDesignSettingService
 
         return $row->fresh() ?? $row;
     }
-
 
     /**
      * sirsoft-ecommerce basic_info 에서 사업자 고지용 필드 조회.
@@ -156,6 +162,55 @@ class HomeDesignSettingService
         }
 
         return $basic;
+    }
+
+    /**
+     * Pre-0.2.5 installs seeded ["qna","inquiry"]. User intent is show-all unless
+     * they explicitly configured a list — reset that exact legacy default in-place.
+     */
+    private function normalizeLegacyHideBoardSlugs(HomeDesignSetting $row): void
+    {
+        $slugs = $row->hide_header_board_slugs;
+        if (! is_array($slugs)) {
+            if ($slugs === null) {
+                return;
+            }
+
+            return;
+        }
+        $normalized = array_values(array_map(static fn ($s) => (string) $s, $slugs));
+        sort($normalized);
+        if ($normalized === self::LEGACY_DEFAULT_HIDE_SLUGS) {
+            $row->hide_header_board_slugs = [];
+            // Avoid recursive get() — save quietly.
+            $row->save();
+        }
+    }
+
+    /**
+     * Coerce layout/JSON boolean payloads. Never use bare (bool)$v — (bool)"false" === true in PHP.
+     */
+    private function coerceBool(mixed $v): bool
+    {
+        if (is_bool($v)) {
+            return $v;
+        }
+        if (is_int($v) || is_float($v)) {
+            return (int) $v === 1;
+        }
+        if (is_string($v)) {
+            $trim = strtolower(trim($v));
+            if ($trim === '' || $trim === '0' || $trim === 'false' || $trim === 'off' || $trim === 'no' || $trim === 'null') {
+                return false;
+            }
+            if ($trim === '1' || $trim === 'true' || $trim === 'on' || $trim === 'yes') {
+                return true;
+            }
+
+            return filter_var($v, FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return (bool) $v;
     }
 
     /**

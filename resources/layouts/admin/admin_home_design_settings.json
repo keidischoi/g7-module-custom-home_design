@@ -207,6 +207,114 @@
                 ]
               },
               {
+                "id": "field_header_search_icon",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Div",
+                    "props": {
+                      "className": "flex items-center gap-2"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Checkbox",
+                        "props": {
+                          "name": "header_search_icon_mode",
+                          "autoBinding": false,
+                          "checked": "{{!!_local.form?.header_search_icon_mode}}"
+                        },
+                        "actions": [
+                          {
+                            "type": "change",
+                            "handler": "setState",
+                            "params": {
+                              "target": "local",
+                              "form.header_search_icon_mode": "{{$event.target.checked}}"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "props": {
+                          "className": "text-sm"
+                        },
+                        "text": "$t:custom-home_design.admin.settings.fields.header_search_icon_mode"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "text-xs text-gray-500 mt-1"
+                    },
+                    "text": "$t:custom-home_design.admin.settings.fields.header_search_icon_mode_hint"
+                  }
+                ]
+              },
+              {
+                "id": "field_header_theme_click",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Div",
+                    "props": {
+                      "className": "flex items-center gap-2"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Checkbox",
+                        "props": {
+                          "name": "header_theme_click_toggle",
+                          "autoBinding": false,
+                          "checked": "{{!!_local.form?.header_theme_click_toggle}}"
+                        },
+                        "actions": [
+                          {
+                            "type": "change",
+                            "handler": "setState",
+                            "params": {
+                              "target": "local",
+                              "form.header_theme_click_toggle": "{{$event.target.checked}}"
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "props": {
+                          "className": "text-sm"
+                        },
+                        "text": "$t:custom-home_design.admin.settings.fields.header_theme_click_toggle"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "text-xs text-gray-500 mt-1"
+                    },
+                    "text": "$t:custom-home_design.admin.settings.fields.header_theme_click_toggle_hint"
+                  }
+                ]
+              },
+              {
                 "id": "field_slugs",
                 "type": "basic",
                 "name": "Div",
@@ -233,11 +341,15 @@
                     "name": "Textarea",
                     "props": {
                       "name": "hide_header_board_slugs_json",
-                      "className": "input w-full font-mono text-sm min-h-[320px]",
-                      "rows": 16,
+                      "className": "input w-full font-mono text-sm min-h-[18rem] h-72 resize-y",
+                      "rows": 18,
                       "placeholder": "[\"qna\", \"inquiry\"]",
                       "value": "{{_local.form?.hide_header_board_slugs_json ?? ''}}",
-                      "autoBinding": false
+                      "autoBinding": false,
+                      "style": {
+                        "minHeight": "18rem",
+                        "height": "18rem"
+                      }
                     },
                     "actions": [
                       {
@@ -304,11 +416,15 @@
                     "name": "Textarea",
                     "props": {
                       "name": "footer_link_groups_json",
-                      "className": "input w-full font-mono text-sm min-h-[320px]",
-                      "rows": 16,
+                      "className": "input w-full font-mono text-sm min-h-[18rem] h-72 resize-y",
+                      "rows": 18,
                       "placeholder": "[\n  {\n    \"title\": \"커뮤니티\",\n    \"links\": [\n      {\"label\": \"홈\", \"href\": \"/\"},\n      {\"label\": \"인기\", \"href\": \"/boards/popular\"},\n      {\"label\": \"전체 게시판\", \"href\": \"/boards\"}\n    ]\n  },\n  {\n    \"title\": \"안내\",\n    \"links\": [\n      {\"label\": \"소개\", \"href\": \"/page/about\"},\n      {\"label\": \"FAQ\", \"href\": \"/faq\"},\n      {\"label\": \"문의\", \"href\": \"/board/inquiry\"}\n    ]\n  },\n  {\n    \"title\": \"정책\",\n    \"links\": [\n      {\"label\": \"이용약관\", \"href\": \"/page/terms\"},\n      {\"label\": \"개인정보처리방침\", \"href\": \"/page/privacy\"},\n      {\"label\": \"환불정책\", \"href\": \"/page/refund\"}\n    ]\n  }\n]",
                       "value": "{{_local.form?.footer_link_groups_json ?? ''}}",
-                      "autoBinding": false
+                      "autoBinding": false,
+                      "style": {
+                        "minHeight": "18rem",
+                        "height": "18rem"
+                      }
                     },
                     "actions": [
                       {
@@ -444,9 +560,11 @@
                           "body": {
                             "content_max_width_px": "{{_local.form?.content_max_width_px ?? 1240}}",
                             "hide_desktop_top_nav": "{{!!_local.form?.hide_desktop_top_nav}}",
+                            "business_info_enabled": "{{!!_local.form?.business_info_enabled}}",
+                            "header_search_icon_mode": "{{_local.form?.header_search_icon_mode !== false}}",
+                            "header_theme_click_toggle": "{{_local.form?.header_theme_click_toggle !== false}}",
                             "hide_header_board_slugs_json": "{{_local.form?.hide_header_board_slugs_json ?? '[]'}}",
-                            "footer_link_groups_json": "{{_local.form?.footer_link_groups_json ?? ''}}",
-                            "business_info_enabled": "{{!!_local.form?.business_info_enabled}}"
+                            "footer_link_groups_json": "{{_local.form?.footer_link_groups_json ?? ''}}"
                           }
                         },
                         "onSuccess": [
@@ -456,13 +574,15 @@
                               "target": "local",
                               "saving": false,
                               "hasChanges": false,
-                              "form.hide_desktop_top_nav": "{{!!(($response.data?.data ?? $response.data ?? $response))?.hide_desktop_top_nav}}",
-                              "form.business_info_enabled": "{{!!(($response.data?.data ?? $response.data ?? $response))?.business_info_enabled}}",
-                              "form.content_max_width_px": "{{(($response.data?.data ?? $response.data ?? $response))?.content_max_width_px ?? _local.form?.content_max_width_px ?? 1240}}",
-                              "form.hide_header_board_slugs_json": "{{(($response.data?.data ?? $response.data ?? $response))?.hide_header_board_slugs_json ?? _local.form?.hide_header_board_slugs_json ?? ''}}",
-                              "form.footer_link_groups_json": "{{(($response.data?.data ?? $response.data ?? $response))?.footer_link_groups_json ?? _local.form?.footer_link_groups_json ?? ''}}",
-                              "form.hide_header_board_slugs": "{{(($response.data?.data ?? $response.data ?? $response))?.hide_header_board_slugs ?? _local.form?.hide_header_board_slugs}}",
-                              "form.footer_link_groups": "{{(($response.data?.data ?? $response.data ?? $response))?.footer_link_groups ?? _local.form?.footer_link_groups}}"
+                              "form.content_max_width_px": "{{($response.data?.data ?? $response.data ?? $response)?.content_max_width_px ?? _local.form?.content_max_width_px ?? 1240}}",
+                              "form.hide_desktop_top_nav": "{{($response.data?.data ?? $response.data ?? $response)?.hide_desktop_top_nav ?? _local.form?.hide_desktop_top_nav}}",
+                              "form.business_info_enabled": "{{($response.data?.data ?? $response.data ?? $response)?.business_info_enabled ?? _local.form?.business_info_enabled}}",
+                              "form.header_search_icon_mode": "{{($response.data?.data ?? $response.data ?? $response)?.header_search_icon_mode ?? _local.form?.header_search_icon_mode}}",
+                              "form.header_theme_click_toggle": "{{($response.data?.data ?? $response.data ?? $response)?.header_theme_click_toggle ?? _local.form?.header_theme_click_toggle}}",
+                              "form.hide_header_board_slugs_json": "{{($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs_json ?? _local.form?.hide_header_board_slugs_json ?? '[]'}}",
+                              "form.footer_link_groups_json": "{{($response.data?.data ?? $response.data ?? $response)?.footer_link_groups_json ?? _local.form?.footer_link_groups_json ?? ''}}",
+                              "form.hide_header_board_slugs": "{{($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs ?? _local.form?.hide_header_board_slugs ?? []}}",
+                              "form.footer_link_groups": "{{($response.data?.data ?? $response.data ?? $response)?.footer_link_groups ?? _local.form?.footer_link_groups}}"
                             }
                           },
                           {
