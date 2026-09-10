@@ -17,7 +17,7 @@ use Modules\Custom\HomeDesign\Services\HomeDesignSettingService;
  *  - server-render business info from sirsoft-ecommerce basic_info into chd_business_info_mount
  *  - ensure home-design.js script entry (extension also loads it)
  *
- * Header search icon + dark-mode click toggle are applied by home-design.js (0.2.5).
+ * Header search icon + dark-mode click toggle are applied by home-design.js (0.2.5+; 0.2.8 robust selectors).
  * Desktop top-nav hide: boot.js critical CSS + home-design.js; header data-chd-hide-top-nav (no MutationObserver since 0.2.1).
  */
 class HomeDesignLayoutListener implements HookListenerInterface
@@ -273,6 +273,10 @@ class HomeDesignLayoutListener implements HookListenerInterface
     }
 
     /**
+     * Filter header boards by hide_header_board_slugs:
+     *  - desktop_header props.boards (composite Header)
+     *  - any iteration.source that reads boards.data (mobile menu Repeat)
+     *
      * @param  list<string>|array|null  $slugs
      */
     private function patchDesktopHeaderBoards(array $layout, ?array $slugs): array
@@ -282,17 +286,69 @@ class HomeDesignLayoutListener implements HookListenerInterface
             $slugs ?? []
         ), static fn ($s) => $s !== ''));
 
+        // Always mark desktop header so JS/CSS can find it even when composite
+        // Header drops the layout node id from the DOM.
+        // Official uses responsive.desktop.props.className = "block" which REPLACES
+        // base className — stamp the marker on base + every responsive breakpoint.
+        $layout = $this->updateNodeById($layout, 'desktop_header', static function (array $node): array {
+            if (! isset($node['props']) || ! is_array($node['props'])) {
+                $node['props'] = [];
+            }
+            $cls = (string) ($node['props']['className'] ?? '');
+            if (! str_contains($cls, 'chd-desktop-header')) {
+                $node['props']['className'] = trim($cls.' chd-desktop-header');
+            }
+            if (empty($node['props']['id'])) {
+                $node['props']['id'] = 'desktop_header';
+            }
+            if (isset($node['responsive']) && is_array($node['responsive'])) {
+                foreach ($node['responsive'] as $bp => $bpVal) {
+                    if (! is_array($bpVal)) {
+                        continue;
+                    }
+                    if (! isset($bpVal['props']) || ! is_array($bpVal['props'])) {
+                        $bpVal['props'] = [];
+                    }
+                    $bpCls = (string) ($bpVal['props']['className'] ?? '');
+                    if (! str_contains($bpCls, 'chd-desktop-header')) {
+                        $bpVal['props']['className'] = trim($bpCls.' chd-desktop-header');
+                    }
+                    $node['responsive'][$bp] = $bpVal;
+                }
+            }
+
+            return $node;
+        });
+
         if ($slugs === []) {
             return $layout;
         }
 
         $expr = $this->buildBoardsFilterExpression($slugs);
 
-        return $this->updateNodeById($layout, 'desktop_header', static function (array $node) use ($expr): array {
+        $layout = $this->updateNodeById($layout, 'desktop_header', static function (array $node) use ($expr): array {
             if (! isset($node['props']) || ! is_array($node['props'])) {
                 $node['props'] = [];
             }
             $node['props']['boards'] = $expr;
+
+            return $node;
+        });
+
+        // Mobile drawer boards list uses iteration.source = {{boards.data ?? []}}
+        return $this->mapNodes($layout, function (array $node) use ($expr): array {
+            if (isset($node['iteration']) && is_array($node['iteration'])) {
+                $src = $node['iteration']['source'] ?? null;
+                if (is_string($src) && str_contains($src, 'boards.data') && ! str_contains($src, '.filter(')) {
+                    $node['iteration']['source'] = $expr;
+                }
+            }
+            if (isset($node['props']) && is_array($node['props'])) {
+                $src = $node['props']['source'] ?? null;
+                if (is_string($src) && str_contains($src, 'boards.data') && ! str_contains($src, '.filter(')) {
+                    $node['props']['source'] = $expr;
+                }
+            }
 
             return $node;
         });
@@ -598,6 +654,22 @@ class HomeDesignLayoutListener implements HookListenerInterface
 
     private function patchFooterLinkGroups(array $layout, mixed $groups): array
     {
+        // Always mark footer for JS/CSS targeting (composite Footer may drop id).
+        $layout = $this->updateNodeById($layout, 'footer', static function (array $node): array {
+            if (! isset($node['props']) || ! is_array($node['props'])) {
+                $node['props'] = [];
+            }
+            $cls = (string) ($node['props']['className'] ?? '');
+            if (! str_contains($cls, 'chd-footer')) {
+                $node['props']['className'] = trim($cls.' chd-footer');
+            }
+            if (empty($node['props']['id'])) {
+                $node['props']['id'] = 'footer';
+            }
+
+            return $node;
+        });
+
         if (! is_array($groups) || $groups === []) {
             return $layout;
         }
@@ -623,17 +695,41 @@ class HomeDesignLayoutListener implements HookListenerInterface
             if (! isset($node['props']) || ! is_array($node['props'])) {
                 $node['props'] = [];
             }
+            $applyCls = static function (string $cls) use ($hide): string {
+                if ($hide) {
+                    if (! str_contains($cls, 'chd-hide-top-nav')) {
+                        $cls = trim($cls.' chd-hide-top-nav');
+                    }
+
+                    return $cls;
+                }
+
+                return trim(preg_replace('/\bchd-hide-top-nav\b/', '', $cls) ?? $cls);
+            };
+
             if ($hide) {
                 $node['props']['data-chd-hide-top-nav'] = '1';
-                $cls = (string) ($node['props']['className'] ?? '');
-                if (! str_contains($cls, 'chd-hide-top-nav')) {
-                    $node['props']['className'] = trim($cls.' chd-hide-top-nav');
-                }
             } else {
                 unset($node['props']['data-chd-hide-top-nav']);
-                $cls = (string) ($node['props']['className'] ?? '');
-                $cls = trim(preg_replace('/\bchd-hide-top-nav\b/', '', $cls) ?? $cls);
-                $node['props']['className'] = $cls;
+            }
+            $node['props']['className'] = $applyCls((string) ($node['props']['className'] ?? ''));
+
+            if (isset($node['responsive']) && is_array($node['responsive'])) {
+                foreach ($node['responsive'] as $bp => $bpVal) {
+                    if (! is_array($bpVal)) {
+                        continue;
+                    }
+                    if (! isset($bpVal['props']) || ! is_array($bpVal['props'])) {
+                        $bpVal['props'] = [];
+                    }
+                    $bpVal['props']['className'] = $applyCls((string) ($bpVal['props']['className'] ?? ''));
+                    if ($hide) {
+                        $bpVal['props']['data-chd-hide-top-nav'] = '1';
+                    } else {
+                        unset($bpVal['props']['data-chd-hide-top-nav']);
+                    }
+                    $node['responsive'][$bp] = $bpVal;
+                }
             }
 
             return $node;

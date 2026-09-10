@@ -8,9 +8,6 @@ use Modules\Custom\HomeDesign\Models\HomeDesignSetting;
 
 class HomeDesignSettingService
 {
-    /** @var list<string> Exact pre-0.2.5 seed — reset to [] when still this value. */
-    private const LEGACY_DEFAULT_HIDE_SLUGS = ['inquiry', 'qna'];
-
     /** @var list<string> */
     private const BOOL_KEYS = [
         'hide_desktop_top_nav',
@@ -34,8 +31,6 @@ class HomeDesignSettingService
 
             $row = HomeDesignSetting::query()->find(HomeDesignSetting::SINGLETON_ID);
             if ($row) {
-                $this->normalizeLegacyHideBoardSlugs($row);
-
                 return $row;
             }
 
@@ -369,28 +364,6 @@ class HomeDesignSettingService
         return $basic;
     }
 
-    private function normalizeLegacyHideBoardSlugs(HomeDesignSetting $row): void
-    {
-        try {
-            $slugs = $row->hide_header_board_slugs;
-            if (! is_array($slugs)) {
-                return;
-            }
-            $normalized = array_values(array_map(static fn ($s) => (string) $s, $slugs));
-            sort($normalized);
-            if ($normalized === self::LEGACY_DEFAULT_HIDE_SLUGS) {
-                DB::table('home_design_settings')
-                    ->where('id', $row->id)
-                    ->update([
-                        'hide_header_board_slugs' => json_encode([], JSON_UNESCAPED_UNICODE),
-                        'updated_at' => now(),
-                    ]);
-                $row->hide_header_board_slugs = [];
-            }
-        } catch (\Throwable) {
-            // get() must never fatal
-        }
-    }
 
     /**
      * Parse admin comma-separated board slugs ("qna, inquiry") → list of non-empty strings.

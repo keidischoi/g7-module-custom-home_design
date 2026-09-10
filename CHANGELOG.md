@@ -3,6 +3,21 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.8] - 2026-09-10
+
+### Fixed
+
+- **home-design.js SyntaxError**: stray extra `}` after `refresh()` prevented the entire script from parsing — search icon mode + theme click toggle never ran on any page (including home).
+- **Admin "헤더에서 숨길 게시판 slug" disappears after save**: `normalizeLegacyHideBoardSlugs()` on every `get()` treated intentional `qna, inquiry` as the pre-0.2.5 seed and wiped DB to `[]`. Removed runtime wipe (one-time reset stays in migration `000002` only). `toAdminArray()` / onSuccess keep `hide_header_board_slugs_text` as comma-joined string.
+- **Official Header DOM**: composite `Header` drops layout node `id`, so `#desktop_header` was often missing. Listener always adds `chd-desktop-header` class (+ tries `props.id`); JS finds `header.sticky` / `.chd-desktop-header` and hides the center search form with matching selectors. Search icon goes in the right action cluster (before cart).
+- **Theme click toggle**: broader host selectors (`header.sticky`) + hide official ThemeToggle dropdown popup.
+- **Board filter**: also rewrites mobile menu `iteration.source` that reads `boards.data` (not only `desktop_header.props.boards`).
+- **Footer**: marks `chd-footer` / `props.id`; `linkGroups` still applied when `footer_link_groups` is set; business notice mount fill unchanged.
+
+### Changed
+
+- Version `0.2.8`. After update: `php82 artisan module:update custom-home_design --source=bundled --force --layout-strategy=overwrite && php82 artisan hooks:clear && php82 artisan cache:clear` (no new migration).
+
 ## [0.2.7] - 2026-09-10
 
 ### Fixed

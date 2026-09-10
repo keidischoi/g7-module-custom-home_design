@@ -11,6 +11,9 @@
  * CSS applied on settings fetch; SPA popstate/pushState debounced re-apply CSS only.
  * Business HTML: prefer PHP-filled mount; JS injects only once when mount is empty.
  * Header widgets: ensure-if-missing on load + SPA debounce (no MutationObserver).
+ * 0.2.8: fix SyntaxError (extra }); robust official Header selectors (header.sticky,
+ *        #desktop_header may be missing because composite Header drops id prop);
+ *        hide center search form; theme click; no MutationObserver loops.
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -187,11 +190,16 @@
     }
 
     if (searchIcon) {
-      // Hide official center search form; show our right-cluster icon + slide panel.
+      // Hide official center search form (composite Header often lacks #desktop_header id).
       css +=
         "#desktop_header form.flex.flex-1.max-w-lg," +
         "#desktop_header form.max-w-lg," +
-        "#desktop_header .flex.items-center.justify-between.h-16 > form{" +
+        "#desktop_header .flex.items-center.justify-between.h-16 > form," +
+        "header.sticky form.flex.flex-1.max-w-lg," +
+        "header.sticky form.max-w-lg," +
+        "header.sticky.top-0 form.flex.flex-1.max-w-lg," +
+        "header.chd-desktop-header form," +
+        "header.sticky .flex.items-center.justify-between.h-16 > form{" +
         "display:none!important;}" +
         "#" +
         PANEL_ID +
@@ -236,8 +244,11 @@
         '#desktop_header [aria-label="Toggle theme"] ~ div.absolute,' +
         '#mobile_header [aria-label="Toggle theme"] ~ div.absolute,' +
         '#mobile_theme_btn [aria-label="Toggle theme"] ~ div.absolute,' +
-        '#desktop_header .relative:has(>[aria-label="Toggle theme"]) > div.absolute.w-48,' +
-        '#mobile_header .relative:has(>[aria-label="Toggle theme"]) > div.absolute.w-48,' +
+        '#desktop_header .relative:has(>[aria-label="Toggle theme"]) > div.absolute,' +
+        '#mobile_header .relative:has(>[aria-label="Toggle theme"]) > div.absolute,' +
+        'header.sticky .relative:has(>[aria-label="Toggle theme"]) > div.absolute,' +
+        'header.chd-desktop-header .relative:has(>[aria-label="Toggle theme"]) > div.absolute,' +
+        '.relative:has(>[aria-label="Toggle theme"]) > div.absolute.w-48,' +
         "#mobile_theme_btn > div.absolute{" +
         "display:none!important;visibility:hidden!important;pointer-events:none!important;}";
     }
@@ -432,7 +443,10 @@
         if (
           !btn.closest("#desktop_header") &&
           !btn.closest("#mobile_header") &&
-          !btn.closest("#mobile_theme_btn")
+          !btn.closest("#mobile_theme_btn") &&
+          !btn.closest("header.sticky") &&
+          !btn.closest("header.chd-desktop-header") &&
+          !btn.closest("[data-chd-role='theme-host']")
         ) {
           return;
         }
@@ -575,11 +589,23 @@
     return panel;
   }
 
+  function findDesktopHeader() {
+    return (
+      document.getElementById("desktop_header") ||
+      document.querySelector("header.chd-desktop-header") ||
+      document.querySelector("header.sticky.top-0.z-50") ||
+      document.querySelector("header.sticky.top-0") ||
+      document.querySelector("header.sticky")
+    );
+  }
+
   function findDesktopRightCluster() {
-    var header = document.getElementById("desktop_header");
+    var header = findDesktopHeader();
     if (!header) return null;
     // Official: .flex.items-center.justify-between.h-16 > last .flex.items-center (gap-2)
-    var row = header.querySelector(".flex.items-center.justify-between.h-16");
+    var row =
+      header.querySelector(".flex.items-center.justify-between.h-16") ||
+      header.querySelector(".flex.items-center.justify-between");
     if (!row) return null;
     var clusters = row.querySelectorAll(":scope > .flex.items-center");
     if (clusters && clusters.length) {
@@ -621,8 +647,15 @@
         cls.indexOf("relative") !== -1 &&
         (html.indexOf("shopping") !== -1 ||
           html.indexOf("cart") !== -1 ||
-          b.querySelector('[class*="shopping"], [data-icon*="cart"], .fa-shopping-cart'))
+          html.indexOf("shopping-cart") !== -1 ||
+          b.querySelector(
+            '[class*="shopping"], [data-icon*="cart"], .fa-shopping-cart, i.fa-shopping-cart, [class*="shopping-cart"]'
+          ))
       ) {
+        return b;
+      }
+      // Official Icon name="shopping-cart" often renders as <i class="..."> without href
+      if (b.querySelector && b.querySelector(".fa-shopping-cart, [data-icon='shopping-cart']")) {
         return b;
       }
     }
@@ -685,7 +718,7 @@
     if (document.getElementById(PANEL_ID)) return;
     var panel = buildSearchPanel();
     // Prefer attach under desktop sticky header so it slides below the bar (feat).
-    var desktop = document.getElementById("desktop_header");
+    var desktop = findDesktopHeader();
     if (desktop) {
       desktop.appendChild(panel);
       return;
@@ -779,7 +812,6 @@
         /* keep boot settings if API fails */
         applyFromBoot();
       });
-  }
   }
 
   function scheduleSpaCssOnly() {
