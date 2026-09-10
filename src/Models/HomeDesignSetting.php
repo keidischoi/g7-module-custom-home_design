@@ -14,13 +14,13 @@ use Illuminate\Database\Eloquent\Model;
  * @property array|null $hide_header_board_slugs
  * @property array|null $footer_link_groups
  * @property bool $business_info_enabled
- * @property string|null $business_company_name
- * @property string|null $business_representative
- * @property string|null $business_number
- * @property string|null $business_mail_order_number
- * @property string|null $business_address
- * @property string|null $business_phone
- * @property string|null $business_email
+ * @property string|null $business_company_name Legacy unused (0.2.2+: ecommerce basic_info)
+ * @property string|null $business_representative Legacy unused
+ * @property string|null $business_number Legacy unused
+ * @property string|null $business_mail_order_number Legacy unused
+ * @property string|null $business_address Legacy unused
+ * @property string|null $business_phone Legacy unused
+ * @property string|null $business_email Legacy unused
  */
 class HomeDesignSetting extends Model
 {
@@ -33,6 +33,7 @@ class HomeDesignSetting extends Model
 
     protected $table = 'home_design_settings';
 
+    /** business_* string columns kept in DB but no longer fillable (0.2.2+) */
     protected $fillable = [
         'enabled',
         'content_max_width_px',
@@ -40,13 +41,6 @@ class HomeDesignSetting extends Model
         'hide_header_board_slugs',
         'footer_link_groups',
         'business_info_enabled',
-        'business_company_name',
-        'business_representative',
-        'business_number',
-        'business_mail_order_number',
-        'business_address',
-        'business_phone',
-        'business_email',
     ];
 
     protected $casts = [
@@ -59,10 +53,22 @@ class HomeDesignSetting extends Model
     ];
 
     /**
+     * @param  array<string, string>|null  $ecommerceBusinessInfo  from HomeDesignSettingService::getEcommerceBusinessInfo()
      * @return array<string, mixed>
      */
-    public function toPublicArray(): array
+    public function toPublicArray(?array $ecommerceBusinessInfo = null): array
     {
+        $empty = [
+            'companyName' => '',
+            'representative' => '',
+            'businessNumber' => '',
+            'mailOrderNumber' => '',
+            'address' => '',
+            'phone' => '',
+            'email' => '',
+        ];
+        $bi = $ecommerceBusinessInfo ?? $empty;
+
         return [
             'enabled' => (bool) $this->enabled,
             'content_max_width_px' => (int) ($this->content_max_width_px ?: self::DEFAULT_CONTENT_MAX_WIDTH_PX),
@@ -71,13 +77,13 @@ class HomeDesignSetting extends Model
             'footer_link_groups' => $this->footer_link_groups,
             'business_info_enabled' => (bool) $this->business_info_enabled,
             'business_info' => [
-                'companyName' => (string) ($this->business_company_name ?? ''),
-                'representative' => (string) ($this->business_representative ?? ''),
-                'businessNumber' => (string) ($this->business_number ?? ''),
-                'mailOrderNumber' => (string) ($this->business_mail_order_number ?? ''),
-                'address' => (string) ($this->business_address ?? ''),
-                'phone' => (string) ($this->business_phone ?? ''),
-                'email' => (string) ($this->business_email ?? ''),
+                'companyName' => (string) ($bi['companyName'] ?? ''),
+                'representative' => (string) ($bi['representative'] ?? ''),
+                'businessNumber' => (string) ($bi['businessNumber'] ?? ''),
+                'mailOrderNumber' => (string) ($bi['mailOrderNumber'] ?? ''),
+                'address' => (string) ($bi['address'] ?? ''),
+                'phone' => (string) ($bi['phone'] ?? ''),
+                'email' => (string) ($bi['email'] ?? ''),
             ],
         ];
     }
@@ -103,13 +109,6 @@ class HomeDesignSetting extends Model
                 ? ''
                 : json_encode($groups, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
             'business_info_enabled' => (bool) $this->business_info_enabled,
-            'business_company_name' => (string) ($this->business_company_name ?? ''),
-            'business_representative' => (string) ($this->business_representative ?? ''),
-            'business_number' => (string) ($this->business_number ?? ''),
-            'business_mail_order_number' => (string) ($this->business_mail_order_number ?? ''),
-            'business_address' => (string) ($this->business_address ?? ''),
-            'business_phone' => (string) ($this->business_phone ?? ''),
-            'business_email' => (string) ($this->business_email ?? ''),
         ];
     }
 }

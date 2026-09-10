@@ -21,17 +21,10 @@
                 "hide_desktop_top_nav_hint": "Header 하단 보드/홈/쇼핑 탭 네비를 CSS로 숨깁니다 (공식 테마 호환).",
                 "hide_header_board_slugs_json": "헤더에서 숨길 게시판 slug (JSON 배열)",
                 "hide_header_board_slugs_json_hint": "예: [\"qna\", \"inquiry\"] — feat 테마와 동일 기본값.",
-                "footer_link_groups_json": "푸터 linkGroups (JSON, 선택)",
-                "footer_link_groups_json_hint": "비우면 테마 기본 링크 그룹을 사용합니다. 공식 Footer props.linkGroups 로 전달.",
+                "footer_link_groups_json": "푸터 linkGroups (JSON)",
+                "footer_link_groups_json_hint": "JSON 배열 [{title, links:[{label,href}]}] — 비우면 테마 기본 linkGroups 사용. 값이 있으면 Footer props.linkGroups 를 통째로 덮어씁니다. FAQ는 공식 기본 /page/faq 대신 feat와 같이 /faq 를 권장합니다. 예시는 입력란 placeholder 참고.",
                 "business_info_enabled": "사업자 고지 블록 표시",
-                "business_info_enabled_hint": "푸터 직전에 HTML을 주입합니다 (공식 Footer에 businessInfo prop 없음).",
-                "business_company_name": "상호",
-                "business_representative": "대표자",
-                "business_number": "사업자등록번호",
-                "business_mail_order_number": "통신판매업신고",
-                "business_address": "사업장 주소",
-                "business_phone": "대표 전화",
-                "business_email": "대표 이메일"
+                "business_info_enabled_hint": "이커머스 기본정보의 사업자 정보를 표시합니다"
             }
         }
     }

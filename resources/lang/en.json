@@ -21,17 +21,10 @@
                 "hide_desktop_top_nav_hint": "Hides Header board/home/shop tab nav via CSS (official theme compatible).",
                 "hide_header_board_slugs_json": "Board slugs to hide in header (JSON array)",
                 "hide_header_board_slugs_json_hint": "e.g. [\"qna\", \"inquiry\"] — same default as feat theme.",
-                "footer_link_groups_json": "Footer linkGroups (JSON, optional)",
-                "footer_link_groups_json_hint": "Leave empty to use theme defaults. Passed as official Footer props.linkGroups.",
+                "footer_link_groups_json": "Footer linkGroups (JSON)",
+                "footer_link_groups_json_hint": "JSON array of {title, links:[{label,href}]} — empty uses theme default linkGroups; when set, replaces Footer props.linkGroups entirely. Prefer FAQ href /faq (feat) over official /page/faq. See textarea placeholder for an example.",
                 "business_info_enabled": "Show business notice block",
-                "business_info_enabled_hint": "Injects HTML before footer (official Footer has no businessInfo prop).",
-                "business_company_name": "Company name",
-                "business_representative": "Representative",
-                "business_number": "Business registration number",
-                "business_mail_order_number": "Mail-order license",
-                "business_address": "Address",
-                "business_phone": "Phone",
-                "business_email": "Email"
+                "business_info_enabled_hint": "Shows business info from ecommerce basic settings"
             }
         }
     }
