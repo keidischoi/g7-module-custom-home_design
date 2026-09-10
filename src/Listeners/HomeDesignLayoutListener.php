@@ -21,7 +21,7 @@ use Modules\Custom\HomeDesign\Services\HomeDesignSettingService;
  */
 class HomeDesignLayoutListener implements HookListenerInterface
 {
-    private const SCRIPT_ID = 'chd_home_design';
+    private const SCRIPT_ID = 'chd_home_design_js';
 
     private const SCRIPT_SRC = '/api/modules/custom-home_design/assets/home-design.js';
 
@@ -94,7 +94,8 @@ class HomeDesignLayoutListener implements HookListenerInterface
     private function apply(array $layout): array
     {
         $settings = $this->settings();
-        if (! $settings || ! $settings->enabled) {
+        // Module manager activation is enough — do not gate on settings.enabled (removed from admin in 0.2.4).
+        if (! $settings) {
             return $layout;
         }
 
@@ -498,7 +499,7 @@ class HomeDesignLayoutListener implements HookListenerInterface
             }
             $id = (string) ($script['id'] ?? '');
             $src = (string) ($script['src'] ?? '');
-            if ($id === self::SCRIPT_ID || str_contains($src, 'home-design.js')) {
+            if ($id === self::SCRIPT_ID || $id === 'chd_home_design' || str_contains($src, 'home-design.js')) {
                 return $layout;
             }
         }

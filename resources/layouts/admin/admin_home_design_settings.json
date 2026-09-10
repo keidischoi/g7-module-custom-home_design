@@ -97,60 +97,6 @@
                 "text": "$t:custom-home_design.admin.settings.sections.general"
               },
               {
-                "id": "field_enabled",
-                "type": "basic",
-                "name": "Div",
-                "props": {
-                  "className": "form-group w-full"
-                },
-                "children": [
-                  {
-                    "type": "basic",
-                    "name": "Div",
-                    "props": {
-                      "className": "flex items-center gap-2"
-                    },
-                    "children": [
-                      {
-                        "type": "basic",
-                        "name": "Checkbox",
-                        "props": {
-                          "name": "enabled",
-                          "autoBinding": false,
-                          "checked": "{{!!_local.form?.enabled}}"
-                        },
-                        "actions": [
-                          {
-                            "type": "change",
-                            "handler": "setState",
-                            "params": {
-                              "target": "local",
-                              "form.enabled": "{{$event.target.checked}}"
-                            }
-                          }
-                        ]
-                      },
-                      {
-                        "type": "basic",
-                        "name": "Span",
-                        "props": {
-                          "className": "text-sm"
-                        },
-                        "text": "$t:custom-home_design.admin.settings.fields.enabled"
-                      }
-                    ]
-                  },
-                  {
-                    "type": "basic",
-                    "name": "P",
-                    "props": {
-                      "className": "text-xs text-gray-500 mt-1"
-                    },
-                    "text": "$t:custom-home_design.admin.settings.fields.enabled_hint"
-                  }
-                ]
-              },
-              {
                 "id": "field_width",
                 "type": "basic",
                 "name": "Div",
@@ -287,8 +233,8 @@
                     "name": "Textarea",
                     "props": {
                       "name": "hide_header_board_slugs_json",
-                      "className": "input w-full font-mono text-sm",
-                      "rows": 4,
+                      "className": "input w-full font-mono text-sm min-h-[320px]",
+                      "rows": 16,
                       "placeholder": "[\"qna\", \"inquiry\"]",
                       "value": "{{_local.form?.hide_header_board_slugs_json ?? ''}}",
                       "autoBinding": false
@@ -358,8 +304,8 @@
                     "name": "Textarea",
                     "props": {
                       "name": "footer_link_groups_json",
-                      "className": "input w-full font-mono text-sm",
-                      "rows": 12,
+                      "className": "input w-full font-mono text-sm min-h-[320px]",
+                      "rows": 16,
                       "placeholder": "[\n  {\n    \"title\": \"커뮤니티\",\n    \"links\": [\n      {\"label\": \"홈\", \"href\": \"/\"},\n      {\"label\": \"인기\", \"href\": \"/boards/popular\"},\n      {\"label\": \"전체 게시판\", \"href\": \"/boards\"}\n    ]\n  },\n  {\n    \"title\": \"안내\",\n    \"links\": [\n      {\"label\": \"소개\", \"href\": \"/page/about\"},\n      {\"label\": \"FAQ\", \"href\": \"/faq\"},\n      {\"label\": \"문의\", \"href\": \"/board/inquiry\"}\n    ]\n  },\n  {\n    \"title\": \"정책\",\n    \"links\": [\n      {\"label\": \"이용약관\", \"href\": \"/page/terms\"},\n      {\"label\": \"개인정보처리방침\", \"href\": \"/page/privacy\"},\n      {\"label\": \"환불정책\", \"href\": \"/page/refund\"}\n    ]\n  }\n]",
                       "value": "{{_local.form?.footer_link_groups_json ?? ''}}",
                       "autoBinding": false
@@ -496,7 +442,6 @@
                         "params": {
                           "method": "PUT",
                           "body": {
-                            "enabled": "{{!!_local.form?.enabled}}",
                             "content_max_width_px": "{{_local.form?.content_max_width_px ?? 1240}}",
                             "hide_desktop_top_nav": "{{!!_local.form?.hide_desktop_top_nav}}",
                             "hide_header_board_slugs_json": "{{_local.form?.hide_header_board_slugs_json ?? '[]'}}",
@@ -511,10 +456,13 @@
                               "target": "local",
                               "saving": false,
                               "hasChanges": false,
-                              "form": "{{$response.data ?? $response}}",
-                              "form.hide_header_board_slugs_json": "{{($response.data ?? $response)?.hide_header_board_slugs_json ?? ''}}",
-                              "form.footer_link_groups_json": "{{($response.data ?? $response)?.footer_link_groups_json ?? ''}}",
-                              "form.content_max_width_px": "{{($response.data ?? $response)?.content_max_width_px ?? 1240}}"
+                              "form.hide_desktop_top_nav": "{{!!(($response.data?.data ?? $response.data ?? $response))?.hide_desktop_top_nav}}",
+                              "form.business_info_enabled": "{{!!(($response.data?.data ?? $response.data ?? $response))?.business_info_enabled}}",
+                              "form.content_max_width_px": "{{(($response.data?.data ?? $response.data ?? $response))?.content_max_width_px ?? _local.form?.content_max_width_px ?? 1240}}",
+                              "form.hide_header_board_slugs_json": "{{(($response.data?.data ?? $response.data ?? $response))?.hide_header_board_slugs_json ?? _local.form?.hide_header_board_slugs_json ?? ''}}",
+                              "form.footer_link_groups_json": "{{(($response.data?.data ?? $response.data ?? $response))?.footer_link_groups_json ?? _local.form?.footer_link_groups_json ?? ''}}",
+                              "form.hide_header_board_slugs": "{{(($response.data?.data ?? $response.data ?? $response))?.hide_header_board_slugs ?? _local.form?.hide_header_board_slugs}}",
+                              "form.footer_link_groups": "{{(($response.data?.data ?? $response.data ?? $response))?.footer_link_groups ?? _local.form?.footer_link_groups}}"
                             }
                           },
                           {

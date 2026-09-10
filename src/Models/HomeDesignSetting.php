@@ -70,7 +70,7 @@ class HomeDesignSetting extends Model
         $bi = $ecommerceBusinessInfo ?? $empty;
 
         return [
-            'enabled' => (bool) $this->enabled,
+            'enabled' => true, // module activation is the gate; settings toggle removed in 0.2.4
             'content_max_width_px' => (int) ($this->content_max_width_px ?: self::DEFAULT_CONTENT_MAX_WIDTH_PX),
             'hide_desktop_top_nav' => (bool) $this->hide_desktop_top_nav,
             'hide_header_board_slugs' => array_values($this->hide_header_board_slugs ?? []),
@@ -99,7 +99,8 @@ class HomeDesignSetting extends Model
         $groups = $this->footer_link_groups;
 
         return [
-            'enabled' => (bool) $this->enabled,
+            // Keep key for older clients; always true — use G7 module enable/disable.
+            'enabled' => true,
             'content_max_width_px' => (int) ($this->content_max_width_px ?: self::DEFAULT_CONTENT_MAX_WIDTH_PX),
             'hide_desktop_top_nav' => (bool) $this->hide_desktop_top_nav,
             'hide_header_board_slugs' => $slugs,

@@ -8,10 +8,15 @@
 ### Fixed
 
 - **홈 하단 박스 폭**: `content_max_width_px`가 `#main_content`뿐 아니라 `#main_content_area` 아래 `max-w-7xl` 콘텐츠 컬럼(홈 mid/lower·feat `ad_global_top/bottom` 내부 Container 등)에도 동일 적용
-- CSS 변수 `--chd-content-max-width` 하나로 헤더/푸터/사업자 고지 inner와 함께 구동; full-bleed(`w-full`만 있고 max-w 없음) 히어로는 건드리지 않음
+- CSS 변수 `--chd-content-max-width` 하나로 헤더/푸터/사업자 고지 inner와 함께 구동; full-bleed(`w-full`만 있고 max-w 없음) 히어로는 건드리지 않음; `margin-inline: auto` 포함
+- **관리자 저장 후 토글/JSON 초기화**: `onSuccess`에서 `$response.data` 이중 래핑으로 form 전체가 비어 덮이던 문제 수정 — 필드를 deep-unwrap(`$response.data?.data ?? $response.data ?? $response`)으로만 패치하고, 실패 시 `_local.form` 값 유지
+- `*_json` 필드가 배열/객체로 전송돼도 Request에서 문자열로 재인코딩; boolean은 명시 캐스팅
+- **`chd_home_design` 불러오기 실패**: 스크립트 id를 `chd_home_design_js`로 변경(커스텀 Component 아님). `AssetController`가 bundled/일반 설치 경로를 모두 탐색
 
 ### Changed
 
+- **「모듈 사용」체크박스 제거**: G7 모듈 활성화만으로 동작. `settings.enabled` 게이트 제거(리스너/JS). 컬럼은 저장 시 항상 `true`로 유지
+- JSON Textarea `rows=16` + `min-h-[320px]`
 - `HomeDesignLayoutListener::patchContentColumnWidths` — main_content_area 내 max-w-* 노드에 inline maxWidth + `data-chd-max-width`
 - `home-design.js` 선택자 확장 + 매칭 노드에 inline maxWidth 재적용 (SPA debounce 포함)
 
