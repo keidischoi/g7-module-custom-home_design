@@ -364,7 +364,7 @@
                         "handler": "setState",
                         "params": {
                           "target": "local",
-                          "form.hide_header_board_slugs_text": "{{$event.target.value}}"
+                          "form.hide_header_board_slugs_text": "{{(($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs_text) || (Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs) ? (($response.data?.data ?? $response.data ?? $response).hide_header_board_slugs.join(', ')) : '') || _local.form?.hide_header_board_slugs_text || ''}}"
                         }
                       }
                     ]
@@ -622,7 +622,7 @@
                               "form.hide_header_board_slugs": "{{(($response.data?.data ?? $response.data ?? $response))?.hide_header_board_slugs ?? _local.form?.hide_header_board_slugs ?? []}}",
                               "form.footer_link_groups": "{{(($response.data?.data ?? $response.data ?? $response))?.footer_link_groups ?? _local.form?.footer_link_groups}}",
                               "form.enabled": true,
-                              "form.hide_header_board_slugs_text": "{{(($response.data?.data ?? $response.data ?? $response))?.hide_header_board_slugs_text ?? _local.form?.hide_header_board_slugs_text ?? ''}}"
+                              "form.hide_header_board_slugs_text": "{{(($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs_text) || (Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs) ? (($response.data?.data ?? $response.data ?? $response).hide_header_board_slugs.join(', ')) : '') || _local.form?.hide_header_board_slugs_text || ''}}"
                             }
                           },
                           {

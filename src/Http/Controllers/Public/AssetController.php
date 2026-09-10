@@ -77,8 +77,16 @@ class AssetController extends Controller
         }
 
         $hide = ! empty($payload['hide_desktop_top_nav']);
-        $hideCss = $hide
-            ? '@media (min-width:1024px){'
+        $searchIcon = array_key_exists('header_search_icon_mode', $payload)
+            ? (bool) $payload['header_search_icon_mode']
+            : true;
+        $themeClick = array_key_exists('header_theme_click_toggle', $payload)
+            ? (bool) $payload['header_theme_click_toggle']
+            : true;
+
+        $cssParts = [];
+        if ($hide) {
+            $cssParts[] = '@media (min-width:1024px){'
                 .'html.chd-hide-desktop-top-nav #desktop_header nav,'
                 .'body.chd-hide-desktop-top-nav #desktop_header nav,'
                 .'html.chd-hide-desktop-top-nav header.sticky nav,'
@@ -93,8 +101,26 @@ class AssetController extends Controller
                 .'header.chd-hide-top-nav nav,'
                 .'[data-chd-hide-top-nav="1"] nav{'
                 .'display:none!important;visibility:hidden!important;height:0!important;max-height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;border:0!important;}'
-                .'}'
-            : '';
+                .'}';
+        }
+        if ($searchIcon) {
+            $cssParts[] = '#desktop_header form.flex.flex-1.max-w-lg,'
+                .'#desktop_header form.max-w-lg,'
+                .'header.sticky form.flex.flex-1.max-w-lg,'
+                .'header.sticky form.max-w-lg,'
+                .'header.chd-desktop-header form,'
+                .'header.sticky .flex.items-center.justify-between.h-16 > form{'
+                .'display:none!important;}';
+        }
+        if ($themeClick) {
+            $cssParts[] = 'header.sticky .relative:has(>[aria-label="Toggle theme"]) > div.absolute,'
+                .'#desktop_header .relative:has(>[aria-label="Toggle theme"]) > div.absolute,'
+                .'#mobile_header .relative:has(>[aria-label="Toggle theme"]) > div.absolute,'
+                .'#mobile_theme_btn > div.absolute,'
+                .'.relative:has(>[aria-label="Toggle theme"]) > div.absolute.w-48{'
+                .'display:none!important;visibility:hidden!important;pointer-events:none!important;}';
+        }
+        $bootCss = implode('', $cssParts);
 
         $js = <<<JS
 /*! custom-home_design boot — embedded settings + critical CSS */
@@ -113,16 +139,16 @@ class AssetController extends Controller
           try { document.body && document.body.classList.add("chd-hide-desktop-top-nav"); } catch (e3) {}
         });
       }
-      var css = {$this->jsString($hideCss)};
-      if (css) {
-        var el = document.getElementById("chd-home-design-boot-style");
-        if (!el) {
-          el = document.createElement("style");
-          el.id = "chd-home-design-boot-style";
-          (document.head || document.documentElement).appendChild(el);
-        }
-        el.textContent = css;
+    }
+    var css = {$this->jsString($bootCss)};
+    if (css) {
+      var el = document.getElementById("chd-home-design-boot-style");
+      if (!el) {
+        el = document.createElement("style");
+        el.id = "chd-home-design-boot-style";
+        (document.head || document.documentElement).appendChild(el);
       }
+      el.textContent = css;
     }
   } catch (e4) {}
 })();
