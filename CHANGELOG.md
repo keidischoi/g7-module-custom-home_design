@@ -3,6 +3,21 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.7] - 2026-09-10
+
+### Fixed
+
+- **Admin save 422 ("입력값을 확인해 주세요.")**: FormRequest used `present` on `hide_header_board_slugs_text` and `footer_link_groups_json`. G7 `apiCall` often **omits empty-string keys** from the JSON body → `present` failed before the controller ran. Changed both to `sometimes` + `nullable`; `prepareForValidation` still defaults missing keys to `''`.
+- **Booleans**: `required` → `sometimes` (missing / stripped unchecked ⇒ false via prepareForValidation). Accept 0/1/true/false/"0"/"1".
+- **Empty footer JSON**: blank/omitted `footer_link_groups_json` stores `null` (no JSON decode / no 422).
+- **Missing `parseCommaSeparatedSlugs()`**: 0.2.6 called it after comma-slug UX but never defined it — would 500 after validation passed. Implemented (comma text + accidental JSON array).
+- Admin save body: simpler 0/1 bool expressions; `content_max_width_px` coerced to valid int (fallback 1240).
+- Admin update also accepts **POST** (same handler as PUT).
+
+### Changed
+
+- Version `0.2.7`. After update run `php82 artisan hooks:clear && php82 artisan cache:clear` (no new migration).
+
 ## [0.2.6] - 2026-09-10
 
 ### Fixed

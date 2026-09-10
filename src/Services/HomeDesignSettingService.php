@@ -392,6 +392,58 @@ class HomeDesignSettingService
         }
     }
 
+    /**
+     * Parse admin comma-separated board slugs ("qna, inquiry") → list of non-empty strings.
+     * Also tolerates accidental JSON array strings.
+     *
+     * @return list<string>
+     */
+    private function parseCommaSeparatedSlugs(mixed $raw): array
+    {
+        if (is_array($raw)) {
+            $parts = [];
+            foreach ($raw as $s) {
+                if (! is_string($s) && ! is_numeric($s)) {
+                    continue;
+                }
+                $t = trim((string) $s);
+                if ($t !== '') {
+                    $parts[] = $t;
+                }
+            }
+
+            return array_values($parts);
+        }
+
+        if ($raw === null) {
+            return [];
+        }
+
+        $str = trim((string) $raw);
+        if ($str === '') {
+            return [];
+        }
+
+        // Accidental JSON array in the text field
+        if ($str[0] === '[' || $str[0] === '{') {
+            $decoded = json_decode($str, true);
+            if (is_array($decoded)) {
+                return $this->parseCommaSeparatedSlugs($decoded);
+            }
+        }
+
+        $parts = preg_split('/\s*,\s*/', $str) ?: [];
+        $out = [];
+        foreach ($parts as $p) {
+            $t = trim((string) $p);
+            if ($t !== '') {
+                $out[] = $t;
+            }
+        }
+
+        return array_values($out);
+    }
+
     private function coerceBool(mixed $v): bool
     {
         if (is_bool($v)) {

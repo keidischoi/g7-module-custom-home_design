@@ -597,13 +597,13 @@
                         "params": {
                           "method": "PUT",
                           "body": {
-                            "content_max_width_px": "{{Number(_local.form?.content_max_width_px) || 1240}}",
-                            "hide_desktop_top_nav": "{{(_local.form?.hide_desktop_top_nav === true || _local.form?.hide_desktop_top_nav === 1 || _local.form?.hide_desktop_top_nav === '1' || _local.form?.hide_desktop_top_nav === 'true') ? 1 : 0}}",
-                            "business_info_enabled": "{{(_local.form?.business_info_enabled === true || _local.form?.business_info_enabled === 1 || _local.form?.business_info_enabled === '1' || _local.form?.business_info_enabled === 'true') ? 1 : 0}}",
-                            "header_search_icon_mode": "{{(_local.form?.header_search_icon_mode !== false && _local.form?.header_search_icon_mode !== 'false' && _local.form?.header_search_icon_mode !== 0 && _local.form?.header_search_icon_mode !== '0') ? 1 : 0}}",
-                            "header_theme_click_toggle": "{{(_local.form?.header_theme_click_toggle !== false && _local.form?.header_theme_click_toggle !== 'false' && _local.form?.header_theme_click_toggle !== 0 && _local.form?.header_theme_click_toggle !== '0') ? 1 : 0}}",
-                            "footer_link_groups_json": "{{typeof _local.form?.footer_link_groups_json === 'object' && _local.form?.footer_link_groups_json !== null ? JSON.stringify(_local.form.footer_link_groups_json) : (_local.form?.footer_link_groups_json ?? '')}}",
-                            "hide_header_board_slugs_text": "{{_local.form?.hide_header_board_slugs_text ?? ''}}"
+                            "content_max_width_px": "{{Number(_local.form?.content_max_width_px) > 0 ? Number(_local.form.content_max_width_px) : 1240}}",
+                            "hide_desktop_top_nav": "{{_local.form?.hide_desktop_top_nav ? 1 : 0}}",
+                            "business_info_enabled": "{{_local.form?.business_info_enabled ? 1 : 0}}",
+                            "header_search_icon_mode": "{{_local.form?.header_search_icon_mode === false || _local.form?.header_search_icon_mode === 0 || _local.form?.header_search_icon_mode === '0' || _local.form?.header_search_icon_mode === 'false' ? 0 : 1}}",
+                            "header_theme_click_toggle": "{{_local.form?.header_theme_click_toggle === false || _local.form?.header_theme_click_toggle === 0 || _local.form?.header_theme_click_toggle === '0' || _local.form?.header_theme_click_toggle === 'false' ? 0 : 1}}",
+                            "footer_link_groups_json": "{{typeof _local.form?.footer_link_groups_json === 'object' && _local.form?.footer_link_groups_json !== null ? JSON.stringify(_local.form.footer_link_groups_json) : String(_local.form?.footer_link_groups_json ?? '')}}",
+                            "hide_header_board_slugs_text": "{{String(_local.form?.hide_header_board_slugs_text ?? '')}}"
                           }
                         },
                         "onSuccess": [
