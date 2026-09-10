@@ -44,7 +44,7 @@
         "dataKey": "form",
         "trackChanges": true,
         "props": {
-          "className": "admin-page-content w-full max-w-3xl"
+          "className": "admin-page-content w-full max-w-none"
         },
         "children": [
           {
@@ -181,8 +181,20 @@
                       "className": "input w-full",
                       "placeholder": "1240",
                       "min": 320,
-                      "max": 2560
-                    }
+                      "max": 2560,
+                      "value": "{{_local.form?.content_max_width_px ?? 1240}}",
+                      "autoBinding": false
+                    },
+                    "actions": [
+                      {
+                        "type": "change",
+                        "handler": "setState",
+                        "params": {
+                          "target": "local",
+                          "form.content_max_width_px": "{{$event.target.value}}"
+                        }
+                      }
+                    ]
                   },
                   {
                     "type": "basic",
@@ -277,8 +289,20 @@
                       "name": "hide_header_board_slugs_json",
                       "className": "input w-full font-mono text-sm",
                       "rows": 4,
-                      "placeholder": "[\"qna\", \"inquiry\"]"
-                    }
+                      "placeholder": "[\"qna\", \"inquiry\"]",
+                      "value": "{{_local.form?.hide_header_board_slugs_json ?? ''}}",
+                      "autoBinding": false
+                    },
+                    "actions": [
+                      {
+                        "type": "change",
+                        "handler": "setState",
+                        "params": {
+                          "target": "local",
+                          "form.hide_header_board_slugs_json": "{{$event.target.value}}"
+                        }
+                      }
+                    ]
                   },
                   {
                     "type": "basic",
@@ -336,8 +360,20 @@
                       "name": "footer_link_groups_json",
                       "className": "input w-full font-mono text-sm",
                       "rows": 12,
-                      "placeholder": "[\n  {\n    \"title\": \"커뮤니티\",\n    \"links\": [\n      {\"label\": \"홈\", \"href\": \"/\"},\n      {\"label\": \"인기\", \"href\": \"/boards/popular\"},\n      {\"label\": \"전체 게시판\", \"href\": \"/boards\"}\n    ]\n  },\n  {\n    \"title\": \"안내\",\n    \"links\": [\n      {\"label\": \"소개\", \"href\": \"/page/about\"},\n      {\"label\": \"FAQ\", \"href\": \"/faq\"},\n      {\"label\": \"문의\", \"href\": \"/board/inquiry\"}\n    ]\n  },\n  {\n    \"title\": \"정책\",\n    \"links\": [\n      {\"label\": \"이용약관\", \"href\": \"/page/terms\"},\n      {\"label\": \"개인정보처리방침\", \"href\": \"/page/privacy\"},\n      {\"label\": \"환불정책\", \"href\": \"/page/refund\"}\n    ]\n  }\n]"
-                    }
+                      "placeholder": "[\n  {\n    \"title\": \"커뮤니티\",\n    \"links\": [\n      {\"label\": \"홈\", \"href\": \"/\"},\n      {\"label\": \"인기\", \"href\": \"/boards/popular\"},\n      {\"label\": \"전체 게시판\", \"href\": \"/boards\"}\n    ]\n  },\n  {\n    \"title\": \"안내\",\n    \"links\": [\n      {\"label\": \"소개\", \"href\": \"/page/about\"},\n      {\"label\": \"FAQ\", \"href\": \"/faq\"},\n      {\"label\": \"문의\", \"href\": \"/board/inquiry\"}\n    ]\n  },\n  {\n    \"title\": \"정책\",\n    \"links\": [\n      {\"label\": \"이용약관\", \"href\": \"/page/terms\"},\n      {\"label\": \"개인정보처리방침\", \"href\": \"/page/privacy\"},\n      {\"label\": \"환불정책\", \"href\": \"/page/refund\"}\n    ]\n  }\n]",
+                      "value": "{{_local.form?.footer_link_groups_json ?? ''}}",
+                      "autoBinding": false
+                    },
+                    "actions": [
+                      {
+                        "type": "change",
+                        "handler": "setState",
+                        "params": {
+                          "target": "local",
+                          "form.footer_link_groups_json": "{{$event.target.value}}"
+                        }
+                      }
+                    ]
                   },
                   {
                     "type": "basic",
@@ -475,7 +511,10 @@
                               "target": "local",
                               "saving": false,
                               "hasChanges": false,
-                              "form": "{{$response.data ?? $response}}"
+                              "form": "{{$response.data ?? $response}}",
+                              "form.hide_header_board_slugs_json": "{{($response.data ?? $response)?.hide_header_board_slugs_json ?? ''}}",
+                              "form.footer_link_groups_json": "{{($response.data ?? $response)?.footer_link_groups_json ?? ''}}",
+                              "form.content_max_width_px": "{{($response.data ?? $response)?.content_max_width_px ?? 1240}}"
                             }
                           },
                           {
