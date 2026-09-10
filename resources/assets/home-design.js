@@ -1,7 +1,8 @@
 /*! custom-home_design — max-width CSS var, hide desktop top nav, business info,
  *  header search icon+slide panel, dark-mode click toggle (feat UX port)
- * 0.2.12: business notice UNDER footer shop-name (feat); footer link icons via JS;
- *        board slug hide apply+JS fallback; NO layout scripts[] (module.iife loader);
+ * 0.2.13: boards hide consistent ALL pages; business BESIDE brand H3; emoji+SVG footer icons;
+ *        empty hide list UNHIDES (never merge stale data-attr); NO layout scripts[];
+ * 0.2.12: business under H3 (superseded); board hide apply; module.iife loader;
  *        read #chd_home_design_cfg data-chd-settings for boot.
  * 0.2.11: search panel form; business sibling (superseded); boards restore when empty.
  * MutationObserver intentionally not used (0.2.1 infinite remount loop).
@@ -361,13 +362,13 @@
     );
   }
 
-  /** Feat placement: under shop-name H3 inside footer left column (not sibling before footer). */
+  /** 0.2.13: place business notice BESIDE footer brand/logo (H3 "3D Store"), same row. */
   function placeBusinessBesideShopName(settings) {
-    // Always remove awkward outside-footer sibling from 0.2.11
+    // Remove awkward outside-footer sibling from older versions
     var legacy = document.getElementById(BUSINESS_ID);
     if (legacy && legacy.parentNode) {
-      var foot = findFooterEl();
-      if (!foot || !foot.contains(legacy)) {
+      var foot0 = findFooterEl();
+      if (!foot0 || !foot0.contains(legacy)) {
         try {
           legacy.parentNode.removeChild(legacy);
         } catch (e) {}
@@ -388,7 +389,6 @@
 
     var sig = businessSignature(settings);
     if (!sig) {
-      // keep enabled but empty diagnosable via fallback text
       sig =
         "사업자 고지: 이커머스 기본정보(basic_info)가 비어 있습니다. 관리자 > 이커머스 > 환경설정에서 상호·사업자등록번호를 저장하세요.";
     }
@@ -396,62 +396,75 @@
     var footer = findFooterEl();
     if (!footer) return;
 
-    // Feat theme already rendered business under H3 — skip duplicate
+    // Find brand: logo img near site name, else first H3 (official Footer siteName)
+    var brand =
+      footer.querySelector("img[src*='logo'], img[alt*='logo'], img[alt*='Logo']") ||
+      footer.querySelector("h3");
+    // Prefer H3 text brand ("3D Store") when present — user asked 로고 옆
     var h3 = footer.querySelector("h3");
-    if (h3 && h3.parentElement) {
-      var col = h3.parentElement;
-      var ps = col.querySelectorAll("p");
-      for (var i = 0; i < ps.length; i++) {
-        if (ps[i].id === INLINE_BUSINESS_ID) continue;
-        var t = (ps[i].textContent || "").trim();
-        if (t && (t === sig || (sig.length > 20 && t.indexOf(sig.slice(0, 20)) === 0))) {
-          lastBusinessSig = sig;
-          businessInjectedOnce = true;
-          var ours = document.getElementById(INLINE_BUSINESS_ID);
-          if (ours && ours.parentNode) {
-            try {
-              ours.parentNode.removeChild(ours);
-            } catch (eR) {}
-          }
-          return;
-        }
-      }
-    }
+    var anchor = h3 || brand;
+    if (!anchor || !anchor.parentElement) return;
 
     var existing = document.getElementById(INLINE_BUSINESS_ID);
     if (existing) {
-      if ((existing.getAttribute("data-chd-sig") || "") === sig) {
+      if ((existing.getAttribute("data-chd-sig") || "") === sig && existing.parentElement === anchor.parentElement) {
         lastBusinessSig = sig;
         businessInjectedOnce = true;
         return;
       }
-      existing.setAttribute("data-chd-sig", sig);
-      existing.textContent = sig;
-      lastBusinessSig = sig;
-      businessInjectedOnce = true;
-      return;
+      try {
+        if (existing.parentNode) existing.parentNode.removeChild(existing);
+      } catch (eR) {}
     }
 
-    if (!h3 || !h3.parentElement) return;
-
-    var p = document.createElement("p");
-    p.id = INLINE_BUSINESS_ID;
-    p.setAttribute("data-chd-role", "business-info");
-    p.setAttribute("data-chd-sig", sig);
-    p.className =
-      "mt-3 text-xs leading-relaxed text-gray-500 dark:text-gray-400 text-left";
-    p.textContent = sig;
-
-    // Insert after siteDescription P if present, else right after H3
-    var insertAfter = h3;
-    var next = h3.nextElementSibling;
-    if (next && next.tagName === "P" && next.id !== INLINE_BUSINESS_ID) {
-      insertAfter = next;
+    // Ensure brand row is flex so notice sits BESIDE H3/logo
+    var row = anchor.parentElement.querySelector(":scope > .chd-brand-row");
+    if (!row) {
+      row = document.createElement("div");
+      row.className =
+        "chd-brand-row flex flex-wrap items-center gap-x-3 gap-y-1";
+      row.setAttribute("data-chd-role", "brand-row");
+      try {
+        anchor.parentElement.insertBefore(row, anchor);
+        row.appendChild(anchor);
+      } catch (eWrap) {
+        // If React owns the node move, fall back to sibling insert
+        try {
+          if (row.parentNode) row.parentNode.removeChild(row);
+        } catch (eX) {}
+        row = null;
+      }
+    } else if (anchor.parentElement !== row) {
+      try {
+        row.appendChild(anchor);
+      } catch (eMove) {}
     }
-    if (insertAfter.nextSibling) {
-      insertAfter.parentNode.insertBefore(p, insertAfter.nextSibling);
+
+    var span = document.createElement("span");
+    span.id = INLINE_BUSINESS_ID;
+    span.setAttribute("data-chd-role", "business-info");
+    span.setAttribute("data-chd-sig", sig);
+    span.className =
+      "chd-business-beside text-xs leading-snug text-gray-500 dark:text-gray-400";
+    span.style.maxWidth = "42rem";
+    span.textContent = sig;
+
+    if (row) {
+      row.appendChild(span);
     } else {
-      insertAfter.parentNode.appendChild(p);
+      // Fallback: inline immediately after H3
+      try {
+        anchor.style.display = "inline-block";
+        anchor.style.marginRight = "0.75rem";
+        span.style.display = "inline";
+        if (anchor.nextSibling) {
+          anchor.parentNode.insertBefore(span, anchor.nextSibling);
+        } else {
+          anchor.parentNode.appendChild(span);
+        }
+      } catch (eIns) {
+        return;
+      }
     }
     lastBusinessSig = sig;
     businessInjectedOnce = true;
@@ -585,25 +598,60 @@
     return null;
   }
 
+  var FOOTER_EMOJI_BY_KIND = {
+    home: "🏠",
+    flame: "🔥",
+    layout: "📋",
+    building: "🏢",
+    help: "❓",
+    message: "💬",
+    file: "📄",
+    shield: "🛡️",
+    refresh: "🔄",
+  };
+
   function ensureFooterLinkIcons(settings) {
     var footer = findFooterEl();
     if (!footer) return;
-    var nodes = footer.querySelectorAll("ul li button, ul li a");
+    // Official Footer: <ul><li><button>{label}</button> — no href on button.
+    var nodes = footer.querySelectorAll(
+      "ul li button, ul li a, nav li button, nav li a, .chd-footer button, .chd-footer a"
+    );
     nodes.forEach(function (btn) {
-      if (!btn || btn.querySelector("[data-chd-footer-icon]")) return;
-      if (btn.firstElementChild && btn.firstElementChild.tagName === "svg") return;
+      if (!btn) return;
+      if (btn.getAttribute("data-chd-footer-iconized") === "1") return;
+      if (btn.querySelector && btn.querySelector("[data-chd-footer-icon]")) {
+        btn.setAttribute("data-chd-footer-iconized", "1");
+        return;
+      }
       var label = (btn.textContent || "").trim();
       if (!label) return;
+      // Skip if label already starts with emoji (Listener 0.2.13 default groups)
+      var emojiKeys = Object.keys(FOOTER_EMOJI_BY_KIND);
+      for (var ei = 0; ei < emojiKeys.length; ei++) {
+        var em = FOOTER_EMOJI_BY_KIND[emojiKeys[ei]];
+        if (em && label.indexOf(em) === 0) {
+          btn.setAttribute("data-chd-footer-iconized", "1");
+          return;
+        }
+      }
       var href = btn.getAttribute("href") || btn.getAttribute("data-href") || "";
       var kind = iconKindForFooterLink(label, href, settings);
       if (!kind && FOOTER_ICON_BY_LABEL[label]) kind = FOOTER_ICON_BY_LABEL[label];
       if (!kind) return;
       try {
-        var svg = footerIconSvg(kind);
-        if (btn.style && !btn.className.includes("inline-flex")) {
-          btn.classList.add("inline-flex", "items-center", "gap-1.5");
+        var emoji = FOOTER_EMOJI_BY_KIND[kind] || "•";
+        // Prefer visible emoji text (survives better / always renders)
+        var prefix = document.createElement("span");
+        prefix.setAttribute("data-chd-footer-icon", kind);
+        prefix.setAttribute("aria-hidden", "true");
+        prefix.className = "chd-footer-emoji shrink-0";
+        prefix.textContent = emoji + " ";
+        if (btn.style && btn.classList && !btn.classList.contains("inline-flex")) {
+          btn.classList.add("inline-flex", "items-center", "gap-1");
         }
-        btn.insertBefore(svg, btn.firstChild);
+        btn.insertBefore(prefix, btn.firstChild);
+        btn.setAttribute("data-chd-footer-iconized", "1");
       } catch (e) {}
     });
   }
@@ -611,7 +659,11 @@
   /* ========== Board slug hide JS fallback ========== */
 
   function hideSlugList(settings) {
-    var raw = (settings && settings.hide_header_board_slugs) || [];
+    // 0.2.13: settings array is the ONLY source of truth.
+    // Never merge stale data-chd-hide-board-slugs from DOM — that caused
+    // qna/inquiry to stay hidden on non-home pages after DB was cleared.
+    var raw = settings && settings.hide_header_board_slugs;
+    if (raw == null) raw = [];
     if (typeof raw === "string") {
       try {
         raw = JSON.parse(raw);
@@ -634,21 +686,23 @@
       var low = s.toLowerCase();
       if (low && out.indexOf(low) < 0) out.push(low);
     });
-    // also from data attribute on header
-    try {
-      var hdr =
-        document.querySelector("[data-chd-hide-board-slugs]") ||
-        document.querySelector("header.chd-desktop-header") ||
-        document.getElementById("desktop_header");
-      if (hdr) {
-        var attr = hdr.getAttribute("data-chd-hide-board-slugs") || "";
-        attr.split(",").forEach(function (s) {
-          s = s.trim();
-          if (s && out.indexOf(s) < 0) out.push(s);
-        });
-      }
-    } catch (e2) {}
     return out;
+  }
+
+  function clearHiddenBoardNav() {
+    try {
+      document.querySelectorAll("[data-chd-board-hidden='1']").forEach(function (el) {
+        try {
+          el.style.removeProperty("display");
+          el.removeAttribute("data-chd-board-hidden");
+        } catch (e) {}
+      });
+      document.querySelectorAll("[data-chd-hide-board-slugs]").forEach(function (el) {
+        try {
+          el.removeAttribute("data-chd-hide-board-slugs");
+        } catch (e2) {}
+      });
+    } catch (e3) {}
   }
 
   function pathMatchesHiddenSlug(path, slugs) {
@@ -663,7 +717,10 @@
 
   function ensureHiddenBoardNav(settings) {
     var slugs = hideSlugList(settings);
-    if (!slugs.length) return;
+    if (!slugs.length) {
+      clearHiddenBoardNav();
+      return;
+    }
 
     var roots = [];
     var dh =
@@ -1242,9 +1299,10 @@
         if (raw) {
           var parsed = JSON.parse(raw);
           if (parsed && typeof parsed === "object") {
+            // 0.2.13: empty [] from API/boot is intentional — do NOT fill from cfg.
+            // Only adopt cfg slugs when key is missing/null (not when []).
             if (
-              (!lastSettings.hide_header_board_slugs ||
-                !lastSettings.hide_header_board_slugs.length) &&
+              lastSettings.hide_header_board_slugs == null &&
               parsed.hide_header_board_slugs &&
               parsed.hide_header_board_slugs.length
             ) {
@@ -1271,9 +1329,10 @@
     bindThemeClickToggle();
     bindOutsideSearchClose();
     scheduleEnsureHeaderUx();
-    // One delayed ensure for late React header mount (no MutationObserver).
-    setTimeout(ensureHeaderUx, 600);
-    setTimeout(ensureHeaderUx, 1500);
+    // Delayed ensures for late React remount + SPA page switches (home vs other).
+    setTimeout(ensureHeaderUx, 400);
+    setTimeout(ensureHeaderUx, 1000);
+    setTimeout(ensureHeaderUx, 2500);
   }
 
 

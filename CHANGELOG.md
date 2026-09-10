@@ -3,6 +3,53 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.13] - 2026-09-10
+
+### Critical — board hide consistent on ALL pages
+
+- **Bug**: home showed qna/inquiry while other pages hid them (or the reverse after clearing DB).
+- **Cause**: (1) feat/`_user_base` hardcodes `filter(!['qna','inquiry'])` — Listener only restored
+  when `.filter(` was detected on some nodes; (2) JS `hideSlugList` merged stale
+  `data-chd-hide-board-slugs` from the DOM even when settings were `[]`; (3) `applyInitial`
+  treated empty `[]` as missing and re-filled from cfg.
+- **Fix**:
+  - Empty `hide_header_board_slugs` → **force** `{{boards.data ?? []}}` on every
+    `desktop_header` / Header / `boards.data` iteration+source (all layouts that use chrome).
+  - Non-empty → same filter expression on every page (home + board + shop + …).
+  - JS: settings array is sole source of truth; empty → `clearHiddenBoardNav()` unhides.
+  - Never promote cfg non-empty over API/boot empty `[]`.
+
+If qna/inquiry exist in `/api/modules/sirsoft-board/boards/board-menu` they appear when
+unchecked. Official `maxVisibleBoards: 5` may park overflow under “더보기”.
+
+### Fixed — business beside brand + footer icons on official Footer
+
+- Business notice: place **beside** footer brand H3 / logo (“3D Store” 옆), same flex row
+  (not under H3). Official Footer has no `businessInfo` render — JS only.
+- Footer icons: official Footer ignores `link.icon`. Listener now **always** sets
+  `linkGroups` with **emoji-prefixed labels** (admin JSON or Korean defaults).
+  JS also prepends emoji if labels lack them. Survives React remount better than SVG-only.
+
+### Changed — admin hide-slugs → checkboxes
+
+- Admin: boards from `board-menu` as checkboxes (checked = hide). Saves slug array.
+- Hidden comma-text sync kept for older clients.
+
+### Install
+
+```bash
+php82 artisan module:update custom-home_design --source=bundled --force --layout-strategy=overwrite
+php82 artisan migrate --force
+php82 artisan hooks:clear && php82 artisan cache:clear && php82 artisan route:clear
+# verify assets load (must be JS, not HTML 404):
+curl -sk "https://YOUR_HOST/api/modules/custom-home_design/assets/home-design.js?v=0.2.13" | head -c 120
+# verify hide list (empty = show all including qna/inquiry on EVERY page):
+php82 artisan tinker --execute="echo json_encode(\Modules\Custom\HomeDesign\Models\HomeDesignSetting::query()->find(1)?->hide_header_board_slugs);"
+# to show qna/inquiry again if still hidden: uncheck in /admin/home-design and save, or:
+php82 artisan tinker --execute="\Modules\Custom\HomeDesign\Models\HomeDesignSetting::query()->where('id',1)->update(['hide_header_board_slugs'=>json_encode([])]);"
+php82 artisan hooks:clear && php82 artisan cache:clear
+```
+
 ## [0.2.12] - 2026-09-10
 
 ### Critical — no toast when module disabled

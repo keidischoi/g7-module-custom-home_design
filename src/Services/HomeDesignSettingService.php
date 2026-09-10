@@ -63,8 +63,10 @@ class HomeDesignSettingService
             );
         }
 
-        // Board slugs: prefer comma-separated text (admin UX). Still accept legacy JSON.
-        if (array_key_exists('hide_header_board_slugs_text', $data)) {
+        // Board slugs (0.2.13+): prefer checkbox array, then comma text, then legacy JSON.
+        if (array_key_exists('hide_header_board_slugs', $data) && is_array($data['hide_header_board_slugs'])) {
+            $data['hide_header_board_slugs'] = array_values($data['hide_header_board_slugs']);
+        } elseif (array_key_exists('hide_header_board_slugs_text', $data)) {
             $data['hide_header_board_slugs'] = $this->parseCommaSeparatedSlugs($data['hide_header_board_slugs_text'] ?? '');
         } elseif (array_key_exists('hide_header_board_slugs_json', $data)) {
             $rawSlugs = $data['hide_header_board_slugs_json'];
@@ -172,7 +174,7 @@ class HomeDesignSettingService
         }
 
         if (is_array($data['footer_link_groups'] ?? null)) {
-            $data['footer_link_groups'] = self::enrichFooterLinkGroupIcons($data['footer_link_groups']);
+            $data['footer_link_groups'] = self::prependFooterLinkEmojis(self::enrichFooterLinkGroupIcons($data['footer_link_groups']));
         }
 
         // Always write both JSON columns on every admin save (full-form replace).
@@ -341,6 +343,122 @@ class HomeDesignSettingService
         }
 
         return $out;
+    }
+
+    /**
+     * Official Footer ignores link.icon — prepend emoji to labels (0.2.13).
+     *
+     * @param  mixed  $groups
+     * @return list<array<string, mixed>>|null
+     */
+    public static function prependFooterLinkEmojis(mixed $groups): mixed
+    {
+        if (! is_array($groups) || $groups === []) {
+            return $groups;
+        }
+        $emojiByIcon = self::footerEmojiByIcon();
+        $emojiByHref = [];
+        foreach (self::defaultFooterIconByHref() as $href => $icon) {
+            $emojiByHref[$href] = $emojiByIcon[$icon] ?? '';
+        }
+        $out = [];
+        foreach ($groups as $group) {
+            if (! is_array($group)) {
+                $out[] = $group;
+                continue;
+            }
+            $links = $group['links'] ?? null;
+            if (! is_array($links)) {
+                $out[] = $group;
+                continue;
+            }
+            $newLinks = [];
+            foreach ($links as $link) {
+                if (! is_array($link)) {
+                    $newLinks[] = $link;
+                    continue;
+                }
+                $label = trim((string) ($link['label'] ?? ''));
+                $icon = isset($link['icon']) ? trim((string) $link['icon']) : '';
+                $path = self::normalizeFooterHref((string) ($link['href'] ?? ''));
+                $emoji = '';
+                if ($icon !== '' && isset($emojiByIcon[$icon])) {
+                    $emoji = $emojiByIcon[$icon];
+                } elseif (isset($emojiByHref[$path])) {
+                    $emoji = $emojiByHref[$path];
+                }
+                if ($emoji !== '' && $label !== '') {
+                    $already = false;
+                    foreach ($emojiByIcon as $e) {
+                        if ($e !== '' && str_starts_with($label, $e)) {
+                            $already = true;
+                            break;
+                        }
+                    }
+                    if (! $already) {
+                        $link['label'] = $emoji.' '.$label;
+                    }
+                }
+                $newLinks[] = $link;
+            }
+            $group['links'] = $newLinks;
+            $out[] = $group;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function footerEmojiByIcon(): array
+    {
+        return [
+            'home' => '🏠',
+            'flame' => '🔥',
+            'layout' => '📋',
+            'building' => '🏢',
+            'help' => '❓',
+            'message' => '💬',
+            'file' => '📄',
+            'shield' => '🛡️',
+            'refresh' => '🔄',
+        ];
+    }
+
+    /**
+     * Default official-style footer link groups with emoji labels.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function defaultFooterLinkGroupsWithEmojis(): array
+    {
+        return [
+            [
+                'title' => '커뮤니티',
+                'links' => [
+                    ['label' => '🏠 홈', 'href' => '/', 'icon' => 'home'],
+                    ['label' => '🔥 인기', 'href' => '/boards/popular', 'icon' => 'flame'],
+                    ['label' => '📋 전체 게시판', 'href' => '/boards', 'icon' => 'layout'],
+                ],
+            ],
+            [
+                'title' => '안내',
+                'links' => [
+                    ['label' => '🏢 소개', 'href' => '/page/about', 'icon' => 'building'],
+                    ['label' => '❓ FAQ', 'href' => '/faq', 'icon' => 'help'],
+                    ['label' => '💬 문의', 'href' => '/board/inquiry', 'icon' => 'message'],
+                ],
+            ],
+            [
+                'title' => '정책',
+                'links' => [
+                    ['label' => '📄 이용약관', 'href' => '/page/terms', 'icon' => 'file'],
+                    ['label' => '🛡️ 개인정보처리방침', 'href' => '/page/privacy', 'icon' => 'shield'],
+                    ['label' => '🔄 환불정책', 'href' => '/page/refund', 'icon' => 'refresh'],
+                ],
+            ],
+        ];
     }
 
     /**

@@ -1,5 +1,5 @@
 {
-  "_comment": "0.2.12: NO scripts array (never chd_home_design_* — G7 failure toast when module off). Business notice via Footer businessInfo prop + JS under shop name. Optional empty mount kept hidden by Listener.",
+  "_comment": "0.2.13: NO scripts (never chd_home_design_* toast). Boards hide via Listener on _user_base globally. Business beside brand via JS. Footer emoji linkGroups via Listener.",
   "target_layout": "_user_base",
   "priority": 70,
   "data_sources": [],

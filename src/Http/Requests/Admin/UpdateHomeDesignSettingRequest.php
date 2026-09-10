@@ -140,6 +140,10 @@ class UpdateHomeDesignSettingRequest extends FormRequest
         // Always pass through optional text fields even when omitted from body
         // (G7 may strip empty strings; prepareForValidation already defaulted them).
         $payload['hide_header_board_slugs_text'] = (string) $this->input('hide_header_board_slugs_text', '');
+        // Checkbox UI sends the array; keep it so Service can prefer it over text.
+        if ($this->exists('hide_header_board_slugs') && is_array($this->input('hide_header_board_slugs'))) {
+            $payload['hide_header_board_slugs'] = array_values($this->input('hide_header_board_slugs'));
+        }
         $payload['footer_link_groups_json'] = (string) $this->input('footer_link_groups_json', '');
 
         foreach (self::BOOL_KEYS as $boolKey) {
