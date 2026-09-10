@@ -25,9 +25,16 @@ class SettingsController extends PublicBaseController
                 ? $this->service->getEcommerceBusinessInfo()
                 : null;
 
+            $payload = $row->toPublicArray($bi);
+            foreach (['hide_desktop_top_nav', 'header_search_icon_mode', 'header_theme_click_toggle', 'business_info_enabled', 'enabled'] as $k) {
+                if (array_key_exists($k, $payload)) {
+                    $payload[$k] = (bool) $payload[$k]; // Force JSON booleans (tinyint 1 → true)
+                }
+            }
+
             return $this->success(
                 'custom-home_design::messages.settings.fetch_success',
-                $row->toPublicArray($bi)
+                $payload
             );
         } catch (\Exception $e) {
             return $this->error('custom-home_design::messages.settings.fetch_failed', 500, $e->getMessage());

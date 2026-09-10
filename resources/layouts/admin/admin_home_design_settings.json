@@ -21,7 +21,18 @@
       "initLocal": "form",
       "refetchOnMount": true,
       "fallback": {
-        "data": null
+        "data": {
+          "content_max_width_px": 1240,
+          "hide_desktop_top_nav": false,
+          "header_search_icon_mode": true,
+          "header_theme_click_toggle": true,
+          "hide_header_board_slugs": [],
+          "footer_link_groups_json": "",
+          "footer_link_groups": null,
+          "business_info_enabled": false,
+          "enabled": true,
+          "hide_header_board_slugs_text": ""
+        }
       }
     }
   ],
@@ -137,7 +148,7 @@
                         "handler": "setState",
                         "params": {
                           "target": "local",
-                          "form.content_max_width_px": "{{$event.target.value}}"
+                          "form.content_max_width_px": "{{Number($event.target.value) || 1240}}"
                         }
                       }
                     ]
@@ -162,9 +173,9 @@
                 "children": [
                   {
                     "type": "basic",
-                    "name": "Div",
+                    "name": "Label",
                     "props": {
-                      "className": "flex items-center gap-2"
+                      "className": "flex items-center gap-2 cursor-pointer"
                     },
                     "children": [
                       {
@@ -173,7 +184,7 @@
                         "props": {
                           "name": "hide_desktop_top_nav",
                           "autoBinding": false,
-                          "checked": "{{!!_local.form?.hide_desktop_top_nav}}"
+                          "checked": "{{_local.form?.hide_desktop_top_nav === true || _local.form?.hide_desktop_top_nav === 1 || _local.form?.hide_desktop_top_nav === '1' || _local.form?.hide_desktop_top_nav === 'true'}}"
                         },
                         "actions": [
                           {
@@ -181,7 +192,7 @@
                             "handler": "setState",
                             "params": {
                               "target": "local",
-                              "form.hide_desktop_top_nav": "{{$event.target.checked}}"
+                              "form.hide_desktop_top_nav": "{{$event.target.checked === true}}"
                             }
                           }
                         ]
@@ -216,9 +227,9 @@
                 "children": [
                   {
                     "type": "basic",
-                    "name": "Div",
+                    "name": "Label",
                     "props": {
-                      "className": "flex items-center gap-2"
+                      "className": "flex items-center gap-2 cursor-pointer"
                     },
                     "children": [
                       {
@@ -227,7 +238,7 @@
                         "props": {
                           "name": "header_search_icon_mode",
                           "autoBinding": false,
-                          "checked": "{{!!_local.form?.header_search_icon_mode}}"
+                          "checked": "{{(_local.form?.header_search_icon_mode === undefined || _local.form?.header_search_icon_mode === null) ? true : (_local.form?.header_search_icon_mode === true || _local.form?.header_search_icon_mode === 1 || _local.form?.header_search_icon_mode === '1' || _local.form?.header_search_icon_mode === 'true')}}"
                         },
                         "actions": [
                           {
@@ -235,7 +246,7 @@
                             "handler": "setState",
                             "params": {
                               "target": "local",
-                              "form.header_search_icon_mode": "{{$event.target.checked}}"
+                              "form.header_search_icon_mode": "{{$event.target.checked === true}}"
                             }
                           }
                         ]
@@ -270,9 +281,9 @@
                 "children": [
                   {
                     "type": "basic",
-                    "name": "Div",
+                    "name": "Label",
                     "props": {
-                      "className": "flex items-center gap-2"
+                      "className": "flex items-center gap-2 cursor-pointer"
                     },
                     "children": [
                       {
@@ -281,7 +292,7 @@
                         "props": {
                           "name": "header_theme_click_toggle",
                           "autoBinding": false,
-                          "checked": "{{!!_local.form?.header_theme_click_toggle}}"
+                          "checked": "{{(_local.form?.header_theme_click_toggle === undefined || _local.form?.header_theme_click_toggle === null) ? true : (_local.form?.header_theme_click_toggle === true || _local.form?.header_theme_click_toggle === 1 || _local.form?.header_theme_click_toggle === '1' || _local.form?.header_theme_click_toggle === 'true')}}"
                         },
                         "actions": [
                           {
@@ -289,7 +300,7 @@
                             "handler": "setState",
                             "params": {
                               "target": "local",
-                              "form.header_theme_click_toggle": "{{$event.target.checked}}"
+                              "form.header_theme_click_toggle": "{{$event.target.checked === true}}"
                             }
                           }
                         ]
@@ -332,24 +343,20 @@
                       {
                         "type": "basic",
                         "name": "Span",
-                        "text": "$t:custom-home_design.admin.settings.fields.hide_header_board_slugs_json"
+                        "text": "$t:custom-home_design.admin.settings.fields.hide_header_board_slugs"
                       }
                     ]
                   },
                   {
                     "type": "basic",
-                    "name": "Textarea",
+                    "name": "Input",
                     "props": {
-                      "name": "hide_header_board_slugs_json",
-                      "className": "input w-full font-mono text-sm min-h-[18rem] h-72 resize-y",
-                      "rows": 18,
-                      "placeholder": "[\"qna\", \"inquiry\"]",
-                      "value": "{{_local.form?.hide_header_board_slugs_json ?? ''}}",
-                      "autoBinding": false,
-                      "style": {
-                        "minHeight": "18rem",
-                        "height": "18rem"
-                      }
+                      "type": "text",
+                      "name": "hide_header_board_slugs_text",
+                      "className": "input w-full",
+                      "placeholder": "qna, inquiry",
+                      "value": "{{_local.form?.hide_header_board_slugs_text ?? ''}}",
+                      "autoBinding": false
                     },
                     "actions": [
                       {
@@ -357,7 +364,7 @@
                         "handler": "setState",
                         "params": {
                           "target": "local",
-                          "form.hide_header_board_slugs_json": "{{$event.target.value}}"
+                          "form.hide_header_board_slugs_text": "{{$event.target.value}}"
                         }
                       }
                     ]
@@ -368,7 +375,23 @@
                     "props": {
                       "className": "text-xs text-gray-500 mt-1"
                     },
-                    "text": "$t:custom-home_design.admin.settings.fields.hide_header_board_slugs_json_hint"
+                    "text": "$t:custom-home_design.admin.settings.fields.hide_header_board_slugs_hint"
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "text-xs font-semibold text-gray-600 dark:text-gray-300 mt-2"
+                    },
+                    "text": "$t:custom-home_design.admin.settings.fields.hide_header_board_slugs_example_label"
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "mt-1 p-3 rounded-md bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs font-mono text-gray-700 dark:text-gray-300"
+                    },
+                    "text": "qna, inquiry"
                   }
                 ]
               }
@@ -418,7 +441,7 @@
                       "name": "footer_link_groups_json",
                       "className": "input w-full font-mono text-sm min-h-[18rem] h-72 resize-y",
                       "rows": 18,
-                      "placeholder": "[\n  {\n    \"title\": \"커뮤니티\",\n    \"links\": [\n      {\"label\": \"홈\", \"href\": \"/\"},\n      {\"label\": \"인기\", \"href\": \"/boards/popular\"},\n      {\"label\": \"전체 게시판\", \"href\": \"/boards\"}\n    ]\n  },\n  {\n    \"title\": \"안내\",\n    \"links\": [\n      {\"label\": \"소개\", \"href\": \"/page/about\"},\n      {\"label\": \"FAQ\", \"href\": \"/faq\"},\n      {\"label\": \"문의\", \"href\": \"/board/inquiry\"}\n    ]\n  },\n  {\n    \"title\": \"정책\",\n    \"links\": [\n      {\"label\": \"이용약관\", \"href\": \"/page/terms\"},\n      {\"label\": \"개인정보처리방침\", \"href\": \"/page/privacy\"},\n      {\"label\": \"환불정책\", \"href\": \"/page/refund\"}\n    ]\n  }\n]",
+                      "placeholder": "",
                       "value": "{{_local.form?.footer_link_groups_json ?? ''}}",
                       "autoBinding": false,
                       "style": {
@@ -444,6 +467,22 @@
                       "className": "text-xs text-gray-500 mt-1"
                     },
                     "text": "$t:custom-home_design.admin.settings.fields.footer_link_groups_json_hint"
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "text-xs font-semibold text-gray-600 dark:text-gray-300 mt-2"
+                    },
+                    "text": "$t:custom-home_design.admin.settings.fields.footer_link_groups_json_example_label"
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "mt-1 p-3 rounded-md bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs font-mono whitespace-pre-wrap break-all text-gray-700 dark:text-gray-300"
+                    },
+                    "text": "[\n  {\n    \"title\": \"커뮤니티\",\n    \"links\": [\n      {\"label\": \"홈\", \"href\": \"/\"},\n      {\"label\": \"인기\", \"href\": \"/boards/popular\"},\n      {\"label\": \"전체 게시판\", \"href\": \"/boards\"}\n    ]\n  },\n  {\n    \"title\": \"안내\",\n    \"links\": [\n      {\"label\": \"소개\", \"href\": \"/page/about\"},\n      {\"label\": \"FAQ\", \"href\": \"/faq\"},\n      {\"label\": \"문의\", \"href\": \"/board/inquiry\"}\n    ]\n  },\n  {\n    \"title\": \"정책\",\n    \"links\": [\n      {\"label\": \"이용약관\", \"href\": \"/page/terms\"},\n      {\"label\": \"개인정보처리방침\", \"href\": \"/page/privacy\"},\n      {\"label\": \"환불정책\", \"href\": \"/page/refund\"}\n    ]\n  }\n]"
                   }
                 ]
               }
@@ -474,9 +513,9 @@
                 "children": [
                   {
                     "type": "basic",
-                    "name": "Div",
+                    "name": "Label",
                     "props": {
-                      "className": "flex items-center gap-2"
+                      "className": "flex items-center gap-2 cursor-pointer"
                     },
                     "children": [
                       {
@@ -485,7 +524,7 @@
                         "props": {
                           "name": "business_info_enabled",
                           "autoBinding": false,
-                          "checked": "{{!!_local.form?.business_info_enabled}}"
+                          "checked": "{{_local.form?.business_info_enabled === true || _local.form?.business_info_enabled === 1 || _local.form?.business_info_enabled === '1' || _local.form?.business_info_enabled === 'true'}}"
                         },
                         "actions": [
                           {
@@ -493,7 +532,7 @@
                             "handler": "setState",
                             "params": {
                               "target": "local",
-                              "form.business_info_enabled": "{{$event.target.checked}}"
+                              "form.business_info_enabled": "{{$event.target.checked === true}}"
                             }
                           }
                         ]
@@ -558,13 +597,13 @@
                         "params": {
                           "method": "PUT",
                           "body": {
-                            "content_max_width_px": "{{_local.form?.content_max_width_px ?? 1240}}",
-                            "hide_desktop_top_nav": "{{!!_local.form?.hide_desktop_top_nav}}",
-                            "business_info_enabled": "{{!!_local.form?.business_info_enabled}}",
-                            "header_search_icon_mode": "{{_local.form?.header_search_icon_mode !== false}}",
-                            "header_theme_click_toggle": "{{_local.form?.header_theme_click_toggle !== false}}",
-                            "hide_header_board_slugs_json": "{{_local.form?.hide_header_board_slugs_json ?? '[]'}}",
-                            "footer_link_groups_json": "{{_local.form?.footer_link_groups_json ?? ''}}"
+                            "content_max_width_px": "{{Number(_local.form?.content_max_width_px) || 1240}}",
+                            "hide_desktop_top_nav": "{{(_local.form?.hide_desktop_top_nav === true || _local.form?.hide_desktop_top_nav === 1 || _local.form?.hide_desktop_top_nav === '1' || _local.form?.hide_desktop_top_nav === 'true') ? 1 : 0}}",
+                            "business_info_enabled": "{{(_local.form?.business_info_enabled === true || _local.form?.business_info_enabled === 1 || _local.form?.business_info_enabled === '1' || _local.form?.business_info_enabled === 'true') ? 1 : 0}}",
+                            "header_search_icon_mode": "{{(_local.form?.header_search_icon_mode !== false && _local.form?.header_search_icon_mode !== 'false' && _local.form?.header_search_icon_mode !== 0 && _local.form?.header_search_icon_mode !== '0') ? 1 : 0}}",
+                            "header_theme_click_toggle": "{{(_local.form?.header_theme_click_toggle !== false && _local.form?.header_theme_click_toggle !== 'false' && _local.form?.header_theme_click_toggle !== 0 && _local.form?.header_theme_click_toggle !== '0') ? 1 : 0}}",
+                            "footer_link_groups_json": "{{typeof _local.form?.footer_link_groups_json === 'object' && _local.form?.footer_link_groups_json !== null ? JSON.stringify(_local.form.footer_link_groups_json) : (_local.form?.footer_link_groups_json ?? '')}}",
+                            "hide_header_board_slugs_text": "{{_local.form?.hide_header_board_slugs_text ?? ''}}"
                           }
                         },
                         "onSuccess": [
@@ -574,15 +613,16 @@
                               "target": "local",
                               "saving": false,
                               "hasChanges": false,
-                              "form.content_max_width_px": "{{($response.data?.data ?? $response.data ?? $response)?.content_max_width_px ?? _local.form?.content_max_width_px ?? 1240}}",
-                              "form.hide_desktop_top_nav": "{{($response.data?.data ?? $response.data ?? $response)?.hide_desktop_top_nav ?? _local.form?.hide_desktop_top_nav}}",
-                              "form.business_info_enabled": "{{($response.data?.data ?? $response.data ?? $response)?.business_info_enabled ?? _local.form?.business_info_enabled}}",
-                              "form.header_search_icon_mode": "{{($response.data?.data ?? $response.data ?? $response)?.header_search_icon_mode ?? _local.form?.header_search_icon_mode}}",
-                              "form.header_theme_click_toggle": "{{($response.data?.data ?? $response.data ?? $response)?.header_theme_click_toggle ?? _local.form?.header_theme_click_toggle}}",
-                              "form.hide_header_board_slugs_json": "{{($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs_json ?? _local.form?.hide_header_board_slugs_json ?? '[]'}}",
-                              "form.footer_link_groups_json": "{{($response.data?.data ?? $response.data ?? $response)?.footer_link_groups_json ?? _local.form?.footer_link_groups_json ?? ''}}",
-                              "form.hide_header_board_slugs": "{{($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs ?? _local.form?.hide_header_board_slugs ?? []}}",
-                              "form.footer_link_groups": "{{($response.data?.data ?? $response.data ?? $response)?.footer_link_groups ?? _local.form?.footer_link_groups}}"
+                              "form.content_max_width_px": "{{(($response.data?.data ?? $response.data ?? $response))?.content_max_width_px ?? _local.form?.content_max_width_px ?? 1240}}",
+                              "form.hide_desktop_top_nav": "{{(($response.data?.data ?? $response.data ?? $response))?.hide_desktop_top_nav !== undefined && (($response.data?.data ?? $response.data ?? $response))?.hide_desktop_top_nav !== null ? ((($response.data?.data ?? $response.data ?? $response)).hide_desktop_top_nav === true || (($response.data?.data ?? $response.data ?? $response)).hide_desktop_top_nav === 1 || (($response.data?.data ?? $response.data ?? $response)).hide_desktop_top_nav === '1' || (($response.data?.data ?? $response.data ?? $response)).hide_desktop_top_nav === 'true') : (_local.form?.hide_desktop_top_nav === true || _local.form?.hide_desktop_top_nav === 1 || _local.form?.hide_desktop_top_nav === '1' || _local.form?.hide_desktop_top_nav === 'true')}}",
+                              "form.business_info_enabled": "{{(($response.data?.data ?? $response.data ?? $response))?.business_info_enabled !== undefined && (($response.data?.data ?? $response.data ?? $response))?.business_info_enabled !== null ? ((($response.data?.data ?? $response.data ?? $response)).business_info_enabled === true || (($response.data?.data ?? $response.data ?? $response)).business_info_enabled === 1 || (($response.data?.data ?? $response.data ?? $response)).business_info_enabled === '1' || (($response.data?.data ?? $response.data ?? $response)).business_info_enabled === 'true') : (_local.form?.business_info_enabled === true || _local.form?.business_info_enabled === 1 || _local.form?.business_info_enabled === '1' || _local.form?.business_info_enabled === 'true')}}",
+                              "form.header_search_icon_mode": "{{(($response.data?.data ?? $response.data ?? $response))?.header_search_icon_mode !== undefined && (($response.data?.data ?? $response.data ?? $response))?.header_search_icon_mode !== null ? ((($response.data?.data ?? $response.data ?? $response)).header_search_icon_mode !== false && (($response.data?.data ?? $response.data ?? $response)).header_search_icon_mode !== 'false' && (($response.data?.data ?? $response.data ?? $response)).header_search_icon_mode !== 0 && (($response.data?.data ?? $response.data ?? $response)).header_search_icon_mode !== '0') : (_local.form?.header_search_icon_mode !== false && _local.form?.header_search_icon_mode !== 'false')}}",
+                              "form.header_theme_click_toggle": "{{(($response.data?.data ?? $response.data ?? $response))?.header_theme_click_toggle !== undefined && (($response.data?.data ?? $response.data ?? $response))?.header_theme_click_toggle !== null ? ((($response.data?.data ?? $response.data ?? $response)).header_theme_click_toggle !== false && (($response.data?.data ?? $response.data ?? $response)).header_theme_click_toggle !== 'false' && (($response.data?.data ?? $response.data ?? $response)).header_theme_click_toggle !== 0 && (($response.data?.data ?? $response.data ?? $response)).header_theme_click_toggle !== '0') : (_local.form?.header_theme_click_toggle !== false && _local.form?.header_theme_click_toggle !== 'false')}}",
+                              "form.footer_link_groups_json": "{{(($response.data?.data ?? $response.data ?? $response))?.footer_link_groups_json ?? _local.form?.footer_link_groups_json ?? ''}}",
+                              "form.hide_header_board_slugs": "{{(($response.data?.data ?? $response.data ?? $response))?.hide_header_board_slugs ?? _local.form?.hide_header_board_slugs ?? []}}",
+                              "form.footer_link_groups": "{{(($response.data?.data ?? $response.data ?? $response))?.footer_link_groups ?? _local.form?.footer_link_groups}}",
+                              "form.enabled": true,
+                              "form.hide_header_board_slugs_text": "{{(($response.data?.data ?? $response.data ?? $response))?.hide_header_board_slugs_text ?? _local.form?.hide_header_board_slugs_text ?? ''}}"
                             }
                           },
                           {

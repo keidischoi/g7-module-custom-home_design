@@ -2,6 +2,8 @@
 
 namespace Modules\Custom\HomeDesign\Services;
 
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\Custom\HomeDesign\Models\HomeDesignSetting;
 
 class HomeDesignSettingService
@@ -9,49 +11,115 @@ class HomeDesignSettingService
     /** @var list<string> Exact pre-0.2.5 seed — reset to [] when still this value. */
     private const LEGACY_DEFAULT_HIDE_SLUGS = ['inquiry', 'qna'];
 
+    /** @var list<string> */
+    private const BOOL_KEYS = [
+        'hide_desktop_top_nav',
+        'header_search_icon_mode',
+        'header_theme_click_toggle',
+        'business_info_enabled',
+    ];
+
+    /** @var list<string> Columns that must be JSON-encoded for query-builder writes. */
+    private const JSON_KEYS = [
+        'hide_header_board_slugs',
+        'footer_link_groups',
+    ];
+
     public function get(): HomeDesignSetting
     {
-        $row = HomeDesignSetting::query()->find(HomeDesignSetting::SINGLETON_ID);
-        if ($row) {
-            $this->normalizeLegacyHideBoardSlugs($row);
+        try {
+            if (! $this->tableExists()) {
+                return $this->memoryFallback();
+            }
 
-            return $row;
+            $row = HomeDesignSetting::query()->find(HomeDesignSetting::SINGLETON_ID);
+            if ($row) {
+                $this->normalizeLegacyHideBoardSlugs($row);
+
+                return $row;
+            }
+
+            // Ensure singleton row exists (migration seed may have been skipped).
+            $this->upsertSingleton($this->defaultAttributes());
+
+            $row = HomeDesignSetting::query()->find(HomeDesignSetting::SINGLETON_ID);
+            if ($row) {
+                return $row;
+            }
+
+            return $this->memoryFallback();
+        } catch (\Throwable $e) {
+            return $this->memoryFallback();
         }
-
-        return HomeDesignSetting::query()->create([
-            'id' => HomeDesignSetting::SINGLETON_ID,
-            // Module manager activation is enough — keep column true for legacy rows.
-            'enabled' => true,
-            'content_max_width_px' => HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX,
-            'hide_desktop_top_nav' => false,
-            'header_search_icon_mode' => true,
-            'header_theme_click_toggle' => true,
-            'hide_header_board_slugs' => HomeDesignSetting::DEFAULT_HIDE_BOARD_SLUGS,
-            'footer_link_groups' => null,
-            'business_info_enabled' => false,
-        ]);
     }
 
     /**
+     * Persist admin settings to home_design_settings id=1.
+     * Uses query-builder upsert so mass-assignment / missing-column / cast
+     * issues cannot silently no-op; then reloads via Eloquent.
+     *
      * @param  array<string, mixed>  $data
      */
     public function update(array $data): HomeDesignSetting
     {
-        $row = $this->get();
-
-        if (array_key_exists('hide_header_board_slugs_json', $data) && ! array_key_exists('hide_header_board_slugs', $data)) {
-            $data['hide_header_board_slugs'] = $this->decodeJsonArray($data['hide_header_board_slugs_json'] ?? '[]');
-        }
-        if (array_key_exists('footer_link_groups_json', $data) && ! array_key_exists('footer_link_groups', $data)) {
-            $raw = $data['footer_link_groups_json'] ?? '';
-            $data['footer_link_groups'] = ($raw === null || trim((string) $raw) === '')
-                ? null
-                : $this->decodeJsonValue($raw);
+        if (! $this->tableExists()) {
+            throw new \RuntimeException(
+                'Table home_design_settings missing. Run: php82 artisan migrate --force'
+            );
         }
 
-        unset($data['hide_header_board_slugs_json'], $data['footer_link_groups_json']);
+        // Board slugs: prefer comma-separated text (admin UX). Still accept legacy JSON.
+        if (array_key_exists('hide_header_board_slugs_text', $data)) {
+            $data['hide_header_board_slugs'] = $this->parseCommaSeparatedSlugs($data['hide_header_board_slugs_text'] ?? '');
+        } elseif (array_key_exists('hide_header_board_slugs_json', $data)) {
+            $rawSlugs = $data['hide_header_board_slugs_json'];
+            if ($rawSlugs === null || (is_string($rawSlugs) && trim($rawSlugs) === '')) {
+                $data['hide_header_board_slugs'] = [];
+            } elseif (is_array($rawSlugs)) {
+                $data['hide_header_board_slugs'] = array_values($rawSlugs);
+            } else {
+                // Allow accidental comma text in the old json field
+                $str = trim((string) $rawSlugs);
+                if ($str !== '' && $str[0] !== '[' && $str[0] !== '{') {
+                    $data['hide_header_board_slugs'] = $this->parseCommaSeparatedSlugs($str);
+                } else {
+                    $data['hide_header_board_slugs'] = $this->decodeJsonArray($str);
+                }
+            }
+        } elseif (array_key_exists('hide_header_board_slugs', $data)) {
+            $slugs = $data['hide_header_board_slugs'];
+            if (is_array($slugs)) {
+                $data['hide_header_board_slugs'] = array_values($slugs);
+            } elseif (is_string($slugs)) {
+                $trim = trim($slugs);
+                $data['hide_header_board_slugs'] = ($trim !== '' && ($trim[0] ?? '') !== '[')
+                    ? $this->parseCommaSeparatedSlugs($trim)
+                    : $this->decodeJsonArray($trim === '' ? '[]' : $trim);
+            } else {
+                $data['hide_header_board_slugs'] = [];
+            }
+        }
 
-        // 사업자 문자열은 이커머스 basic_info 에서만 표시 — 로컬 컬럼 저장 중단
+        if (array_key_exists('footer_link_groups_json', $data)) {
+            $rawGroups = $data['footer_link_groups_json'];
+            if ($rawGroups === null || (is_string($rawGroups) && trim($rawGroups) === '')) {
+                $data['footer_link_groups'] = null;
+            } elseif (is_array($rawGroups)) {
+                $data['footer_link_groups'] = $rawGroups;
+            } else {
+                $data['footer_link_groups'] = $this->decodeJsonValue((string) $rawGroups);
+            }
+        } elseif (array_key_exists('footer_link_groups', $data) && is_string($data['footer_link_groups'])) {
+            $trim = trim($data['footer_link_groups']);
+            $data['footer_link_groups'] = $trim === '' ? null : $this->decodeJsonValue($trim);
+        }
+
+        unset(
+            $data['hide_header_board_slugs_json'],
+            $data['hide_header_board_slugs_text'],
+            $data['footer_link_groups_json']
+        );
+
         foreach ([
             'business_company_name',
             'business_representative',
@@ -60,17 +128,21 @@ class HomeDesignSettingService
             'business_address',
             'business_phone',
             'business_email',
-            'enabled', // admin toggle removed — module activation controls availability
+            'enabled',
+            'id',
+            'created_at',
+            'updated_at',
         ] as $legacyKey) {
             unset($data[$legacyKey]);
         }
 
-        // Always keep design active while the module is installed/enabled in G7.
         $data['enabled'] = true;
 
-        foreach (['hide_desktop_top_nav', 'header_search_icon_mode', 'header_theme_click_toggle', 'business_info_enabled'] as $boolKey) {
+        foreach (self::BOOL_KEYS as $boolKey) {
             if (array_key_exists($boolKey, $data)) {
                 $data[$boolKey] = $this->coerceBool($data[$boolKey]);
+            } else {
+                $data[$boolKey] = false;
             }
         }
 
@@ -82,8 +154,10 @@ class HomeDesignSettingService
             $data['footer_link_groups'] = $trim === '' ? null : $this->decodeJsonValue($trim);
         }
 
-        if (isset($data['content_max_width_px'])) {
+        if (array_key_exists('content_max_width_px', $data)) {
             $data['content_max_width_px'] = max(320, min(2560, (int) $data['content_max_width_px']));
+        } else {
+            $data['content_max_width_px'] = HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX;
         }
 
         if (isset($data['hide_header_board_slugs']) && is_array($data['hide_header_board_slugs'])) {
@@ -91,19 +165,29 @@ class HomeDesignSettingService
                 static fn ($s) => is_string($s) ? trim($s) : '',
                 $data['hide_header_board_slugs']
             ), static fn ($s) => $s !== ''));
+        } elseif (! array_key_exists('hide_header_board_slugs', $data)) {
+            $data['hide_header_board_slugs'] = [];
         }
 
-        $row->fill($data);
-        $row->save();
+        if (! array_key_exists('footer_link_groups', $data)) {
+            $data['footer_link_groups'] = null;
+        }
+        if (! array_key_exists('hide_header_board_slugs', $data)) {
+            $data['hide_header_board_slugs'] = [];
+        }
 
-        return $row->fresh() ?? $row;
+        // Always write both JSON columns on every admin save (full-form replace).
+        $this->upsertSingleton($data);
+
+        $row = HomeDesignSetting::query()->find(HomeDesignSetting::SINGLETON_ID);
+        if (! $row) {
+            throw new \RuntimeException('home_design_settings id=1 was not persisted after upsert');
+        }
+
+        return $row;
     }
 
     /**
-     * sirsoft-ecommerce basic_info 에서 사업자 고지용 필드 조회.
-     * feat 테마와 동일 매핑: company_name, ceo_name, business_number,
-     * mail_order_number, base_address+detail_address, phone, email.
-     *
      * @return array{
      *   companyName: string,
      *   representative: string,
@@ -121,7 +205,6 @@ class HomeDesignSettingService
         $base = trim((string) ($basic['base_address'] ?? ''));
         $detail = trim((string) ($basic['detail_address'] ?? ''));
         $address = trim($base.($base !== '' && $detail !== '' ? ' ' : '').$detail);
-        // Also accept a single "address" key if present
         if ($address === '' && isset($basic['address'])) {
             $address = trim((string) $basic['address']);
         }
@@ -138,6 +221,129 @@ class HomeDesignSettingService
     }
 
     /**
+     * Bulletproof singleton write: only existing columns, JSON encoded for QB,
+     * updateOrInsert on id=1 so create-vs-update cannot drift.
+     *
+     * @param  array<string, mixed>  $attrs  PHP-native values (bool/array/null/int)
+     */
+    private function upsertSingleton(array $attrs): void
+    {
+        $attrs = $this->filterExistingColumns($attrs);
+        unset($attrs['id']);
+
+        $row = [];
+        foreach ($attrs as $key => $value) {
+            if (in_array($key, self::JSON_KEYS, true)) {
+                $row[$key] = $value === null ? null : json_encode($value, JSON_UNESCAPED_UNICODE);
+                continue;
+            }
+            if (in_array($key, self::BOOL_KEYS, true) || $key === 'enabled') {
+                $row[$key] = $this->coerceBool($value) ? 1 : 0;
+                continue;
+            }
+            $row[$key] = $value;
+        }
+
+        $now = now();
+        $row['updated_at'] = $now;
+
+        $exists = DB::table('home_design_settings')
+            ->where('id', HomeDesignSetting::SINGLETON_ID)
+            ->exists();
+
+        if ($exists) {
+            DB::table('home_design_settings')
+                ->where('id', HomeDesignSetting::SINGLETON_ID)
+                ->update($row);
+        } else {
+            $row['id'] = HomeDesignSetting::SINGLETON_ID;
+            $row['created_at'] = $now;
+            // Fill any NOT NULL columns the migration requires but attrs omitted.
+            foreach ($this->defaultAttributes() as $k => $v) {
+                if ($k === 'id' || array_key_exists($k, $row)) {
+                    continue;
+                }
+                if (! $this->hasColumn($k)) {
+                    continue;
+                }
+                if (in_array($k, self::JSON_KEYS, true)) {
+                    $row[$k] = $v === null ? null : json_encode($v, JSON_UNESCAPED_UNICODE);
+                } elseif (in_array($k, self::BOOL_KEYS, true) || $k === 'enabled') {
+                    $row[$k] = $this->coerceBool($v) ? 1 : 0;
+                } else {
+                    $row[$k] = $v;
+                }
+            }
+            DB::table('home_design_settings')->insert($row);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function defaultAttributes(): array
+    {
+        return [
+            'id' => HomeDesignSetting::SINGLETON_ID,
+            'enabled' => true,
+            'content_max_width_px' => HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX,
+            'hide_desktop_top_nav' => false,
+            'header_search_icon_mode' => true,
+            'header_theme_click_toggle' => true,
+            'hide_header_board_slugs' => HomeDesignSetting::DEFAULT_HIDE_BOARD_SLUGS,
+            'footer_link_groups' => null,
+            'business_info_enabled' => false,
+        ];
+    }
+
+    private function memoryFallback(): HomeDesignSetting
+    {
+        $fallback = new HomeDesignSetting();
+        $fallback->forceFill($this->defaultAttributes());
+        $fallback->exists = false;
+
+        return $fallback;
+    }
+
+    private function tableExists(): bool
+    {
+        try {
+            return Schema::hasTable('home_design_settings');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function hasColumn(string $column): bool
+    {
+        try {
+            return Schema::hasColumn('home_design_settings', $column);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function filterExistingColumns(array $data): array
+    {
+        if (! $this->tableExists()) {
+            return $data;
+        }
+
+        $out = [];
+        foreach ($data as $key => $value) {
+            if ($key === 'id' || $this->hasColumn($key)) {
+                $out[$key] = $value;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function readEcommerceBasicInfo(): array
@@ -151,7 +357,6 @@ class HomeDesignSettingService
             }
         }
         if (! is_array($basic) || $basic === []) {
-            // Fallback: storage category file (module_setting unavailable / empty)
             $path = storage_path('app/modules/sirsoft-ecommerce/settings/basic_info.json');
             if (is_readable($path)) {
                 $decoded = json_decode((string) file_get_contents($path), true);
@@ -164,32 +369,29 @@ class HomeDesignSettingService
         return $basic;
     }
 
-    /**
-     * Pre-0.2.5 installs seeded ["qna","inquiry"]. User intent is show-all unless
-     * they explicitly configured a list — reset that exact legacy default in-place.
-     */
     private function normalizeLegacyHideBoardSlugs(HomeDesignSetting $row): void
     {
-        $slugs = $row->hide_header_board_slugs;
-        if (! is_array($slugs)) {
-            if ($slugs === null) {
+        try {
+            $slugs = $row->hide_header_board_slugs;
+            if (! is_array($slugs)) {
                 return;
             }
-
-            return;
-        }
-        $normalized = array_values(array_map(static fn ($s) => (string) $s, $slugs));
-        sort($normalized);
-        if ($normalized === self::LEGACY_DEFAULT_HIDE_SLUGS) {
-            $row->hide_header_board_slugs = [];
-            // Avoid recursive get() — save quietly.
-            $row->save();
+            $normalized = array_values(array_map(static fn ($s) => (string) $s, $slugs));
+            sort($normalized);
+            if ($normalized === self::LEGACY_DEFAULT_HIDE_SLUGS) {
+                DB::table('home_design_settings')
+                    ->where('id', $row->id)
+                    ->update([
+                        'hide_header_board_slugs' => json_encode([], JSON_UNESCAPED_UNICODE),
+                        'updated_at' => now(),
+                    ]);
+                $row->hide_header_board_slugs = [];
+            }
+        } catch (\Throwable) {
+            // get() must never fatal
         }
     }
 
-    /**
-     * Coerce layout/JSON boolean payloads. Never use bare (bool)$v — (bool)"false" === true in PHP.
-     */
     private function coerceBool(mixed $v): bool
     {
         if (is_bool($v)) {
@@ -207,7 +409,7 @@ class HomeDesignSettingService
                 return true;
             }
 
-            return filter_var($v, FILTER_VALIDATE_BOOLEAN);
+            return (bool) filter_var($v, FILTER_VALIDATE_BOOLEAN);
         }
 
         return (bool) $v;

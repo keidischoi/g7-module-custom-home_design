@@ -13,6 +13,10 @@ Route::get('settings', [SettingsController::class, 'show'])
     ->middleware(['throttle:600,1'])
     ->name('settings.show');
 
+Route::get('assets/boot.js', [AssetController::class, 'bootJs'])
+    ->middleware(['throttle:600,1'])
+    ->name('assets.boot');
+
 Route::get('assets/home-design.js', [AssetController::class, 'homeDesignJs'])
     ->middleware(['throttle:600,1'])
     ->name('assets.home_design');

@@ -3,6 +3,24 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.6] - 2026-09-10
+
+### Fixed
+
+- **Root cause clarified**: DB boolean columns were already persisting (`hide_desktop_top_nav=1` etc.). Failures were **admin UI not reflecting DB** + **JSON columns not writing** + **frontend apply**.
+- **Admin UI wiped after load**: `init_actions` was `setState`ing a default `form` (bools false / JSON empty) and overwriting `data_sources.initLocal` — checkboxes looked unchecked and JSON textareas empty despite DB. Removed form overwrite from init_actions.
+- **Board slugs UX**: admin field is comma-separated text (`qna, inquiry`) → stored as JSON array in DB; displayed as comma-joined string.
+- **JSON save path** (footer_link_groups still JSON): `hide_header_board_slugs_json` / `footer_link_groups_json` now `present` in FormRequest, forced through `settingsPayload()`, and **always decoded + upserted** to `hide_header_board_slugs` / `footer_link_groups` (Query Builder `json_encode`). `*_json` wins even if a parallel array key exists.
+- **Checkbox display/submit**: checked bindings accept `true|1|"1"`; body sends bools as `0|1`; missing checkbox keys ⇒ false.
+- **Frontend apply (PRIORITY)**: dynamic `assets/boot.js` embeds DB settings + critical hide-nav CSS so flags apply **without re-save**. `home-design.js` applies `window.__CHD_HOME_DESIGN__` immediately then refreshes from public GET. Listener sets `data-chd-hide-top-nav` on `desktop_header`. Broader nav selectors (`header.sticky nav`, `[data-chd-hide-top-nav]`).
+- **Frontend apply**: `coerceBool` for tinyint/string flags; clear business mount when off; broader `#desktop_header nav` hide + `chd-hide-desktop-top-nav` class.
+- Service upsert singleton id=1 remains (safe even when header_* columns missing).
+
+### Changed
+
+- Version `0.2.6`. After update run `php82 artisan migrate --force && php82 artisan hooks:clear && php82 artisan cache:clear`.
+
+
 ## [0.2.5] - 2026-09-10
 
 ### Fixed

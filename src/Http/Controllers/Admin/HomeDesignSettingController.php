@@ -32,7 +32,7 @@ class HomeDesignSettingController extends AdminBaseController
     public function update(UpdateHomeDesignSettingRequest $request): JsonResponse
     {
         try {
-            $row = $this->service->update($request->validated());
+            $row = $this->service->update($request->settingsPayload());
 
             return $this->success(
                 'custom-home_design::messages.settings.update_success',
@@ -40,6 +40,8 @@ class HomeDesignSettingController extends AdminBaseController
             );
         } catch (\InvalidArgumentException $e) {
             return $this->error('custom-home_design::messages.settings.invalid_json', 422, $e->getMessage());
+        } catch (\RuntimeException $e) {
+            return $this->error('custom-home_design::messages.settings.update_failed', 500, $e->getMessage());
         } catch (\Exception $e) {
             return $this->error('custom-home_design::messages.settings.update_failed', 500, $e->getMessage());
         }
