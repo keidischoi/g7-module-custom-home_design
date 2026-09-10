@@ -3,6 +3,7 @@
 namespace Modules\Custom\HomeDesign\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Modules\Custom\HomeDesign\Models\HomeDesignSetting;
 
 class UpdateHomeDesignSettingRequest extends FormRequest
 {
@@ -24,18 +25,22 @@ class UpdateHomeDesignSettingRequest extends FormRequest
      */
     public function rules(): array
     {
+        // IMPORTANT: do NOT use `present` on optional text/JSON fields.
+        // G7 apiCall often omits empty-string keys from the JSON body → present → 422
+        // ("입력값을 확인해 주세요."). prepareForValidation defaults missing keys.
         return [
             'content_max_width_px' => ['sometimes', 'integer', 'min:320', 'max:2560'],
-            'hide_desktop_top_nav' => ['required', 'boolean'],
-            'header_search_icon_mode' => ['required', 'boolean'],
-            'header_theme_click_toggle' => ['required', 'boolean'],
-            'business_info_enabled' => ['required', 'boolean'],
+            'hide_desktop_top_nav' => ['sometimes', 'boolean'],
+            'header_search_icon_mode' => ['sometimes', 'boolean'],
+            'header_theme_click_toggle' => ['sometimes', 'boolean'],
+            'business_info_enabled' => ['sometimes', 'boolean'],
             // Comma-separated slugs (preferred) OR legacy JSON array / *_json
-            'hide_header_board_slugs_text' => ['present', 'nullable', 'string'],
-            'hide_header_board_slugs' => ['sometimes'],
+            'hide_header_board_slugs_text' => ['sometimes', 'nullable', 'string'],
+            'hide_header_board_slugs' => ['sometimes', 'nullable'],
             'hide_header_board_slugs_json' => ['sometimes', 'nullable'],
             'footer_link_groups' => ['sometimes', 'nullable'],
-            'footer_link_groups_json' => ['present', 'nullable'],
+            // Empty / omitted footer JSON must pass (service stores null)
+            'footer_link_groups_json' => ['sometimes', 'nullable', 'string'],
         ];
     }
 
@@ -52,10 +57,19 @@ class UpdateHomeDesignSettingRequest extends FormRequest
         $this->merge($boolMerge);
 
         if ($this->exists('content_max_width_px')) {
-            $this->merge(['content_max_width_px' => (int) $this->input('content_max_width_px')]);
+            $raw = $this->input('content_max_width_px');
+            if (is_string($raw) && (trim($raw) === '' || ! is_numeric(trim($raw)))) {
+                $px = HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX;
+            } else {
+                $px = (int) $raw;
+            }
+            if ($px < 320 || $px > 2560) {
+                $px = HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX;
+            }
+            $this->merge(['content_max_width_px' => $px]);
         }
 
-        // Slugs: prefer comma-separated text; always materialize the key for `present`
+        // Slugs: prefer comma-separated text; materialize key when G7 omitted empty string
         if (! $this->exists('hide_header_board_slugs_text')) {
             if ($this->exists('hide_header_board_slugs_json')) {
                 $this->merge([
@@ -75,7 +89,14 @@ class UpdateHomeDesignSettingRequest extends FormRequest
             } elseif ($v === null) {
                 $this->merge(['hide_header_board_slugs_text' => '']);
             } else {
-                $this->merge(['hide_header_board_slugs_text' => (string) $v]);
+                // Accept legacy JSON-array string in the text field too
+                $str = (string) $v;
+                $trim = trim($str);
+                if ($trim !== '' && ($trim[0] === '[' || $trim[0] === '{')) {
+                    $this->merge(['hide_header_board_slugs_text' => $this->jsonSlugsToCsv($trim)]);
+                } else {
+                    $this->merge(['hide_header_board_slugs_text' => $str]);
+                }
             }
         }
 
@@ -116,8 +137,18 @@ class UpdateHomeDesignSettingRequest extends FormRequest
     public function settingsPayload(): array
     {
         $payload = $this->validated();
+        // Always pass through optional text fields even when omitted from body
+        // (G7 may strip empty strings; prepareForValidation already defaulted them).
         $payload['hide_header_board_slugs_text'] = (string) $this->input('hide_header_board_slugs_text', '');
         $payload['footer_link_groups_json'] = (string) $this->input('footer_link_groups_json', '');
+
+        foreach (self::BOOL_KEYS as $boolKey) {
+            $payload[$boolKey] = $this->coerceBool($this->input($boolKey, false));
+        }
+
+        if (! array_key_exists('content_max_width_px', $payload)) {
+            $payload['content_max_width_px'] = HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX;
+        }
 
         return $payload;
     }

@@ -32,4 +32,9 @@ Route::prefix('admin/settings')
         Route::put('/', [HomeDesignSettingController::class, 'update'])
             ->middleware('permission:admin,custom-home_design.design.update')
             ->name('update');
+
+        // Some G7 clients POST; same handler as PUT
+        Route::post('/', [HomeDesignSettingController::class, 'update'])
+            ->middleware('permission:admin,custom-home_design.design.update')
+            ->name('update.post');
     });
