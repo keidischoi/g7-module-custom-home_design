@@ -22,7 +22,7 @@
                 "hide_header_board_slugs_json": "Board slugs to hide in header (JSON array)",
                 "hide_header_board_slugs_json_hint": "JSON array. Empty ([]) shows all boards. Default is [].",
                 "footer_link_groups_json": "Footer linkGroups (JSON)",
-                "footer_link_groups_json_hint": "JSON array [{title, links:[{label,href}]}]. Empty keeps theme defaults; when set, overwrites Footer props.linkGroups. Prefer /faq for FAQ.",
+                "footer_link_groups_json_hint": "JSON array [{title, links:[{label,href,icon?}]}]. Icons auto-enriched for common hrefs. Empty keeps theme defaults.",
                 "business_info_enabled": "Show business notice block",
                 "business_info_enabled_hint": "When ON, shows sirsoft-ecommerce basic_info (company/CEO/numbers/address/phone/email) above the footer. Empty ecommerce info yields an empty block.",
                 "header_search_icon_mode": "Search: icon only (slide panel on click)",
@@ -32,7 +32,7 @@
                 "hide_header_board_slugs_json_example_label": "Example JSON",
                 "footer_link_groups_json_example_label": "Example JSON",
                 "hide_header_board_slugs": "Board slugs to hide from header",
-                "hide_header_board_slugs_hint": "Comma-separated slugs. Leave empty to show all boards.",
+                "hide_header_board_slugs_hint": "Comma-separated slugs. Leave empty to show all boards. Comma-separated slugs (e.g. qna, inquiry). Filters desktop+mobile+더보기; JS fallback if needed.",
                 "hide_header_board_slugs_example_label": "Example"
             }
         }

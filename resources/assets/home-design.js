@@ -1,24 +1,10 @@
 /*! custom-home_design — max-width CSS var, hide desktop top nav, business info,
  *  header search icon+slide panel, dark-mode click toggle (feat UX port)
- * 0.2.1: MutationObserver removed (was fighting React footer remounts → infinite loop).
- * 0.2.2: business_info from sirsoft-ecommerce basic_info (public settings API).
- * 0.2.4: content_max_width_px also drives #main_content_area / home lower columns;
- *        settings.enabled gate removed (module manager activation is enough).
- * 0.2.5: header search/dark UX; home mid Container maxWidth; admin bool round-trip;
- *        expanded mid-home width selectors; icons in right header cluster.
- * 0.2.6: remove business block when disabled; broader desktop top-nav hide selectors;
- *        body.chd-hide-desktop-top-nav class; settings fetch failure never breaks page.
- * CSS applied on settings fetch; SPA popstate/pushState debounced re-apply CSS only.
- * Business HTML: prefer PHP-filled mount; JS injects only once when mount is empty.
- * Header widgets: ensure-if-missing on load + SPA debounce (no MutationObserver).
- * 0.2.8: fix SyntaxError (extra }); robust official Header selectors (header.sticky,
- *        #desktop_header may be missing because composite Header drops id prop);
- *        hide center search form; theme click; no MutationObserver loops.
- * 0.2.9: swap search/theme icon order; search panel BELOW header bar ABOVE nav;
- *        stronger content max-width (!important + .chd-content-col); business fill;
- *        scripts via Listener only (no extension scripts → silent when 미설치).
- * 0.2.11: search panel form no longer killed by boot CSS; business sibling+reinject;
- *        empty hide_header_board_slugs restores boards.data (show qna/inquiry).
+ * 0.2.12: business notice UNDER footer shop-name (feat); footer link icons via JS;
+ *        board slug hide apply+JS fallback; NO layout scripts[] (module.iife loader);
+ *        read #chd_home_design_cfg data-chd-settings for boot.
+ * 0.2.11: search panel form; business sibling (superseded); boards restore when empty.
+ * MutationObserver intentionally not used (0.2.1 infinite remount loop).
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -27,7 +13,9 @@
   var SETTINGS_URL = "/api/modules/custom-home_design/settings";
   var STYLE_ID = "chd-home-design-style";
   var BUSINESS_ID = "chd_business_info_block";
+  var INLINE_BUSINESS_ID = "chd_business_info_inline";
   var MOUNT_ID = "chd_business_info_mount";
+  var CFG_ID = "chd_home_design_cfg";
   var DESKTOP_TOGGLE_ID = "chd_header_search_toggle";
   var MOBILE_TOGGLE_ID = "chd_mobile_search_toggle";
   var PANEL_ID = "chd_header_search_panel";
@@ -340,89 +328,430 @@
   }
 
   function clearBusinessInfo() {
-    var existing = document.getElementById(BUSINESS_ID);
-    if (existing && existing.parentNode) {
+    [BUSINESS_ID, INLINE_BUSINESS_ID].forEach(function (id) {
+      var existing = document.getElementById(id);
+      if (existing && existing.parentNode) {
+        try {
+          existing.parentNode.removeChild(existing);
+        } catch (e) {}
+      }
+    });
+    document.querySelectorAll('[data-chd-role="business-info"]').forEach(function (n) {
       try {
-        existing.parentNode.removeChild(existing);
-      } catch (e) {}
-    }
+        if (n && n.parentNode) n.parentNode.removeChild(n);
+      } catch (e2) {}
+    });
     var mount = document.getElementById(MOUNT_ID);
     if (mount) {
       try {
         mount.innerHTML = "";
-      } catch (e2) {}
+        mount.classList.add("hidden");
+      } catch (e3) {}
     }
     lastBusinessSig = "";
     businessInjectedOnce = false;
   }
 
-  function injectBusinessInfoOnce(settings) {
+  function findFooterEl() {
+    return (
+      document.querySelector("footer.chd-footer") ||
+      document.getElementById("footer") ||
+      document.querySelector('[id="footer"]') ||
+      document.querySelector("footer")
+    );
+  }
+
+  /** Feat placement: under shop-name H3 inside footer left column (not sibling before footer). */
+  function placeBusinessBesideShopName(settings) {
+    // Always remove awkward outside-footer sibling from 0.2.11
+    var legacy = document.getElementById(BUSINESS_ID);
+    if (legacy && legacy.parentNode) {
+      var foot = findFooterEl();
+      if (!foot || !foot.contains(legacy)) {
+        try {
+          legacy.parentNode.removeChild(legacy);
+        } catch (e) {}
+      }
+    }
+    var mount = document.getElementById(MOUNT_ID);
+    if (mount) {
+      try {
+        mount.innerHTML = "";
+        mount.classList.add("hidden");
+      } catch (eM) {}
+    }
+
     if (!settings || !coerceBool(settings.business_info_enabled, false)) {
       clearBusinessInfo();
       return;
     }
 
     var sig = businessSignature(settings);
-    if (!sig) return;
+    if (!sig) {
+      // keep enabled but empty diagnosable via fallback text
+      sig =
+        "사업자 고지: 이커머스 기본정보(basic_info)가 비어 있습니다. 관리자 > 이커머스 > 환경설정에서 상호·사업자등록번호를 저장하세요.";
+    }
 
-    var existing = document.getElementById(BUSINESS_ID);
+    var footer = findFooterEl();
+    if (!footer) return;
+
+    // Feat theme already rendered business under H3 — skip duplicate
+    var h3 = footer.querySelector("h3");
+    if (h3 && h3.parentElement) {
+      var col = h3.parentElement;
+      var ps = col.querySelectorAll("p");
+      for (var i = 0; i < ps.length; i++) {
+        if (ps[i].id === INLINE_BUSINESS_ID) continue;
+        var t = (ps[i].textContent || "").trim();
+        if (t && (t === sig || (sig.length > 20 && t.indexOf(sig.slice(0, 20)) === 0))) {
+          lastBusinessSig = sig;
+          businessInjectedOnce = true;
+          var ours = document.getElementById(INLINE_BUSINESS_ID);
+          if (ours && ours.parentNode) {
+            try {
+              ours.parentNode.removeChild(ours);
+            } catch (eR) {}
+          }
+          return;
+        }
+      }
+    }
+
+    var existing = document.getElementById(INLINE_BUSINESS_ID);
     if (existing) {
-      var existingSig = existing.getAttribute("data-chd-sig") || "";
-      if (existingSig === sig || existing.textContent.trim() === sig) {
+      if ((existing.getAttribute("data-chd-sig") || "") === sig) {
         lastBusinessSig = sig;
         businessInjectedOnce = true;
         return;
       }
-      if (existingSig || existing.textContent.trim()) {
-        lastBusinessSig = existingSig || existing.textContent.trim();
-        businessInjectedOnce = true;
-        return;
+      existing.setAttribute("data-chd-sig", sig);
+      existing.textContent = sig;
+      lastBusinessSig = sig;
+      businessInjectedOnce = true;
+      return;
+    }
+
+    if (!h3 || !h3.parentElement) return;
+
+    var p = document.createElement("p");
+    p.id = INLINE_BUSINESS_ID;
+    p.setAttribute("data-chd-role", "business-info");
+    p.setAttribute("data-chd-sig", sig);
+    p.className =
+      "mt-3 text-xs leading-relaxed text-gray-500 dark:text-gray-400 text-left";
+    p.textContent = sig;
+
+    // Insert after siteDescription P if present, else right after H3
+    var insertAfter = h3;
+    var next = h3.nextElementSibling;
+    if (next && next.tagName === "P" && next.id !== INLINE_BUSINESS_ID) {
+      insertAfter = next;
+    }
+    if (insertAfter.nextSibling) {
+      insertAfter.parentNode.insertBefore(p, insertAfter.nextSibling);
+    } else {
+      insertAfter.parentNode.appendChild(p);
+    }
+    lastBusinessSig = sig;
+    businessInjectedOnce = true;
+  }
+
+  function injectBusinessInfoOnce(settings) {
+    try {
+      placeBusinessBesideShopName(settings);
+    } catch (e) {}
+  }
+
+  /* ========== Footer link icons (feat FooterIcon kinds) ========== */
+
+  var FOOTER_ICON_BY_HREF = {
+    "/": "home",
+    "/boards/popular": "flame",
+    "/boards": "layout",
+    "/page/about": "building",
+    "/faq": "help",
+    "/page/faq": "help",
+    "/board/inquiry": "message",
+    "/page/contact": "message",
+    "/page/terms": "file",
+    "/page/privacy": "shield",
+    "/page/refund": "refresh",
+  };
+
+  var FOOTER_ICON_BY_LABEL = {
+    "홈": "home",
+    "Home": "home",
+    "인기": "flame",
+    "Popular": "flame",
+    "전체 게시판": "layout",
+    "All Boards": "layout",
+    "소개": "building",
+    "About": "building",
+    "FAQ": "help",
+    "문의": "message",
+    "Contact": "message",
+    "이용약관": "file",
+    "Terms": "file",
+    "개인정보처리방침": "shield",
+    "Privacy": "shield",
+    "환불정책": "refresh",
+    "Refund": "refresh",
+  };
+
+  function normalizePath(href) {
+    var path = String(href || "").split("?")[0];
+    path = path.replace(/\/$/, "") || "/";
+    if (path.charAt(0) !== "/") path = "/" + path;
+    return path;
+  }
+
+  function footerIconSvg(kind) {
+    var ns = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    svg.setAttribute("class", "w-3.5 h-3.5 shrink-0 opacity-70");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("data-chd-footer-icon", kind);
+    var paths = {
+      home: ["M3 10.5 12 3l9 7.5", "M5 10v10h14V10", "M10 20v-6h4v6"],
+      flame: [
+        "M12 3c2 3 1 5 1 7 0 1.5-1 2.5-1 2.5S10 11.5 10 10c0-2 1-4 2-7z",
+        "M8.5 12.5C7 14 6.5 16 7.5 18A4.5 4.5 0 0 0 12 21a4.5 4.5 0 0 0 4.5-3c1-2 .5-4-1-5.5",
+      ],
+      layout: null,
+      building: [
+        "M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16",
+        "M15 10h4a1 1 0 0 1 1 1v10",
+        "M8 8h2M8 12h2M8 16h2M4 21h16",
+      ],
+      help: ["M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1.5 1-1.5 2.2", "M12 17h.01"],
+      message: ["M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"],
+      file: ["M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z", "M14 2v6h6", "M9 13h6M9 17h6"],
+      shield: ["M12 3 5 6v6c0 5 3.5 8.5 7 9 3.5-.5 7-4 7-9V6l-7-3z"],
+      refresh: ["M21 12a9 9 0 1 1-2.6-6.3", "M21 3v6h-6"],
+    };
+    if (kind === "layout") {
+      [[3, 3], [14, 3], [3, 14], [14, 14]].forEach(function (xy) {
+        var r = document.createElementNS(ns, "rect");
+        r.setAttribute("x", String(xy[0]));
+        r.setAttribute("y", String(xy[1]));
+        r.setAttribute("width", "7");
+        r.setAttribute("height", "7");
+        r.setAttribute("rx", "1");
+        svg.appendChild(r);
+      });
+      return svg;
+    }
+    if (kind === "help") {
+      var c = document.createElementNS(ns, "circle");
+      c.setAttribute("cx", "12");
+      c.setAttribute("cy", "12");
+      c.setAttribute("r", "9");
+      svg.appendChild(c);
+    }
+    var arr = paths[kind] || [];
+    arr.forEach(function (d) {
+      var p = document.createElementNS(ns, "path");
+      p.setAttribute("d", d);
+      svg.appendChild(p);
+    });
+    return svg;
+  }
+
+  function iconKindForFooterLink(label, href, settings) {
+    var path = normalizePath(href);
+    if (FOOTER_ICON_BY_HREF[path]) return FOOTER_ICON_BY_HREF[path];
+    // from settings linkGroups icon field
+    try {
+      var groups = settings && settings.footer_link_groups;
+      if (Array.isArray(groups)) {
+        for (var g = 0; g < groups.length; g++) {
+          var links = (groups[g] && groups[g].links) || [];
+          for (var i = 0; i < links.length; i++) {
+            var L = links[i] || {};
+            if (normalizePath(L.href) === path && L.icon) return String(L.icon);
+            if (String(L.label || "").trim() === label && L.icon) return String(L.icon);
+          }
+        }
+      }
+    } catch (e) {}
+    if (FOOTER_ICON_BY_LABEL[label]) return FOOTER_ICON_BY_LABEL[label];
+    return null;
+  }
+
+  function ensureFooterLinkIcons(settings) {
+    var footer = findFooterEl();
+    if (!footer) return;
+    var nodes = footer.querySelectorAll("ul li button, ul li a");
+    nodes.forEach(function (btn) {
+      if (!btn || btn.querySelector("[data-chd-footer-icon]")) return;
+      if (btn.firstElementChild && btn.firstElementChild.tagName === "svg") return;
+      var label = (btn.textContent || "").trim();
+      if (!label) return;
+      var href = btn.getAttribute("href") || btn.getAttribute("data-href") || "";
+      var kind = iconKindForFooterLink(label, href, settings);
+      if (!kind && FOOTER_ICON_BY_LABEL[label]) kind = FOOTER_ICON_BY_LABEL[label];
+      if (!kind) return;
+      try {
+        var svg = footerIconSvg(kind);
+        if (btn.style && !btn.className.includes("inline-flex")) {
+          btn.classList.add("inline-flex", "items-center", "gap-1.5");
+        }
+        btn.insertBefore(svg, btn.firstChild);
+      } catch (e) {}
+    });
+  }
+
+  /* ========== Board slug hide JS fallback ========== */
+
+  function hideSlugList(settings) {
+    var raw = (settings && settings.hide_header_board_slugs) || [];
+    if (typeof raw === "string") {
+      try {
+        raw = JSON.parse(raw);
+      } catch (e) {
+        raw = String(raw)
+          .split(",")
+          .map(function (s) {
+            return s.trim();
+          })
+          .filter(Boolean);
       }
     }
+    if (!Array.isArray(raw)) return [];
+    var out = [];
+    raw.forEach(function (s) {
+      s = String(s == null ? "" : s).trim();
+      if (!s) return;
+      s = s.replace(/^\/+boards?\//, "").replace(/^\/+|\/+$/g, "");
+      if (s && out.indexOf(s) < 0) out.push(s);
+      var low = s.toLowerCase();
+      if (low && out.indexOf(low) < 0) out.push(low);
+    });
+    // also from data attribute on header
+    try {
+      var hdr =
+        document.querySelector("[data-chd-hide-board-slugs]") ||
+        document.querySelector("header.chd-desktop-header") ||
+        document.getElementById("desktop_header");
+      if (hdr) {
+        var attr = hdr.getAttribute("data-chd-hide-board-slugs") || "";
+        attr.split(",").forEach(function (s) {
+          s = s.trim();
+          if (s && out.indexOf(s) < 0) out.push(s);
+        });
+      }
+    } catch (e2) {}
+    return out;
+  }
 
-    var mount = document.getElementById(MOUNT_ID);
-    if (mount && mount.children && mount.children.length > 0) {
-      lastBusinessSig = sig;
-      businessInjectedOnce = true;
+  function pathMatchesHiddenSlug(path, slugs) {
+    path = normalizePath(path);
+    for (var i = 0; i < slugs.length; i++) {
+      var s = slugs[i];
+      if (path === "/board/" + s || path === "/boards/" + s) return true;
+      if (path.indexOf("/board/" + s) === 0 || path.indexOf("/boards/" + s) === 0) return true;
+    }
+    return false;
+  }
+
+  function ensureHiddenBoardNav(settings) {
+    var slugs = hideSlugList(settings);
+    if (!slugs.length) return;
+
+    var roots = [];
+    var dh =
+      document.getElementById("desktop_header") ||
+      document.querySelector("header.chd-desktop-header") ||
+      document.querySelector("header.sticky");
+    var mh = document.getElementById("mobile_header") || document.querySelector("[id*='mobile']");
+    if (dh) roots.push(dh);
+    if (mh) roots.push(mh);
+    // 더보기 dropdown may portal near body
+    document.querySelectorAll("header, [role='menu'], .absolute").forEach(function (n) {
+      if (roots.indexOf(n) < 0) roots.push(n);
+    });
+
+    roots.forEach(function (root) {
+      if (!root || !root.querySelectorAll) return;
+      root.querySelectorAll("a[href]").forEach(function (a) {
+        var href = a.getAttribute("href") || "";
+        if (pathMatchesHiddenSlug(href, slugs)) {
+          var li = a.closest("li") || a;
+          try {
+            li.style.setProperty("display", "none", "important");
+            li.setAttribute("data-chd-board-hidden", "1");
+          } catch (e) {}
+        }
+      });
+      // Official Header uses <button> without href — match text via board-menu names cache
+      root.querySelectorAll("button").forEach(function (btn) {
+        if (btn.getAttribute("data-chd-board-hidden") === "1") return;
+        var label = (btn.textContent || "").trim();
+        if (!label) return;
+        // slug-as-label (rare) or cached name map
+        if (slugs.indexOf(label) >= 0 || slugs.indexOf(label.toLowerCase()) >= 0) {
+          try {
+            btn.style.setProperty("display", "none", "important");
+            btn.setAttribute("data-chd-board-hidden", "1");
+          } catch (e2) {}
+          return;
+        }
+        var map = window.__chdBoardNameToSlug || {};
+        var slug = map[label];
+        if (slug && slugs.indexOf(slug) >= 0) {
+          try {
+            btn.style.setProperty("display", "none", "important");
+            btn.setAttribute("data-chd-board-hidden", "1");
+            var wrap = btn.closest("li") || btn.parentElement;
+            if (wrap && wrap !== btn) {
+              wrap.style.setProperty("display", "none", "important");
+            }
+          } catch (e3) {}
+        }
+      });
+    });
+  }
+
+  function refreshBoardNameMap(settings) {
+    var slugs = hideSlugList(settings);
+    if (!slugs.length) return;
+    if (window.__chdBoardNameMapFetched) {
+      ensureHiddenBoardNav(settings);
       return;
     }
-
-    // If flag set but DOM node gone (React remount), fall through and re-inject
-    if (businessInjectedOnce && lastBusinessSig === sig && document.getElementById(BUSINESS_ID)) {
-      return;
-    }
-
-    var html =
-      '<div id="' +
-      BUSINESS_ID +
-      '" class="w-full border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900" data-chd-role="business-info" data-chd-sig="' +
-      escapeHtml(sig) +
-      '">' +
-      '<div class="chd-bi-inner mx-auto px-4 sm:px-6 lg:px-8 py-3" style="max-width:var(--chd-content-max-width,1240px)">' +
-      '<p class="text-xs leading-relaxed text-gray-500 dark:text-gray-400 text-left">' +
-      escapeHtml(sig) +
-      "</p></div></div>";
-
-    if (mount) {
-      mount.innerHTML = html;
-      lastBusinessSig = sig;
-      businessInjectedOnce = true;
-      return;
-    }
-
-    if (businessInjectedOnce) return;
-    var footer =
-      document.getElementById("footer") ||
-      document.querySelector('[id="footer"]') ||
-      document.querySelector("footer");
-    if (footer && footer.parentNode) {
-      var wrap = document.createElement("div");
-      wrap.innerHTML = html;
-      var node = wrap.firstChild;
-      footer.parentNode.insertBefore(node, footer);
-      lastBusinessSig = sig;
-      businessInjectedOnce = true;
-    }
+    window.__chdBoardNameMapFetched = true;
+    try {
+      fetch("/api/modules/sirsoft-board/boards/board-menu", {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+      })
+        .then(function (r) {
+          return r.ok ? r.json() : null;
+        })
+        .then(function (body) {
+          var list =
+            (body && (body.data || body.boards || body)) || [];
+          if (list && list.data) list = list.data;
+          if (!Array.isArray(list)) return;
+          var map = {};
+          list.forEach(function (b) {
+            if (!b) return;
+            var slug = String(b.slug || b.bo_table || "").trim();
+            var name = String(b.name || "").trim();
+            if (slug && name) map[name] = slug;
+          });
+          window.__chdBoardNameToSlug = map;
+          ensureHiddenBoardNav(lastSettings || settings);
+        })
+        .catch(function () {});
+    } catch (e) {}
   }
 
   /* ========== Theme click toggle (feat ThemeToggle) ========== */
@@ -878,10 +1207,15 @@
     ensureSearchPanel();
     // Re-sync open class if panel was remounted
     if (searchOpen) setSearchOpen(true);
-    // Business block may be wiped by React remount — re-ensure without MutationObserver
     try {
       injectBusinessInfoOnce(lastSettings);
     } catch (eBi) {}
+    try {
+      ensureFooterLinkIcons(lastSettings);
+    } catch (eIc) {}
+    try {
+      ensureHiddenBoardNav(lastSettings);
+    } catch (eHb) {}
   }
 
   function scheduleEnsureHeaderUx() {
@@ -900,8 +1234,40 @@
 
   function applyInitial(settings) {
     lastSettings = settings || {};
+    // Prefer inline config Div if fetch returned emptier payload
+    try {
+      var cfg = document.getElementById(CFG_ID);
+      if (cfg) {
+        var raw = cfg.getAttribute("data-chd-settings");
+        if (raw) {
+          var parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object") {
+            if (
+              (!lastSettings.hide_header_board_slugs ||
+                !lastSettings.hide_header_board_slugs.length) &&
+              parsed.hide_header_board_slugs &&
+              parsed.hide_header_board_slugs.length
+            ) {
+              lastSettings.hide_header_board_slugs = parsed.hide_header_board_slugs;
+            }
+            if (lastSettings.business_info_enabled == null && parsed.business_info_enabled != null) {
+              lastSettings.business_info_enabled = parsed.business_info_enabled;
+            }
+            if (!lastSettings.business_info && parsed.business_info) {
+              lastSettings.business_info = parsed.business_info;
+            }
+            if (!lastSettings.footer_link_groups && parsed.footer_link_groups) {
+              lastSettings.footer_link_groups = parsed.footer_link_groups;
+            }
+          }
+        }
+      }
+    } catch (eCfg) {}
     renderStyle(lastSettings);
     injectBusinessInfoOnce(lastSettings);
+    ensureFooterLinkIcons(lastSettings);
+    refreshBoardNameMap(lastSettings);
+    ensureHiddenBoardNav(lastSettings);
     bindThemeClickToggle();
     bindOutsideSearchClose();
     scheduleEnsureHeaderUx();

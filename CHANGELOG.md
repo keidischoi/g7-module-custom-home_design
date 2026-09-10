@@ -3,6 +3,55 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.12] - 2026-09-10
+
+### Critical — no toast when module disabled
+
+- **Removed layout `scripts[]` ids** `chd_home_design_boot_js` / `chd_home_design_js`.
+  G7 `TemplateApp.loadLayoutScripts` records failed ids in `AssetFailureNotice`
+  ("N개 항목을 불러오지 못했습니다") when the module is disabled or assets 404.
+- Listener **strips** any leftover those ids (and matching Component nodes) on every apply.
+- Extension `home_design__user_base.json` has **no scripts** and **no injections**.
+- JS loads via `module.json` `assets` + `loading.strategy=global` → `dist/js/module.iife.js`
+  (ModuleAssetLoader — only while module active). IIFE reads `#chd_home_design_cfg` and
+  DOM-injects `home-design.js` (not via layout script loader).
+- Inline boot: Listener injects hidden Div `chd_home_design_cfg` with `data-chd-settings` JSON.
+
+If you still see the toast from an older install:
+
+```bash
+php82 artisan hooks:clear && php82 artisan cache:clear
+```
+
+### Fixed — board hide apply (DB save already OK)
+
+- Listener filter matches **slug / name / id / href** (`/board/{slug}`, `/boards/{slug}`, `bo_table`).
+- When slugs **non-empty**, never restore official `{{boards.data ?? []}}`.
+- Always overwrite desktop_header.boards **and** mobile `iteration.source` / any `boards.data` source
+  (including prior `.filter(` expressions). Covers Header `maxVisibleBoards` / 더보기 (same array).
+- Stamps `data-chd-hide-board-slugs` on header; JS fallback hides matching `<a href>` and
+  name-matched buttons (board-menu name→slug map).
+- `afterExtensions` priority **900** (last wins).
+
+### Changed — footer business + link icons
+
+- Business notice: set Footer `businessInfo` prop (feat); JS places text **under shop-name H3**
+  inside footer (official). Removes awkward sibling-before-footer block from 0.2.11.
+- Footer linkGroups: auto-enrich `icon` for common hrefs in Service (save) + Listener (apply).
+  Official Footer ignores `icon` → JS prepends feat-style SVG icons before labels.
+
+### Install
+
+```bash
+php82 artisan module:update custom-home_design --source=bundled --force --layout-strategy=overwrite
+php82 artisan migrate --force
+php82 artisan hooks:clear && php82 artisan cache:clear && php82 artisan route:clear
+# verify board hide still in DB:
+php82 artisan tinker --execute="print_r(\Modules\Custom\HomeDesign\Models\HomeDesignSetting::query()->find(1)?->hide_header_board_slugs);"
+# verify no layout script ids toast after disable test — and assets route:
+curl -sk "https://YOUR_HOST/api/modules/custom-home_design/assets/home-design.js" | head -c 120
+```
+
 ## [0.2.11] - 2026-09-10
 
 ### Simulation (pre-code)

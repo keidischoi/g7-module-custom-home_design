@@ -13,15 +13,14 @@ use Modules\Custom\HomeDesign\Services\HomeDesignSettingService;
  * feat/open-in-new-tab-1.1.51:
  *  - main_content + main_content_area content-column max-w-* (settings content_max_width_px, default 1240)
  *  - desktop_header boards filter by hide_header_board_slugs (default empty — show all)
- *  - footer props.linkGroups when footer_link_groups is set (official Footer supports it)
- *  - server-render business info from sirsoft-ecommerce basic_info.json (file settings) into
- *    chd_business_info_mount + sibling before footer (composite Footer ignores children)
- *  - ensure boot.js + home-design.js via layout scripts (Listener only; extension has NO scripts
- *    so 미설치 leftover overlays do not 404-warn on the home page)
+ *  - footer props.linkGroups when footer_link_groups is set (+ icon enrich for feat Footer)
+ *  - businessInfo prop on Footer (feat) + JS places notice under shop name (official)
+ *  - JS via module.json assets.global + config Div (NEVER layout scripts chd_home_design_* ids)
  *
  * Header search icon + dark-mode click toggle are applied by home-design.js (0.2.5+; 0.2.8 robust selectors).
  * Desktop top-nav hide: boot.js critical CSS + home-design.js; header data-chd-hide-top-nav (no MutationObserver since 0.2.1).
  * 0.2.10: ALL hook entry points + apply() swallow Throwable — never site-wide HTTP 500.
+ * 0.2.12: board hide apply hardened (slug/name/id/href); business beside shop name; footer link icons.
  */
 class HomeDesignLayoutListener implements HookListenerInterface
 {
@@ -58,7 +57,7 @@ class HomeDesignLayoutListener implements HookListenerInterface
             ],
             'core.layout_extension.after_apply' => [
                 'method' => 'afterExtensions',
-                'priority' => 45,
+                'priority' => 900,
                 'type' => 'filter',
                 'sync' => true,
             ],
@@ -224,62 +223,54 @@ class HomeDesignLayoutListener implements HookListenerInterface
     }
 
     /**
-     * Server-render business notice into the layout extension mount so JS does not
-     * need to inject HTML (avoids MutationObserver ↔ React remount loops).
+     * Business notice (0.2.12):
+     *  - Always set Footer props.businessInfo when enabled (feat Footer renders under siteName).
+     *  - Do NOT insert awkward sibling block before footer (0.2.11 path) — official ignores
+     *    businessInfo, so home-design.js places text under the shop-name H3 inside footer.
+     *  - Clear legacy mount/sibling nodes left from older versions.
      */
     private function fillBusinessInfoMount(array $layout, HomeDesignSetting $settings): array
     {
-        if (! filter_var($settings->business_info_enabled, FILTER_VALIDATE_BOOLEAN)) {
-            $layout = $this->updateNodeById($layout, self::BUSINESS_MOUNT_ID, static function (array $node): array {
-                $node['children'] = [];
-
-                return $node;
-            });
-            // Remove sibling block if previously inserted
-            $layout = $this->removeNodeById($layout, self::BUSINESS_BLOCK_ID);
-
-            return $layout;
-        }
-
-        $parts = $this->buildBusinessParts();
-        $px = max(320, min(2560, (int) ($settings->content_max_width_px ?: HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX)));
-        if ($parts === []) {
-            // Visible fallback so ON+empty is diagnosable (file settings missing / ecommerce unset)
-            try {
-                if (function_exists('logger')) {
-                    logger()->warning('custom-home_design: business_info_enabled but ecommerce basic_info empty', [
-                        'hint' => 'Fill 이커머스>환경설정>기본정보 or check storage/app/modules/sirsoft-ecommerce/settings/basic_info.json',
-                    ]);
-                }
-            } catch (\Throwable) {
-            }
-            $text = '사업자 고지: 이커머스 기본정보(basic_info)가 비어 있습니다. 관리자 > 이커머스 > 환경설정에서 상호·사업자등록번호를 저장하세요.';
-            $block = $this->buildBusinessInfoBlock($text, $px);
-        } else {
-            $text = implode('  |  ', $parts);
-            $block = $this->buildBusinessInfoBlock($text, $px);
-        }
-
-        // DISPLAY PATH (0.2.11): always insert block as sibling BEFORE footer.
-        // G7 "prepend" mount is also a sibling, but filling only mount children was unreliable
-        // across filterChild/filterMerged/afterExtensions merge order. Sibling insert is SSoT.
-        // Clear mount children to avoid a duplicate copy of the same text.
-        $updated = $this->removeNodeById($layout, self::BUSINESS_BLOCK_ID);
-        $updated = $this->insertSiblingBefore($updated, 'footer', $block);
-        $updated = $this->updateNodeById($updated, self::BUSINESS_MOUNT_ID, static function (array $node): array {
+        // Always remove legacy awkward sibling / empty mount from older installs.
+        $layout = $this->removeNodeById($layout, self::BUSINESS_BLOCK_ID);
+        $layout = $this->updateNodeById($layout, self::BUSINESS_MOUNT_ID, static function (array $node): array {
             $node['children'] = [];
 
             return $node;
         });
+        // Hide leftover mount wrapper if still injected by extension.
+        $layout = $this->updateNodeById($layout, self::BUSINESS_MOUNT_ID, static function (array $node): array {
+            if (! isset($node['props']) || ! is_array($node['props'])) {
+                $node['props'] = [];
+            }
+            $cls = (string) ($node['props']['className'] ?? '');
+            if (! str_contains($cls, 'hidden')) {
+                $node['props']['className'] = trim($cls.' hidden');
+            }
+            $node['props']['aria-hidden'] = 'true';
 
-        // Feat Footer accepts businessInfo prop — set it when present (official ignores unknown props).
+            return $node;
+        });
+
+        if (! filter_var($settings->business_info_enabled, FILTER_VALIDATE_BOOLEAN)) {
+            // Clear businessInfo prop when disabled
+            return $this->updateNodeById($layout, 'footer', static function (array $node): array {
+                if (isset($node['props']) && is_array($node['props'])) {
+                    unset($node['props']['businessInfo']);
+                }
+
+                return $node;
+            });
+        }
+
         $bi = [];
         try {
             $bi = app(HomeDesignSettingService::class)->getEcommerceBusinessInfo();
         } catch (\Throwable) {
             $bi = [];
         }
-        $updated = $this->updateNodeById($updated, 'footer', static function (array $node) use ($bi): array {
+
+        return $this->updateNodeById($layout, 'footer', static function (array $node) use ($bi): array {
             if (! isset($node['props']) || ! is_array($node['props'])) {
                 $node['props'] = [];
             }
@@ -295,8 +286,6 @@ class HomeDesignLayoutListener implements HookListenerInterface
 
             return $node;
         });
-
-        return $updated;
     }
 
     /**
@@ -347,66 +336,22 @@ class HomeDesignLayoutListener implements HookListenerInterface
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    private function buildBusinessInfoBlock(string $text, int $px): array
-    {
-        return [
-            'id' => self::BUSINESS_BLOCK_ID,
-            'type' => 'basic',
-            'name' => 'Div',
-            'props' => [
-                'id' => self::BUSINESS_BLOCK_ID,
-                'className' => 'w-full border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900',
-                'data-chd-role' => 'business-info',
-                'data-chd-sig' => $text,
-            ],
-            'children' => [
-                [
-                    'id' => 'chd_business_info_inner',
-                    'type' => 'basic',
-                    'name' => 'Div',
-                    'props' => [
-                        'className' => 'chd-bi-inner mx-auto px-4 sm:px-6 lg:px-8 py-3',
-                        'style' => [
-                            'maxWidth' => $px.'px',
-                        ],
-                    ],
-                    'children' => [
-                        [
-                            'id' => 'chd_business_info_text',
-                            'type' => 'basic',
-                            'name' => 'P',
-                            'props' => [
-                                'className' => 'text-xs leading-relaxed text-gray-500 dark:text-gray-400 text-left',
-                            ],
-                            'text' => $text,
-                        ],
-                    ],
-                ],
-            ],
-        ];
-    }
-
-    /**
      * Filter header boards by hide_header_board_slugs:
-     *  - desktop_header props.boards (composite Header)
-     *  - any iteration.source that reads boards.data (mobile menu Repeat)
+     *  - desktop_header props.boards (composite Header — feeds visible + 더보기)
+     *  - any iteration.source / props.source that reads boards.data (mobile menu Repeat)
      *
-     * @param  list<string>|array|null  $slugs
+     * 0.2.12: when slugs non-empty, NEVER restore official unfiltered expression.
+     * Match slug, name, id, and href path (/board/{slug}, /boards/{slug}).
+     *
+     * @param  list<string>|array|mixed  $slugs
      */
-    private function patchDesktopHeaderBoards(array $layout, ?array $slugs): array
+    private function patchDesktopHeaderBoards(array $layout, mixed $slugs): array
     {
-        $slugs = array_values(array_filter(array_map(
-            static fn ($s) => is_string($s) ? trim($s) : '',
-            $slugs ?? []
-        ), static fn ($s) => $s !== ''));
+        $slugs = $this->normalizeHideBoardSlugs($slugs);
 
         // Always mark desktop header so JS/CSS can find it even when composite
         // Header drops the layout node id from the DOM.
-        // Official uses responsive.desktop.props.className = "block" which REPLACES
-        // base className — stamp the marker on base + every responsive breakpoint.
-        $layout = $this->updateNodeById($layout, 'desktop_header', static function (array $node): array {
+        $layout = $this->updateNodeById($layout, 'desktop_header', static function (array $node) use ($slugs): array {
             if (! isset($node['props']) || ! is_array($node['props'])) {
                 $node['props'] = [];
             }
@@ -416,6 +361,12 @@ class HomeDesignLayoutListener implements HookListenerInterface
             }
             if (empty($node['props']['id'])) {
                 $node['props']['id'] = 'desktop_header';
+            }
+            // JS fallback reads this even if expression filter misses.
+            if ($slugs !== []) {
+                $node['props']['data-chd-hide-board-slugs'] = implode(',', $slugs);
+            } else {
+                unset($node['props']['data-chd-hide-board-slugs']);
             }
             if (isset($node['responsive']) && is_array($node['responsive'])) {
                 foreach ($node['responsive'] as $bp => $bpVal) {
@@ -429,6 +380,11 @@ class HomeDesignLayoutListener implements HookListenerInterface
                     if (! str_contains($bpCls, 'chd-desktop-header')) {
                         $bpVal['props']['className'] = trim($bpCls.' chd-desktop-header');
                     }
+                    if ($slugs !== []) {
+                        $bpVal['props']['data-chd-hide-board-slugs'] = implode(',', $slugs);
+                    } else {
+                        unset($bpVal['props']['data-chd-hide-board-slugs']);
+                    }
                     $node['responsive'][$bp] = $bpVal;
                 }
             }
@@ -436,17 +392,14 @@ class HomeDesignLayoutListener implements HookListenerInterface
             return $node;
         });
 
-        // Official sirsoft-basic: boards = {{boards.data ?? []}} (show ALL, incl. qna/inquiry).
-        // Feat theme hardcodes filter(['qna','inquiry']) — we only filter when admin lists slugs.
-        // When empty: explicitly restore official expression so any leftover .filter(...) is cleared.
         $officialExpr = '{{boards.data ?? []}}';
 
+        // EMPTY only: restore official unfiltered expression (clear leftover filters).
         if ($slugs === []) {
             $layout = $this->updateNodeById($layout, 'desktop_header', static function (array $node) use ($officialExpr): array {
                 if (! isset($node['props']) || ! is_array($node['props'])) {
                     $node['props'] = [];
                 }
-                // Restore only if a previous filter expression is still hanging around
                 $current = $node['props']['boards'] ?? null;
                 if (is_string($current) && str_contains($current, '.filter(')) {
                     $node['props']['boards'] = $officialExpr;
@@ -475,6 +428,7 @@ class HomeDesignLayoutListener implements HookListenerInterface
             });
         }
 
+        // NON-EMPTY: always overwrite boards expressions (never leave official unfiltered).
         $expr = $this->buildBoardsFilterExpression($slugs);
 
         $layout = $this->updateNodeById($layout, 'desktop_header', static function (array $node) use ($expr): array {
@@ -486,23 +440,97 @@ class HomeDesignLayoutListener implements HookListenerInterface
             return $node;
         });
 
-        // Mobile drawer boards list uses iteration.source = {{boards.data ?? []}}
+        // Mobile drawer + any Repeat over boards.data — replace even if a prior .filter( exists.
         return $this->mapNodes($layout, function (array $node) use ($expr): array {
             if (isset($node['iteration']) && is_array($node['iteration'])) {
                 $src = $node['iteration']['source'] ?? null;
-                if (is_string($src) && str_contains($src, 'boards.data') && ! str_contains($src, '.filter(')) {
+                if (is_string($src) && str_contains($src, 'boards.data')) {
                     $node['iteration']['source'] = $expr;
                 }
             }
             if (isset($node['props']) && is_array($node['props'])) {
                 $src = $node['props']['source'] ?? null;
-                if (is_string($src) && str_contains($src, 'boards.data') && ! str_contains($src, '.filter(')) {
+                if (is_string($src) && str_contains($src, 'boards.data')) {
                     $node['props']['source'] = $expr;
+                }
+                // Also patch boards prop on any Header-like node (id may be missing).
+                if (isset($node['props']['boards']) && is_string($node['props']['boards'])
+                    && str_contains($node['props']['boards'], 'boards.data')) {
+                    $node['props']['boards'] = $expr;
                 }
             }
 
             return $node;
         });
+    }
+
+    /**
+     * Normalize admin/DB hide_header_board_slugs into a clean list of strings.
+     * Tolerates JSON string, comma text, or nested array — never character-split a JSON string.
+     *
+     * @return list<string>
+     */
+    private function normalizeHideBoardSlugs(mixed $slugs): array
+    {
+        if ($slugs === null || $slugs === '' || $slugs === []) {
+            return [];
+        }
+        if (is_string($slugs)) {
+            $trim = trim($slugs);
+            if ($trim === '') {
+                return [];
+            }
+            if (($trim[0] ?? '') === '[' || ($trim[0] ?? '') === '{') {
+                $decoded = json_decode($trim, true);
+                if (is_array($decoded)) {
+                    $slugs = $decoded;
+                } else {
+                    return [];
+                }
+            } else {
+                $slugs = preg_split('/\s*,\s*/', $trim) ?: [];
+            }
+        }
+        if (! is_array($slugs)) {
+            return [];
+        }
+
+        $out = [];
+        $seen = [];
+        foreach ($slugs as $s) {
+            if (is_array($s)) {
+                // accidental nested
+                foreach ($this->normalizeHideBoardSlugs($s) as $inner) {
+                    if (! isset($seen[$inner])) {
+                        $seen[$inner] = true;
+                        $out[] = $inner;
+                    }
+                }
+                continue;
+            }
+            if (! is_string($s) && ! is_numeric($s)) {
+                continue;
+            }
+            $t = trim((string) $s);
+            if ($t === '') {
+                continue;
+            }
+            // Strip accidental /board/ prefix from admin input
+            $t = preg_replace('#^/+boards?/#', '', $t) ?? $t;
+            $t = trim($t, '/');
+            if ($t === '' || isset($seen[$t])) {
+                continue;
+            }
+            $seen[$t] = true;
+            $out[] = $t;
+            $lower = strtolower($t);
+            if ($lower !== $t && ! isset($seen[$lower])) {
+                $seen[$lower] = true;
+                $out[] = $lower;
+            }
+        }
+
+        return array_values($out);
     }
 
     /**
@@ -516,8 +544,17 @@ class HomeDesignLayoutListener implements HookListenerInterface
         }
         $list = '['.implode(', ', $parts).']';
 
-        // Same shape as feat/_user_base.json boards prop
-        return '{{(boards.data ?? []).filter(b => !'.$list.'.includes(b.slug))}}';
+        // Match slug, name, id, and href/url/path containing /board/{slug} or /boards/{slug}.
+        // Use function() + indexOf for wider expression-engine compatibility than arrow/includes.
+        return '{{(boards.data ?? []).filter(function(b){var H='.$list.';'
+            .'function has(x){x=String(x==null?"":x); if(!x)return false; for(var i=0;i<H.length;i++){if(H[i]===x||H[i]===x.toLowerCase())return true;} return false;}'
+            .'var s=b&&b.slug!=null?b.slug:(b&&b.bo_table!=null?b.bo_table:"");'
+            .'var n=b&&b.name!=null?b.name:"";'
+            .'var id=b&&b.id!=null?b.id:"";'
+            .'var h=String((b&&(b.href||b.url||b.path||b.link))||"");'
+            .'var m=h.match(/\\/boards?\\/([^\\/?#]+)/);'
+            .'var hs=m&&m[1]?decodeURIComponent(m[1]):"";'
+            .'return !(has(s)||has(n)||has(id)||has(hs));})}}';
     }
 
     private function patchMainContentWidth(array $layout, int $px): array
@@ -849,6 +886,12 @@ class HomeDesignLayoutListener implements HookListenerInterface
             return $layout;
         }
 
+        try {
+            $groups = HomeDesignSettingService::enrichFooterLinkGroupIcons($groups);
+        } catch (\Throwable) {
+            // keep original groups
+        }
+
         return $this->updateNodeById($layout, 'footer', static function (array $node) use ($groups): array {
             if (! isset($node['props']) || ! is_array($node['props'])) {
                 $node['props'] = [];
@@ -912,65 +955,143 @@ class HomeDesignLayoutListener implements HookListenerInterface
     }
 
     /**
-     * Ensure boot.js (embedded settings) loads before home-design.js.
-     * Only called while this Listener is registered (= module installed+active).
-     * Extension overlay intentionally has NO scripts array — leftover extensions
-     * after uninstall must not inject 404 script ids into the home UI.
+     * 0.2.12: NEVER register layout scripts with ids chd_home_design_boot_js /
+     * chd_home_design_js (G7 TemplateApp.loadLayoutScripts → AssetFailureNotice toast
+     * "N개 항목을 불러오지 못했습니다" when module disabled / assets 404).
      *
-     * Uses the same {id, src} shape as custom-ad_slots cas_hero_carousel.
-     * Never injects layout Component nodes — scripts stay in layout["scripts"].
+     * Instead:
+     *  - Strip any leftover those ids (and Component nodes) from the layout
+     *  - Inject a hidden Div with data-chd-settings (inline boot payload, no 404)
+     *  - JS loads via module.json assets.loading=global (ModuleAssetLoader; only when
+     *    module active) → dist/js/module.iife.js dynamically loads home-design.js
      */
     private function ensureScripts(array $layout): array
     {
-        if (! isset($layout['scripts']) || ! is_array($layout['scripts'])) {
-            $layout['scripts'] = [];
-        }
+        $layout = $this->stripLegacyHomeDesignScripts($layout);
+        $layout = $this->ensureConfigDiv($layout);
 
-        // Drop legacy/broken script ids that G7 may still have from older extensions
-        // (chd_home_design without _js was resolved as a missing Component).
-        $layout['scripts'] = array_values(array_filter(
-            $layout['scripts'],
-            static function ($script): bool {
-                if (! is_array($script)) {
-                    return false;
+        return $layout;
+    }
+
+    /**
+     * Remove ALL legacy layout.scripts entries and Script/Component nodes that used
+     * chd_home_design* ids (causes failure toast when module is off).
+     */
+    private function stripLegacyHomeDesignScripts(array $layout): array
+    {
+        $bannedIds = [
+            self::BOOT_SCRIPT_ID,
+            self::SCRIPT_ID,
+            'chd_home_design',
+            'chd_home_design_boot',
+            'chd_home_design_main',
+        ];
+
+        if (isset($layout['scripts']) && is_array($layout['scripts'])) {
+            $layout['scripts'] = array_values(array_filter(
+                $layout['scripts'],
+                static function ($script) use ($bannedIds): bool {
+                    if (! is_array($script)) {
+                        return false;
+                    }
+                    $id = (string) ($script['id'] ?? '');
+                    if ($id !== '' && in_array($id, $bannedIds, true)) {
+                        return false;
+                    }
+                    $src = (string) ($script['src'] ?? '');
+                    if ($src !== '' && (
+                        str_contains($src, 'custom-home_design/assets/boot')
+                        || str_contains($src, 'custom-home_design/assets/home-design')
+                        || str_contains($src, 'chd_home_design')
+                    )) {
+                        return false;
+                    }
+
+                    return true;
                 }
-                $id = (string) ($script['id'] ?? '');
-                // Remove the pre-0.2.4 id that collided with Component lookup
-                if ($id === 'chd_home_design') {
-                    return false;
+            ));
+            if ($layout['scripts'] === []) {
+                unset($layout['scripts']);
+            }
+        }
+
+        // Also drop any tree nodes that reused those ids as Components
+        foreach ($bannedIds as $id) {
+            $layout = $this->removeNodeById($layout, $id);
+        }
+
+        return $layout;
+    }
+
+    /**
+     * Hidden config Div — embeds public settings JSON for instant apply (replaces boot.js).
+     * Not a layout script id → never appears in AssetFailureNotice.
+     */
+    private function ensureConfigDiv(array $layout): array
+    {
+        $cfgId = 'chd_home_design_cfg';
+        $payload = [];
+        try {
+            $settings = $this->settings();
+            if ($settings) {
+                $bi = null;
+                try {
+                    if (filter_var($settings->business_info_enabled, FILTER_VALIDATE_BOOLEAN)) {
+                        $bi = app(HomeDesignSettingService::class)->getEcommerceBusinessInfo();
+                    }
+                } catch (\Throwable) {
+                    $bi = null;
                 }
-
-                return true;
+                $payload = $settings->toPublicArray(is_array($bi) ? $bi : null);
             }
-        ));
-
-        $hasBoot = false;
-        $hasMain = false;
-        foreach ($layout['scripts'] as $script) {
-            if (! is_array($script)) {
-                continue;
-            }
-            $id = (string) ($script['id'] ?? '');
-            $src = (string) ($script['src'] ?? '');
-            if ($id === self::BOOT_SCRIPT_ID || str_contains($src, 'assets/boot')) {
-                $hasBoot = true;
-            }
-            if ($id === self::SCRIPT_ID || str_contains($src, 'home-design')) {
-                $hasMain = true;
-            }
+        } catch (\Throwable) {
+            $payload = [];
         }
 
-        if (! $hasBoot) {
-            array_unshift($layout['scripts'], [
-                'id' => self::BOOT_SCRIPT_ID,
-                'src' => self::BOOT_SCRIPT_SRC,
-            ]);
+        $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($json === false) {
+            $json = '{}';
         }
-        if (! $hasMain) {
-            $layout['scripts'][] = [
-                'id' => self::SCRIPT_ID,
-                'src' => self::SCRIPT_SRC,
-            ];
+
+        $node = [
+            'id' => $cfgId,
+            'type' => 'basic',
+            'name' => 'Div',
+            'props' => [
+                'id' => $cfgId,
+                'className' => 'hidden',
+                'aria-hidden' => 'true',
+                'data-chd-role' => 'home-design-config',
+                'data-chd-settings' => $json,
+                'style' => [
+                    'display' => 'none',
+                ],
+            ],
+            'children' => [],
+        ];
+
+        // Replace if present, else insert before footer (or append to root children)
+        if ($this->findById($layout, $cfgId) !== null) {
+            return $this->updateNodeById($layout, $cfgId, static function (array $existing) use ($node): array {
+                $existing['props'] = $node['props'];
+                $existing['children'] = [];
+
+                return $existing;
+            });
+        }
+
+        $withFooter = $this->insertSiblingBefore($layout, 'footer', $node);
+        if ($this->findById($withFooter, $cfgId) !== null) {
+            return $withFooter;
+        }
+
+        // Fallback: append under root children/components
+        foreach (['children', 'components', 'content'] as $key) {
+            if (isset($layout[$key]) && is_array($layout[$key]) && array_is_list($layout[$key])) {
+                $layout[$key][] = $node;
+
+                return $layout;
+            }
         }
 
         return $layout;

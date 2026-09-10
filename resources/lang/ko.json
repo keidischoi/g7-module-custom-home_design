@@ -22,7 +22,7 @@
                 "hide_header_board_slugs_json": "헤더에서 숨길 게시판 slug (JSON 배열)",
                 "hide_header_board_slugs_json_hint": "JSON 배열. 비우면([]) 모든 게시판 표시. 기본값은 빈 배열입니다.",
                 "footer_link_groups_json": "푸터 linkGroups (JSON)",
-                "footer_link_groups_json_hint": "JSON 배열 [{title, links:[{label,href}]}] — 비우면 테마 기본 linkGroups 사용. 값이 있으면 Footer props.linkGroups 를 통째로 덮어씁니다. FAQ는 /faq 권장.",
+                "footer_link_groups_json_hint": "JSON 배열 [{title, links:[{label,href,icon?}]}] — icon은 feat Footer 종류(home/flame/layout/building/help/message/file/shield/refresh). 비우면 테마 기본. 저장/적용 시 흔한 href는 icon 자동 보강. FAQ는 /faq 권장.",
                 "business_info_enabled": "사업자 고지 블록 표시",
                 "business_info_enabled_hint": "ON이면 sirsoft-ecommerce basic_info(상호/대표/번호/주소/전화/이메일)를 푸터 직전에 표시합니다. 이커머스 정보가 비어 있으면 블록이 비어 보입니다.",
                 "header_search_icon_mode": "검색: 아이콘만 표시 (클릭 시 패널 펼침)",
@@ -32,7 +32,7 @@
                 "hide_header_board_slugs_json_example_label": "예시 JSON",
                 "footer_link_groups_json_example_label": "예시 JSON",
                 "hide_header_board_slugs": "헤더에서 숨길 게시판 slug",
-                "hide_header_board_slugs_hint": "쉼표로 구분해서 입력합니다. 비우면 모든 게시판을 표시합니다.",
+                "hide_header_board_slugs_hint": "쉼표로 구분해서 입력합니다. 비우면 모든 게시판을 표시합니다. 쉼표 구분 slug(예: qna, inquiry). 저장 후 상단 메뉴·더보기·모바일에서 숨김. 안 숨겨지면 hooks:clear && cache:clear 후 새로고침.",
                 "hide_header_board_slugs_example_label": "예시"
             }
         }
