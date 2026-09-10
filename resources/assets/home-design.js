@@ -17,6 +17,8 @@
  * 0.2.9: swap search/theme icon order; search panel BELOW header bar ABOVE nav;
  *        stronger content max-width (!important + .chd-content-col); business fill;
  *        scripts via Listener only (no extension scripts → silent when 미설치).
+ * 0.2.11: search panel form no longer killed by boot CSS; business sibling+reinject;
+ *        empty hide_header_board_slugs restores boards.data (show qna/inquiry).
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -210,16 +212,17 @@
     }
 
     if (searchIcon) {
-      // Hide official center search form (composite Header often lacks #desktop_header id).
+      // Hide ONLY original center search (h-16 row > form). NEVER hide #chd_header_search_panel form
+      // — blanket "header.chd-desktop-header form" made the slide INPUT invisible (0.2.10 bug).
       css +=
-        "#desktop_header form.flex.flex-1.max-w-lg," +
-        "#desktop_header form.max-w-lg," +
         "#desktop_header .flex.items-center.justify-between.h-16 > form," +
-        "header.sticky form.flex.flex-1.max-w-lg," +
-        "header.sticky form.max-w-lg," +
-        "header.sticky.top-0 form.flex.flex-1.max-w-lg," +
-        "header.chd-desktop-header form," +
-        "header.sticky .flex.items-center.justify-between.h-16 > form{" +
+        "#desktop_header .flex.items-center.justify-between.h-16 > form.flex.flex-1.max-w-lg," +
+        "#desktop_header .flex.items-center.justify-between.h-16 > form.max-w-lg," +
+        "header.sticky .flex.items-center.justify-between.h-16 > form," +
+        "header.sticky .flex.items-center.justify-between.h-16 > form.flex.flex-1.max-w-lg," +
+        "header.sticky .flex.items-center.justify-between.h-16 > form.max-w-lg," +
+        "header.chd-desktop-header .flex.items-center.justify-between.h-16 > form," +
+        "header.sticky form.flex.flex-1.max-w-lg.mx-8{" +
         "display:none!important;}" +
         "#" +
         PANEL_ID +
@@ -231,8 +234,30 @@
         "{border-color:rgb(31 41 55);background:rgb(17 24 39);}" +
         "#" +
         PANEL_ID +
-        ".chd-search-open{max-height:120px!important;opacity:1!important;pointer-events:auto;" +
+        ".chd-search-open{max-height:160px!important;opacity:1!important;pointer-events:auto;" +
         "border-top-width:1px;border-top-style:solid;visibility:visible!important;display:block!important;}" +
+        "#" +
+        PANEL_ID +
+        ".chd-search-open form," +
+        "#" +
+        PANEL_ID +
+        ".chd-search-open .chd-search-form," +
+        "#" +
+        PANEL_ID +
+        ".chd-search-open input," +
+        "#" +
+        PANEL_ID +
+        ".chd-search-open input[type='search']," +
+        "#" +
+        PANEL_ID +
+        ".chd-search-open input[type='text']{" +
+        "display:block!important;visibility:visible!important;opacity:1!important;" +
+        "pointer-events:auto!important;max-height:none!important;height:auto!important;" +
+        "color:inherit!important;background-color:rgb(255 255 255)!important;width:100%!important;}" +
+        ".dark #" +
+        PANEL_ID +
+        ".chd-search-open input{" +
+        "background-color:rgb(31 41 55)!important;color:rgb(255 255 255)!important;}" +
         "#" +
         PANEL_ID +
         ":not(.chd-search-open){max-height:0!important;opacity:0;pointer-events:none;border-top-width:0;" +
@@ -362,7 +387,8 @@
       return;
     }
 
-    if (businessInjectedOnce && lastBusinessSig === sig) {
+    // If flag set but DOM node gone (React remount), fall through and re-inject
+    if (businessInjectedOnce && lastBusinessSig === sig && document.getElementById(BUSINESS_ID)) {
       return;
     }
 
@@ -509,10 +535,11 @@
       // Feat uses hidden + inline maxHeight so cached CSS cannot keep it collapsed
       try {
         panel.hidden = false; // keep in layout for transition; visibility via class/maxHeight
-        panel.style.maxHeight = searchOpen ? "120px" : "0px";
+        panel.style.maxHeight = searchOpen ? "160px" : "0px";
         panel.style.opacity = searchOpen ? "1" : "0";
         panel.style.pointerEvents = searchOpen ? "auto" : "none";
         panel.style.visibility = searchOpen ? "visible" : "hidden";
+        panel.style.display = searchOpen ? "block" : "";
       } catch (e0) {
         panel.hidden = !searchOpen;
       }
@@ -524,9 +551,21 @@
       else btn.classList.remove("chd-search-active");
     });
     if (searchOpen && panel) {
-      var input = panel.querySelector("input[type='search'], input[type='text']");
+      var form = panel.querySelector("form");
+      if (form) {
+        try {
+          form.style.setProperty("display", "block", "important");
+          form.style.setProperty("visibility", "visible", "important");
+          form.style.setProperty("opacity", "1", "important");
+        } catch (eF) {}
+      }
+      var input = panel.querySelector("input[type='search'], input[type='text'], input");
       if (input) {
         try {
+          input.style.setProperty("display", "block", "important");
+          input.style.setProperty("visibility", "visible", "important");
+          input.style.setProperty("opacity", "1", "important");
+          input.style.setProperty("width", "100%", "important");
           input.focus();
         } catch (e) {}
       }
@@ -839,6 +878,10 @@
     ensureSearchPanel();
     // Re-sync open class if panel was remounted
     if (searchOpen) setSearchOpen(true);
+    // Business block may be wiped by React remount — re-ensure without MutationObserver
+    try {
+      injectBusinessInfoOnce(lastSettings);
+    } catch (eBi) {}
   }
 
   function scheduleEnsureHeaderUx() {

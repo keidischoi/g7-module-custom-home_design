@@ -1,6 +1,6 @@
 # custom-home_design
 
-Gnuboard7 홈 디자인 애드온 모듈 (`0.2.10`).
+Gnuboard7 홈 디자인 애드온 모듈 (`0.2.11`).
 
 공식 **gnuboard `sirsoft-basic`** 테마에서 메뉴·콘텐츠 폭·푸터 사업자 고지를
 Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 직접 수정 없음.**
@@ -18,11 +18,17 @@ Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 �
 | 헤더 검색 아이콘+슬라이드 패널 / 다크모드 클릭 토글 (JS) | |
 | 헤더 게시판 slug 필터 (기본 빈 배열 — 명시 slug만 숨김) | 테마 소스 패치 / zip 배포 |
 | 푸터 `linkGroups` (공식 Footer props) | |
-| 푸터 직전 사업자 고지 (표시 ON만; 내용은 sirsoft-ecommerce basic_info) | |
+| 푸터 직전 사업자 고지 (표시 ON; 내용은 file `settings/basic_info.json` via `module_setting` / EcommerceSettingsService — DB 테이블 아님) | |
 
 **참고 전용:** `keidischoi/g7-template-sirsoft-basic` 브랜치 `feat/open-in-new-tab-1.1.51`
 (`layouts/_user_base.json`, `Footer.tsx` businessInfo/linkGroups, Header 보드 필터).
 라이브 사이트에는 feat React 기능이 없어도 동작하도록 훅+JS로 이식했습니다.
+
+## 0.2.11 notes
+
+- Search panel input: hide CSS scoped to header bar `.h-16 > form` only (panel form visible when open).
+- Boards: `hide_header_board_slugs=[]` restores `{{boards.data ?? []}}` (qna/inquiry shown; overflow may sit in official “더보기” when >5).
+- Business: reads `module_setting('sirsoft-ecommerce','basic_info')` / `storage/app/modules/sirsoft-ecommerce/settings/basic_info.json`; Listener inserts `#chd_business_info_block` sibling before footer.
 
 ## Install (서버, php82) — **반드시 INSTALLED 상태**
 

@@ -112,13 +112,21 @@ class AssetController extends Controller
                     .'}';
             }
             if ($searchIcon) {
-                $cssParts[] = '#desktop_header form.flex.flex-1.max-w-lg,'
-                    .'#desktop_header form.max-w-lg,'
-                    .'header.sticky form.flex.flex-1.max-w-lg,'
-                    .'header.sticky form.max-w-lg,'
-                    .'header.chd-desktop-header form,'
-                    .'header.sticky .flex.items-center.justify-between.h-16 > form{'
-                    .'display:none!important;}';
+                // Hide ONLY the original center search form — never #chd_header_search_panel form
+                $cssParts[] = '#desktop_header .flex.items-center.justify-between.h-16 > form.flex.flex-1.max-w-lg,'
+                    .'#desktop_header .flex.items-center.justify-between.h-16 > form.max-w-lg,'
+                    .'#desktop_header .flex.items-center.justify-between.h-16 > form,'
+                    .'header.sticky .flex.items-center.justify-between.h-16 > form.flex.flex-1.max-w-lg,'
+                    .'header.sticky .flex.items-center.justify-between.h-16 > form.max-w-lg,'
+                    .'header.sticky .flex.items-center.justify-between.h-16 > form,'
+                    .'header.chd-desktop-header .flex.items-center.justify-between.h-16 > form,'
+                    .'header.sticky form.flex.flex-1.max-w-lg.mx-8{'
+                    .'display:none!important;}'
+                    .'#chd_header_search_panel form,'
+                    .'#chd_header_search_panel input,'
+                    .'#chd_header_search_panel .chd-search-form{'
+                    .'display:block!important;visibility:visible!important;opacity:1!important;'
+                    .'pointer-events:auto!important;max-height:none!important;height:auto!important;}';
             }
             if ($themeClick) {
                 $cssParts[] = 'header.sticky .relative:has(>[aria-label="Toggle theme"]) > div.absolute,'

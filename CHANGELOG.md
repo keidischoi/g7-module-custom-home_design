@@ -3,6 +3,50 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.11] - 2026-09-10
+
+### Simulation (pre-code)
+
+1. **Search**: click `#chd_header_search_toggle` → panel `#chd_header_search_panel` gets
+   `.chd-search-open` (max-height/opacity). Input lives in panel `form.chd-search-form`.
+   **Root cause of invisible input**: boot + home-design CSS used
+   `header.chd-desktop-header form{display:none!important}` which also matched the panel form
+   inside the header. Fix: scope hide to `.h-16 > form` (center bar only) and force-show
+   `#chd_header_search_panel.chd-search-open form/input`.
+2. **Boards (qna/inquiry)**: live DB `hide_header_board_slugs=[]`. Listener must not filter.
+   Official `_user_base` uses `{{boards.data ?? []}}` (all boards); feat hardcodes
+   `filter(!['qna','inquiry'])`. Empty slugs now **restore** official expression if a leftover
+   `.filter(` is present. Note: official `maxVisibleBoards: 5` may park overflow in “더보기”.
+3. **Business**: `module_setting('sirsoft-ecommerce','basic_info')` returns real fields
+   (company_name, business_number, …) from
+   `storage/app/modules/sirsoft-ecommerce/settings/basic_info.json` (no SQL settings table).
+   Display bug was mount/merge path — Listener now **always inserts**
+   `#chd_business_info_block` as sibling **before** `footer`; JS re-injects if React remounts.
+
+### Fixed
+
+- **Search slide input invisible**: scoped center-form hide; panel form/input forced visible when open.
+- **Business notice missing on home** despite `business_info_enabled=1` + filled ecommerce
+  `basic_info`: sibling insert before footer + EcommerceSettingsService/`module_setting`/file
+  reader + split-field merge; visible fallback text if still empty; JS reinject on ensure/SPA.
+- **Boards**: empty `hide_header_board_slugs` restores `{{boards.data ?? []}}` (show qna/inquiry
+  unless admin lists them). Official Footer `linkGroups` prop already applied when DB has JSON.
+
+### Changed
+
+- Version `0.2.11`.
+
+### Install
+
+```bash
+php82 artisan module:update custom-home_design --source=bundled --force --layout-strategy=overwrite
+php82 artisan migrate --force
+php82 artisan hooks:clear && php82 artisan cache:clear && php82 artisan route:clear
+# verify ecommerce → business mapping:
+php82 artisan tinker --execute="print_r(app(\Modules\Custom\HomeDesign\Services\HomeDesignSettingService::class)->getEcommerceBusinessInfo());"
+curl -sk "https://YOUR_HOST/api/modules/custom-home_design/settings" | head -c 800
+```
+
 ## [0.2.10] - 2026-09-10
 
 ### Fixed

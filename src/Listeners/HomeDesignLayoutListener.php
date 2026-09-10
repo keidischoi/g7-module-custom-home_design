@@ -14,7 +14,8 @@ use Modules\Custom\HomeDesign\Services\HomeDesignSettingService;
  *  - main_content + main_content_area content-column max-w-* (settings content_max_width_px, default 1240)
  *  - desktop_header boards filter by hide_header_board_slugs (default empty — show all)
  *  - footer props.linkGroups when footer_link_groups is set (official Footer supports it)
- *  - server-render business info from sirsoft-ecommerce basic_info into chd_business_info_mount
+ *  - server-render business info from sirsoft-ecommerce basic_info.json (file settings) into
+ *    chd_business_info_mount + sibling before footer (composite Footer ignores children)
  *  - ensure boot.js + home-design.js via layout scripts (Listener only; extension has NO scripts
  *    so 미설치 leftover overlays do not 404-warn on the home page)
  *
@@ -229,28 +230,44 @@ class HomeDesignLayoutListener implements HookListenerInterface
     private function fillBusinessInfoMount(array $layout, HomeDesignSetting $settings): array
     {
         if (! filter_var($settings->business_info_enabled, FILTER_VALIDATE_BOOLEAN)) {
-            return $this->updateNodeById($layout, self::BUSINESS_MOUNT_ID, static function (array $node): array {
+            $layout = $this->updateNodeById($layout, self::BUSINESS_MOUNT_ID, static function (array $node): array {
                 $node['children'] = [];
 
                 return $node;
             });
+            // Remove sibling block if previously inserted
+            $layout = $this->removeNodeById($layout, self::BUSINESS_BLOCK_ID);
+
+            return $layout;
         }
 
         $parts = $this->buildBusinessParts();
+        $px = max(320, min(2560, (int) ($settings->content_max_width_px ?: HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX)));
         if ($parts === []) {
-            return $this->updateNodeById($layout, self::BUSINESS_MOUNT_ID, static function (array $node): array {
-                $node['children'] = [];
-
-                return $node;
-            });
+            // Visible fallback so ON+empty is diagnosable (file settings missing / ecommerce unset)
+            try {
+                if (function_exists('logger')) {
+                    logger()->warning('custom-home_design: business_info_enabled but ecommerce basic_info empty', [
+                        'hint' => 'Fill 이커머스>환경설정>기본정보 or check storage/app/modules/sirsoft-ecommerce/settings/basic_info.json',
+                    ]);
+                }
+            } catch (\Throwable) {
+            }
+            $text = '사업자 고지: 이커머스 기본정보(basic_info)가 비어 있습니다. 관리자 > 이커머스 > 환경설정에서 상호·사업자등록번호를 저장하세요.';
+            $block = $this->buildBusinessInfoBlock($text, $px);
+        } else {
+            $text = implode('  |  ', $parts);
+            $block = $this->buildBusinessInfoBlock($text, $px);
         }
 
-        $text = implode('  |  ', $parts);
-        $px = max(320, min(2560, (int) ($settings->content_max_width_px ?: HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX)));
-        $block = $this->buildBusinessInfoBlock($text, $px);
-
-        $updated = $this->updateNodeById($layout, self::BUSINESS_MOUNT_ID, static function (array $node) use ($block): array {
-            $node['children'] = [$block];
+        // DISPLAY PATH (0.2.11): always insert block as sibling BEFORE footer.
+        // G7 "prepend" mount is also a sibling, but filling only mount children was unreliable
+        // across filterChild/filterMerged/afterExtensions merge order. Sibling insert is SSoT.
+        // Clear mount children to avoid a duplicate copy of the same text.
+        $updated = $this->removeNodeById($layout, self::BUSINESS_BLOCK_ID);
+        $updated = $this->insertSiblingBefore($updated, 'footer', $block);
+        $updated = $this->updateNodeById($updated, self::BUSINESS_MOUNT_ID, static function (array $node): array {
+            $node['children'] = [];
 
             return $node;
         });
@@ -419,8 +436,43 @@ class HomeDesignLayoutListener implements HookListenerInterface
             return $node;
         });
 
+        // Official sirsoft-basic: boards = {{boards.data ?? []}} (show ALL, incl. qna/inquiry).
+        // Feat theme hardcodes filter(['qna','inquiry']) — we only filter when admin lists slugs.
+        // When empty: explicitly restore official expression so any leftover .filter(...) is cleared.
+        $officialExpr = '{{boards.data ?? []}}';
+
         if ($slugs === []) {
-            return $layout;
+            $layout = $this->updateNodeById($layout, 'desktop_header', static function (array $node) use ($officialExpr): array {
+                if (! isset($node['props']) || ! is_array($node['props'])) {
+                    $node['props'] = [];
+                }
+                // Restore only if a previous filter expression is still hanging around
+                $current = $node['props']['boards'] ?? null;
+                if (is_string($current) && str_contains($current, '.filter(')) {
+                    $node['props']['boards'] = $officialExpr;
+                } elseif ($current === null || $current === '') {
+                    $node['props']['boards'] = $officialExpr;
+                }
+
+                return $node;
+            });
+
+            return $this->mapNodes($layout, function (array $node) use ($officialExpr): array {
+                if (isset($node['iteration']) && is_array($node['iteration'])) {
+                    $src = $node['iteration']['source'] ?? null;
+                    if (is_string($src) && str_contains($src, 'boards.data') && str_contains($src, '.filter(')) {
+                        $node['iteration']['source'] = $officialExpr;
+                    }
+                }
+                if (isset($node['props']) && is_array($node['props'])) {
+                    $src = $node['props']['source'] ?? null;
+                    if (is_string($src) && str_contains($src, 'boards.data') && str_contains($src, '.filter(')) {
+                        $node['props']['source'] = $officialExpr;
+                    }
+                }
+
+                return $node;
+            });
         }
 
         $expr = $this->buildBoardsFilterExpression($slugs);
@@ -922,6 +974,126 @@ class HomeDesignLayoutListener implements HookListenerInterface
         }
 
         return $layout;
+    }
+
+    /**
+     * Insert $newNode as a sibling immediately before the node with $targetId.
+     * No-op if target missing or newNode id already present.
+     *
+     * @param  array<string, mixed>  $newNode
+     */
+    private function insertSiblingBefore(array $layout, string $targetId, array $newNode): array
+    {
+        $newId = (string) ($newNode['id'] ?? '');
+        if ($newId !== '' && $this->findById($layout, $newId) !== null) {
+            return $layout;
+        }
+
+        return $this->insertSiblingBeforeWalk($layout, $targetId, $newNode);
+    }
+
+    /**
+     * @param  array<string, mixed>  $newNode
+     */
+    private function insertSiblingBeforeWalk(array $node, string $targetId, array $newNode): array
+    {
+        foreach (['children', 'components', 'content'] as $key) {
+            if (! isset($node[$key]) || ! is_array($node[$key]) || ! array_is_list($node[$key])) {
+                continue;
+            }
+            $list = $node[$key];
+            foreach ($list as $i => $child) {
+                if (! is_array($child)) {
+                    continue;
+                }
+                if (($child['id'] ?? null) === $targetId) {
+                    array_splice($list, $i, 0, [$newNode]);
+                    $node[$key] = $list;
+
+                    return $node;
+                }
+                $list[$i] = $this->insertSiblingBeforeWalk($child, $targetId, $newNode);
+            }
+            $node[$key] = $list;
+        }
+
+        if (isset($node['slots']) && is_array($node['slots'])) {
+            foreach ($node['slots'] as $sk => $slot) {
+                if (! is_array($slot)) {
+                    continue;
+                }
+                if (array_is_list($slot)) {
+                    foreach ($slot as $i => $child) {
+                        if (! is_array($child)) {
+                            continue;
+                        }
+                        if (($child['id'] ?? null) === $targetId) {
+                            array_splice($slot, $i, 0, [$newNode]);
+                            $node['slots'][$sk] = $slot;
+
+                            return $node;
+                        }
+                        $slot[$i] = $this->insertSiblingBeforeWalk($child, $targetId, $newNode);
+                    }
+                    $node['slots'][$sk] = $slot;
+                } else {
+                    $node['slots'][$sk] = $this->insertSiblingBeforeWalk($slot, $targetId, $newNode);
+                }
+            }
+        }
+
+        return $node;
+    }
+
+    private function removeNodeById(array $node, string $id): array
+    {
+        foreach (['children', 'components', 'content'] as $key) {
+            if (! isset($node[$key]) || ! is_array($node[$key])) {
+                continue;
+            }
+            $filtered = [];
+            foreach ($node[$key] as $child) {
+                if (! is_array($child)) {
+                    $filtered[] = $child;
+                    continue;
+                }
+                if (($child['id'] ?? null) === $id) {
+                    continue;
+                }
+                $filtered[] = $this->removeNodeById($child, $id);
+            }
+            $node[$key] = array_is_list($node[$key]) ? array_values($filtered) : $filtered;
+        }
+
+        if (isset($node['slots']) && is_array($node['slots'])) {
+            foreach ($node['slots'] as $sk => $slot) {
+                if (! is_array($slot)) {
+                    continue;
+                }
+                if (array_is_list($slot)) {
+                    $filtered = [];
+                    foreach ($slot as $child) {
+                        if (! is_array($child)) {
+                            $filtered[] = $child;
+                            continue;
+                        }
+                        if (($child['id'] ?? null) === $id) {
+                            continue;
+                        }
+                        $filtered[] = $this->removeNodeById($child, $id);
+                    }
+                    $node['slots'][$sk] = array_values($filtered);
+                } else {
+                    if (($slot['id'] ?? null) === $id) {
+                        unset($node['slots'][$sk]);
+                    } else {
+                        $node['slots'][$sk] = $this->removeNodeById($slot, $id);
+                    }
+                }
+            }
+        }
+
+        return $node;
     }
 
     private function findById(array $node, string $id): ?array
