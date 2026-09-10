@@ -3,6 +3,18 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.4] - 2026-09-10
+
+### Fixed
+
+- **홈 하단 박스 폭**: `content_max_width_px`가 `#main_content`뿐 아니라 `#main_content_area` 아래 `max-w-7xl` 콘텐츠 컬럼(홈 mid/lower·feat `ad_global_top/bottom` 내부 Container 등)에도 동일 적용
+- CSS 변수 `--chd-content-max-width` 하나로 헤더/푸터/사업자 고지 inner와 함께 구동; full-bleed(`w-full`만 있고 max-w 없음) 히어로는 건드리지 않음
+
+### Changed
+
+- `HomeDesignLayoutListener::patchContentColumnWidths` — main_content_area 내 max-w-* 노드에 inline maxWidth + `data-chd-max-width`
+- `home-design.js` 선택자 확장 + 매칭 노드에 inline maxWidth 재적용 (SPA debounce 포함)
+
 ## [0.2.3] - 2026-09-10
 
 ### Fixed
