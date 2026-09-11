@@ -160,27 +160,54 @@ class ShopListLayoutListener implements HookListenerInterface
         }
 
         $node['id'] = self::CATEGORY_ROW_ID;
+        if (! isset($node['props']) || ! is_array($node['props'])) {
+            $node['props'] = [];
+        }
+        $node['props']['className'] = 'flex flex-col gap-3 mb-4 sm:flex-row sm:items-start sm:justify-between';
         if (! isset($node['children']) || ! is_array($node['children'])) {
             $node['children'] = [];
         }
 
-        $kept = [];
+        $categoryChildren = [];
         foreach ($node['children'] as $child) {
             if (! is_array($child)) {
-                $kept[] = $child;
                 continue;
             }
             $id = (string) ($child['id'] ?? '');
-            if ($id === 'chd_shop_list_mode_sep' || str_starts_with($id, 'chd_shop_list_')) {
+            if ($id === 'chd_shop_list_mode_sep' || $id === 'chd_shop_list_mode_row' || str_starts_with($id, 'chd_shop_list_')) {
                 continue;
             }
-            $kept[] = $this->retargetCategoryChip($child);
+            if ($id === 'chd_shop_category_chips' && isset($child['children']) && is_array($child['children'])) {
+                foreach ($child['children'] as $inner) {
+                    if (is_array($inner)) {
+                        $categoryChildren[] = $this->retargetCategoryChip($inner);
+                    }
+                }
+                continue;
+            }
+            $categoryChildren[] = $this->retargetCategoryChip($child);
         }
-        $kept[] = $this->separatorNode();
-        foreach ($this->listModeButtons() as $button) {
-            $kept[] = $button;
-        }
-        $node['children'] = $kept;
+
+        $node['children'] = [
+            [
+                'id' => 'chd_shop_category_chips',
+                'type' => 'basic',
+                'name' => 'Div',
+                'props' => [
+                    'className' => 'flex flex-wrap gap-2 min-w-0',
+                ],
+                'children' => $categoryChildren,
+            ],
+            [
+                'id' => 'chd_shop_list_mode_row',
+                'type' => 'basic',
+                'name' => 'Div',
+                'props' => [
+                    'className' => 'flex flex-wrap gap-2 justify-end shrink-0 sm:ml-auto',
+                ],
+                'children' => $this->listModeButtons(),
+            ],
+        ];
 
         return $node;
     }
@@ -209,21 +236,6 @@ class ShopListLayoutListener implements HookListenerInterface
         }
 
         return $node;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function separatorNode(): array
-    {
-        return [
-            'id' => 'chd_shop_list_mode_sep',
-            'type' => 'basic',
-            'name' => 'Span',
-            'props' => [
-                'className' => 'hidden sm:inline-block w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1 self-center',
-            ],
-        ];
     }
 
     /**
@@ -509,7 +521,10 @@ class ShopListLayoutListener implements HookListenerInterface
             return true;
         }
         $className = (string) (($node['props']['className'] ?? '') ?: '');
-        if ($className !== 'flex flex-wrap gap-2 mb-4') {
+        if (
+            $className !== 'flex flex-wrap gap-2 mb-4'
+            && ! str_contains($className, 'sm:justify-between')
+        ) {
             return false;
         }
 

@@ -39,6 +39,10 @@ Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 �
 (`layouts/_user_base.json`, `Footer.tsx` businessInfo/linkGroups, Header 보드 필터).
 라이브 사이트에는 feat React 기능이 없어도 동작하도록 훅+JS로 이식했습니다.
 
+## 0.2.30 notes
+
+- **Shop filters**: 카테고리는 왼쪽, 모든 상품부터 목록 버튼은 오른쪽에 분리합니다.
+
 ## 0.2.29 notes
 
 - **Shop sort bar**: 총 개수 / 최신순 줄 배경을 투명하게 유지합니다.
