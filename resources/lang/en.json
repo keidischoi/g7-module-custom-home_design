@@ -35,7 +35,7 @@
                 "hide_header_board_slugs_hint": "Enter comma-separated board slugs to hide (for example: qna, inquiry). Leave empty to show every board.",
                 "hide_header_board_slugs_example_label": "Example",
                 "hide_header_board_slugs_empty": "Could not load boards. Check sirsoft-board and /api/modules/sirsoft-board/boards/board-menu.",
-                "hide_header_board_slugs_note": "The entered slugs are hidden from every page header (desktop, mobile, and more menu). If pages disagree, run hooks:clear && cache:clear."
+                "hide_header_board_slugs_note": "The entered slugs are hidden from every page header (desktop, mobile, and more menu). Related layout caches refresh automatically when saved."
             }
         }
     }

@@ -3,6 +3,16 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.16] - 2026-09-11
+
+### Fixed — 페이지별 게시판 숨김 설정 불일치
+
+- 원인: 관리자에서 제외 slug를 변경해도 기존 병합 레이아웃 캐시가 페이지별로
+  남아 홈·인기와 다른 메뉴가 서로 다른 필터 설정을 사용했습니다.
+- 설정 저장 후 공식 G7 `LayoutExtensionService::invalidateExtensionCache()`를
+  호출해 활성 사용자 템플릿의 `_user_base`와 모든 하위 레이아웃을 무효화합니다.
+- 확장 캐시 버전도 함께 갱신되어 브라우저가 이전 레이아웃 응답을 계속 사용하지 않습니다.
+
 ## [0.2.15] - 2026-09-11
 
 ### Fixed — 게시판 일부 제외 시 헤더 메뉴 전체가 사라지는 문제

@@ -185,7 +185,54 @@ class HomeDesignSettingService
             throw new \RuntimeException('home_design_settings id=1 was not persisted after upsert');
         }
 
+        $this->invalidateUserLayoutCaches();
+
         return $row;
+    }
+
+    /**
+     * Settings are embedded into merged user layouts by HomeDesignLayoutListener.
+     * Invalidate `_user_base` and every dependent layout after a save so routes do
+     * not keep different generations of the board filter. The core extension API
+     * also bumps the browser cache version.
+     */
+    private function invalidateUserLayoutCaches(): void
+    {
+        try {
+            $repositoryContract = 'App\\Contracts\\Repositories\\TemplateRepositoryInterface';
+            $extensionServiceClass = 'App\\Services\\LayoutExtensionService';
+            $extensionTypeClass = 'App\\Enums\\LayoutExtensionType';
+
+            if (! interface_exists($repositoryContract)
+                || ! class_exists($extensionServiceClass)
+                || ! enum_exists($extensionTypeClass)) {
+                return;
+            }
+
+            $repository = app($repositoryContract);
+            $extensionService = app($extensionServiceClass);
+            if (! is_object($repository)
+                || ! method_exists($repository, 'getActiveByType')
+                || ! is_object($extensionService)
+                || ! method_exists($extensionService, 'invalidateExtensionCache')) {
+                return;
+            }
+
+            $templates = $repository->getActiveByType('user');
+            foreach ($templates as $template) {
+                $templateId = (int) ($template->id ?? 0);
+                if ($templateId <= 0) {
+                    continue;
+                }
+                $extensionService->invalidateExtensionCache(
+                    $templateId,
+                    '_user_base',
+                    \App\Enums\LayoutExtensionType::Overlay,
+                );
+            }
+        } catch (\Throwable) {
+            // Persistence must still succeed on older or partially installed G7 cores.
+        }
     }
 
     /**

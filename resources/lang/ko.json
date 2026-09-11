@@ -35,7 +35,7 @@
                 "hide_header_board_slugs_hint": "숨길 게시판 slug를 쉼표로 구분해 입력하세요 (예: qna, inquiry). 빈 값이면 모든 게시판을 표시합니다.",
                 "hide_header_board_slugs_example_label": "선택 예시",
                 "hide_header_board_slugs_empty": "게시판 목록을 불러오지 못했습니다. sirsoft-board 모듈과 /api/modules/sirsoft-board/boards/board-menu 를 확인하세요.",
-                "hide_header_board_slugs_note": "입력한 slug는 모든 페이지 헤더(데스크톱·모바일·더보기)에서 숨깁니다. 페이지마다 다르게 보이면 hooks:clear && cache:clear 후 새로고침하세요."
+                "hide_header_board_slugs_note": "입력한 slug는 모든 페이지 헤더(데스크톱·모바일·더보기)에서 숨깁니다. 저장하면 관련 레이아웃 캐시가 자동 갱신됩니다."
             }
         }
     }
