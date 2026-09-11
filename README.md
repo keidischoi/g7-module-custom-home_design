@@ -39,6 +39,11 @@ Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 �
 (`layouts/_user_base.json`, `Footer.tsx` businessInfo/linkGroups, Header 보드 필터).
 라이브 사이트에는 feat React 기능이 없어도 동작하도록 훅+JS로 이식했습니다.
 
+## 0.2.29 notes
+
+- **Shop sort bar**: 총 개수 / 최신순 줄 배경을 투명하게 유지합니다.
+- **Shop nav flash**: 카테고리 줄 버튼 전환 시 페이지 블러 번쩍임을 숨깁니다.
+
 ## 0.2.28 notes
 
 - **Shop sort bar**: 총 개수 / 최신순 드롭박스 줄 배경을 투명하게 표시합니다.

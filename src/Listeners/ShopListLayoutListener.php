@@ -343,7 +343,14 @@ class ShopListLayoutListener implements HookListenerInterface
             $className = trim($className.' chd-shop-sort-bar');
         }
         $node['id'] = 'chd_shop_sort_bar';
+        if (! isset($node['props']) || ! is_array($node['props'])) {
+            $node['props'] = [];
+        }
         $node['props']['className'] = $className;
+        $style = isset($node['props']['style']) && is_array($node['props']['style']) ? $node['props']['style'] : [];
+        $style['background'] = 'transparent';
+        $style['backgroundColor'] = 'transparent';
+        $node['props']['style'] = $style;
 
         return $node;
     }

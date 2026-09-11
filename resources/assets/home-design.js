@@ -348,8 +348,18 @@
     return (
       ".chd-shop-sort-bar," +
       "#chd_shop_sort_bar," +
-      "#main_content .flex.items-center.justify-between.py-3.bg-gray-50{" +
-      "background:transparent!important;background-color:transparent!important;}"
+      "#main_content .flex.items-center.justify-between.py-3," +
+      "#main_content .flex.items-center.justify-between.py-3.bg-gray-50," +
+      "html.dark .chd-shop-sort-bar," +
+      ".dark .chd-shop-sort-bar{" +
+      "background:transparent!important;background-color:transparent!important;" +
+      "background-image:none!important;box-shadow:none!important;}" +
+      "html.chd-shop-quiet-nav [data-testid='page-transition-blur']," +
+      "html.chd-shop-quiet-nav [data-testid='page-transition-indicator']," +
+      "html.chd-shop-quiet-nav [aria-label='페이지 전환 중']," +
+      "html.chd-shop-quiet-nav [aria-label='페이지 로딩 중']{" +
+      "display:none!important;opacity:0!important;visibility:hidden!important;" +
+      "backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}"
     );
   }
 
@@ -1616,9 +1626,71 @@
     shopScroll.observed = el;
   }
 
+  function applyShopSortBarTransparent() {
+    var nodes = [];
+    try {
+      nodes = document.querySelectorAll("#chd_shop_sort_bar, .chd-shop-sort-bar");
+    } catch (e) {
+      nodes = [];
+    }
+    if (!nodes.length) {
+      try {
+        var rows = document.querySelectorAll("#main_content .flex.items-center.justify-between");
+        for (var r = 0; r < rows.length; r++) {
+          var text = String(rows[r].textContent || "");
+          if (/총\s*\d+|total/i.test(text) && rows[r].querySelector("select, [role='combobox'], button")) {
+            nodes = [rows[r]];
+            break;
+          }
+        }
+      } catch (e2) {}
+    }
+    for (var i = 0; i < nodes.length; i++) {
+      try {
+        nodes[i].style.setProperty("background", "transparent", "important");
+        nodes[i].style.setProperty("background-color", "transparent", "important");
+        nodes[i].style.setProperty("background-image", "none", "important");
+        nodes[i].style.setProperty("box-shadow", "none", "important");
+      } catch (err) {}
+    }
+  }
+
+  function syncShopQuietNav() {
+    var on = isShopProductsListPath(window.location && window.location.pathname);
+    try {
+      document.documentElement.classList.toggle("chd-shop-quiet-nav", on);
+    } catch (e) {}
+    try {
+      document.body && document.body.classList.toggle("chd-shop-quiet-nav", on);
+    } catch (e2) {}
+  }
+
+  var shopQuietNavBound = false;
+  function bindShopQuietNavClicks() {
+    if (shopQuietNavBound) return;
+    shopQuietNavBound = true;
+    document.addEventListener(
+      "click",
+      function (e) {
+        var t = e.target;
+        if (!t || !t.closest) return;
+        if (!t.closest("#chd_shop_category_row, [data-chd-shop-list], #chd_shop_sort_bar, .chd-shop-sort-bar")) {
+          return;
+        }
+        try {
+          document.documentElement.classList.add("chd-shop-quiet-nav");
+        } catch (err) {}
+      },
+      true
+    );
+  }
+
   function ensureHeaderUx() {
     try {
       bindShopInfiniteScroll();
+      bindShopQuietNavClicks();
+      syncShopQuietNav();
+      applyShopSortBarTransparent();
     } catch (eShop) {}
     if (!lastSettings) return;
     ensureDesktopSearchToggle();

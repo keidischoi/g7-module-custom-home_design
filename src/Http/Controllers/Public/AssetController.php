@@ -147,8 +147,17 @@ class AssetController extends Controller
                 .'max-width:28rem!important;width:100%!important;margin-inline:auto!important;'
                 .'padding-left:unset!important;padding-right:unset!important;}';
             $cssParts[] = '.chd-shop-sort-bar,#chd_shop_sort_bar,'
-                .'#main_content .flex.items-center.justify-between.py-3.bg-gray-50{'
-                .'background:transparent!important;background-color:transparent!important;}';
+                .'#main_content .flex.items-center.justify-between.py-3,'
+                .'#main_content .flex.items-center.justify-between.py-3.bg-gray-50,'
+                .'html.dark .chd-shop-sort-bar,.dark .chd-shop-sort-bar{'
+                .'background:transparent!important;background-color:transparent!important;'
+                .'background-image:none!important;box-shadow:none!important;}'
+                .'html.chd-shop-quiet-nav [data-testid="page-transition-blur"],'
+                .'html.chd-shop-quiet-nav [data-testid="page-transition-indicator"],'
+                .'html.chd-shop-quiet-nav [aria-label="페이지 전환 중"],'
+                .'html.chd-shop-quiet-nav [aria-label="페이지 로딩 중"]{'
+                .'display:none!important;opacity:0!important;visibility:hidden!important;'
+                .'backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}';
 
             $widthPx = (int) ($payload['content_max_width_px'] ?? 1240);
             if ($widthPx < 320 || $widthPx > 2560) {
@@ -206,6 +215,10 @@ class AssetController extends Controller
     if (auth) {
       try { document.documentElement.classList.add("chd-auth-page"); } catch (eAuth1) {}
       if (document.body) { try { document.body.classList.add("chd-auth-page"); } catch (eAuth2) {} }
+    }
+    if (path === "/shop/products" || path === "/products") {
+      try { document.documentElement.classList.add("chd-shop-quiet-nav"); } catch (eQn1) {}
+      if (document.body) { try { document.body.classList.add("chd-shop-quiet-nav"); } catch (eQn2) {} }
     }
     var css = {$cssJson};
     if (css) {

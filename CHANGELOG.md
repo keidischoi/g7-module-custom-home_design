@@ -3,6 +3,13 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.29] - 2026-09-11
+
+### Fixed — 정렬 바 투명 + 카테고리 전환 번쩍임
+
+- 총 개수 / 최신순 박스 배경을 인라인·CSS로 다시 투명하게 맞춥니다.
+- 쇼핑 목록에서 카테고리·목록 버튼을 눌러도 페이지 전환 블러가 번쩍이지 않게 합니다.
+
 ## [0.2.28] - 2026-09-11
 
 ### Changed — 쇼핑 정렬 바 배경 투명
