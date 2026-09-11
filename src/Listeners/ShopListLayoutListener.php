@@ -10,7 +10,7 @@ use App\Contracts\Extension\HookListenerInterface;
  *  - show those products in the same ProductCard thumbnail grid
  *  - list-mode pages use the thumbnail grid + infinite scroll
  *  - category "전체" keeps the original pager and recent/popular/new sections
- *  - product cards use smaller Bunjang-like 81:100 thumbnails (3/4/5 columns)
+ *  - product cards use smaller 81:100 thumbnails (3 mobile / 6 desktop columns)
  */
 class ShopListLayoutListener implements HookListenerInterface
 {
@@ -421,6 +421,18 @@ class ShopListLayoutListener implements HookListenerInterface
             && ! str_contains($cls, 'chd-shop-product-grid')
         ) {
             $node['props']['className'] = trim($cls.' chd-shop-product-grid');
+        }
+
+        $isOverflowRow = (
+            str_contains($cls, 'overflow-x')
+            || str_contains($cls, 'grid-flow-col')
+            || str_contains($cls, 'auto-cols')
+        ) && $this->containsText($node, 'ProductCard');
+        if ($isOverflowRow && ! str_contains($cls, 'chd-shop-carousel-row')) {
+            if (! isset($node['props']) || ! is_array($node['props'])) {
+                $node['props'] = [];
+            }
+            $node['props']['className'] = trim($cls.' chd-shop-carousel-row');
         }
 
         return $node;

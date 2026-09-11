@@ -368,19 +368,24 @@
     return (
       "html.chd-shop-quiet-nav #main_content .grid.grid-cols-2," +
       "html.chd-shop-quiet-nav .chd-shop-product-grid," +
-      ".chd-shop-product-grid{" +
-      "gap:0.5rem!important;" +
+      "html.chd-shop-quiet-nav .chd-shop-carousel-row," +
+      ".chd-shop-product-grid,.chd-shop-carousel-row{" +
+      "display:grid!important;gap:0.5rem!important;" +
+      "grid-auto-flow:row!important;grid-auto-columns:unset!important;" +
+      "overflow:visible!important;overflow-x:visible!important;" +
       "grid-template-columns:repeat(3,minmax(0,1fr))!important;}" +
       "@media (min-width:640px){" +
       "html.chd-shop-quiet-nav #main_content .grid.grid-cols-2," +
       "html.chd-shop-quiet-nav .chd-shop-product-grid," +
-      ".chd-shop-product-grid{" +
-      "grid-template-columns:repeat(4,minmax(0,1fr))!important;}}" +
-      "@media (min-width:1024px){" +
-      "html.chd-shop-quiet-nav #main_content .grid.grid-cols-2," +
-      "html.chd-shop-quiet-nav .chd-shop-product-grid," +
-      ".chd-shop-product-grid{" +
-      "grid-template-columns:repeat(5,minmax(0,1fr))!important;}}" +
+      "html.chd-shop-quiet-nav .chd-shop-carousel-row," +
+      ".chd-shop-product-grid,.chd-shop-carousel-row{" +
+      "grid-template-columns:repeat(6,minmax(0,1fr))!important;}}" +
+      "html.chd-shop-quiet-nav .chd-shop-carousel-row > *," +
+      ".chd-shop-carousel-row > *{" +
+      "width:100%!important;min-width:0!important;max-width:none!important;" +
+      "flex:none!important;}" +
+      "html.chd-shop-quiet-nav .relative:has(.chd-shop-carousel-row) > button{" +
+      "display:none!important;}" +
       "html.chd-shop-quiet-nav #main_content .aspect-square," +
       ".chd-product-card .aspect-square{" +
       "aspect-ratio:81/100!important;height:auto!important;" +
@@ -1703,9 +1708,27 @@
 
   function shopProductGridColumns() {
     var w = window.innerWidth || 0;
-    if (w >= 1024) return 5;
-    if (w >= 640) return 4;
+    if (w >= 640) return 6;
     return 3;
+  }
+
+  function applyShopRowSize(row, cols) {
+    if (!row || !row.style) return;
+    row.style.setProperty("display", "grid", "important");
+    row.style.setProperty("grid-template-columns", "repeat(" + cols + ", minmax(0, 1fr))", "important");
+    row.style.setProperty("grid-auto-flow", "row", "important");
+    row.style.setProperty("grid-auto-columns", "unset", "important");
+    row.style.setProperty("overflow", "visible", "important");
+    row.style.setProperty("overflow-x", "visible", "important");
+    row.style.setProperty("gap", "0.5rem", "important");
+    var kids = row.children || [];
+    for (var k = 0; k < kids.length; k++) {
+      if (!kids[k] || !kids[k].style) continue;
+      kids[k].style.setProperty("width", "100%", "important");
+      kids[k].style.setProperty("min-width", "0", "important");
+      kids[k].style.setProperty("max-width", "none", "important");
+      kids[k].style.setProperty("flex", "none", "important");
+    }
   }
 
   function applyShopProductCardMarks() {
@@ -1717,16 +1740,12 @@
         var gcls = String(grids[g].className || "");
         if (gcls.indexOf("grid-cols-2") === -1) continue;
         grids[g].classList.add("chd-shop-product-grid");
-        grids[g].style.setProperty(
-          "grid-template-columns",
-          "repeat(" + cols + ", minmax(0, 1fr))",
-          "important"
-        );
-        grids[g].style.setProperty("gap", "0.5rem", "important");
+        applyShopRowSize(grids[g], cols);
       }
     } catch (eGrid) {}
     try {
       var thumbs = document.querySelectorAll("#main_content .aspect-square");
+      var seen = [];
       for (var t = 0; t < thumbs.length; t++) {
         thumbs[t].style.setProperty("aspect-ratio", "81/100", "important");
         thumbs[t].style.setProperty("height", "auto", "important");
@@ -1743,8 +1762,44 @@
           badge.style.setProperty("line-height", "1.15", "important");
           badge.style.setProperty("padding", "1px 4px", "important");
         }
+        var row = host && host.parentElement;
+        while (row && row.id !== "main_content") {
+          var rcls = String(row.className || "");
+          if (rcls.indexOf("chd-shop-product-grid") !== -1) {
+            row = null;
+            break;
+          }
+          var thumbKids = 0;
+          for (var c = 0; c < row.children.length; c++) {
+            if (row.children[c].querySelector && row.children[c].querySelector(".aspect-square")) {
+              thumbKids += 1;
+            }
+          }
+          if (thumbKids >= 2 || rcls.indexOf("chd-shop-carousel-row") !== -1) break;
+          row = row.parentElement;
+        }
+        if (!row || row.id === "main_content" || seen.indexOf(row) !== -1) continue;
+        if (String(row.className || "").indexOf("chd-shop-product-grid") !== -1) continue;
+        seen.push(row);
+        row.classList.add("chd-shop-carousel-row");
+        applyShopRowSize(row, cols);
       }
     } catch (eThumb) {}
+    try {
+      var marked = document.querySelectorAll(
+        "#main_content .chd-shop-carousel-row, #main_content [id*='products-scroll']"
+      );
+      for (var m = 0; m < marked.length; m++) {
+        var target = marked[m];
+        if (!target.querySelector(".aspect-square") && target.children.length) {
+          var inner = target.querySelector(".flex, .grid, [class*='overflow']");
+          if (inner && inner.querySelector(".aspect-square")) target = inner;
+        }
+        if (!target.querySelector(".aspect-square")) continue;
+        target.classList.add("chd-shop-carousel-row");
+        applyShopRowSize(target, cols);
+      }
+    } catch (eCar) {}
   }
 
   var shopThumbResizeBound = false;
