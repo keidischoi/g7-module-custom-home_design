@@ -3,6 +3,13 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.18] - 2026-09-11
+
+### Fixed — 홈 박스 폭이 콘텐츠 최대 폭보다 좁던 문제
+
+- `#main_content`만 설정 px로 제한하고, 홈 섹션 Container/그리드는 부모를 100% 채웁니다.
+- 중첩 래퍼에 같은 maxWidth를 다시 넣어 패딩만큼 박스가 줄어들던 문제를 수정했습니다.
+
 ## [0.2.17] - 2026-09-11
 
 ### Changed — 통화 설정 아이콘을 쇼핑 페이지에서만 표시

@@ -98,47 +98,63 @@
       "#main_content.max-w-7xl," +
       "[id='main_content']," +
       ".chd-content-col," +
-      "#main_content_area .max-w-7xl," +
-      "#main_content .max-w-7xl," +
-      "[data-chd-max-width]," +
+      "#main_content_area > .max-w-7xl," +
       "#desktop_header .max-w-7xl," +
       "#footer .max-w-7xl," +
       "footer.chd-footer .max-w-7xl," +
       "#chd_business_info_mount .max-w-7xl," +
       "#chd_business_info_block .chd-bi-inner," +
-      "#main_content_area [class*='max-w-']," +
-      "#main_content [class*='max-w-']," +
-      "#main_content > div," +
-      "#main_content > section," +
-      "#main_content [data-chd-max-width]," +
-      "#main_content .mx-auto[class*='px-']," +
-      "#main_content_area [data-chd-max-width]," +
-      "#main_content_area > .max-w-7xl," +
-      "#main_content_area > div.mx-auto"
+      "[data-chd-max-width]"
+    );
+  }
+
+  function homeFillSelector() {
+    return (
+      "#main_content > *:not([data-chd-full-bleed])," +
+      "#main_content .chd-home-fill," +
+      "#main_content [data-chd-home-fill]," +
+      "#main_content .grid"
     );
   }
 
   function applyInlineMaxWidth(n) {
-    var sel = contentColumnSelector();
     var nodes;
     try {
-      nodes = document.querySelectorAll(sel);
+      nodes = document.querySelectorAll(contentColumnSelector());
     } catch (e) {
       nodes = [];
     }
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
-      if (el.getAttribute && el.getAttribute("data-chd-full-bleed") === "1") continue;
-      // Skip obvious full-bleed heroes/carousels
+      if (el.getAttribute && (el.getAttribute("data-chd-full-bleed") === "1" || el.getAttribute("data-chd-home-fill") === "1")) continue;
       var id = (el.id || "").toLowerCase();
       var cls = (el.className && String(el.className)) || "";
       if (id.indexOf("carousel") !== -1 || id.indexOf("hero") !== -1) continue;
-      if (cls.indexOf("chd-full-bleed") !== -1) continue;
+      if (cls.indexOf("chd-full-bleed") !== -1 || cls.indexOf("chd-home-fill") !== -1) continue;
       try {
         el.style.setProperty("max-width", n + "px", "important");
+        el.style.setProperty("width", "100%", "important");
         el.style.setProperty("margin-inline", "auto");
-        if (!el.style.width) el.style.setProperty("width", "100%");
+        el.style.setProperty("box-sizing", "border-box");
       } catch (err) {}
+    }
+
+    var fills;
+    try {
+      fills = document.querySelectorAll(homeFillSelector());
+    } catch (e2) {
+      fills = [];
+    }
+    for (var j = 0; j < fills.length; j++) {
+      var fill = fills[j];
+      var fillId = (fill.id || "").toLowerCase();
+      if (fillId === "main_content") continue;
+      if (fillId.indexOf("carousel") !== -1 || fillId.indexOf("hero") !== -1) continue;
+      try {
+        fill.style.setProperty("width", "100%", "important");
+        fill.style.setProperty("max-width", "100%", "important");
+        fill.style.setProperty("box-sizing", "border-box");
+      } catch (err2) {}
     }
   }
 
@@ -156,13 +172,9 @@
       "px;}" +
       contentColumnSelector() +
       "{max-width:var(--chd-content-max-width)!important;" +
-      "width:100%!important;margin-inline:auto!important;}" +
-      /* Force Tailwind max-w-* under main home content to honor CSS var */
-      "#main_content [class*='max-w-']," +
-      "#main_content_area [class*='max-w-']," +
-      ".chd-content-col," +
-      "[id='main_content']{" +
-      "max-width:var(--chd-content-max-width)!important;}" +
+      "width:100%!important;margin-inline:auto!important;box-sizing:border-box!important;}" +
+      homeFillSelector() +
+      "{width:100%!important;max-width:100%!important;box-sizing:border-box!important;}" +
       /* Keep full-bleed carousel/hero full width */
       "[data-chd-full-bleed='1']," +
       "#main_content_area [id*='carousel']," +

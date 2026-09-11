@@ -142,6 +142,18 @@ class AssetController extends Controller
                 .'html.chd-hide-header-currency #mobile_drawer_currency_wrap,'
                 .'html.chd-hide-header-currency [id*="header_currency"]{'
                 .'display:none!important;visibility:hidden!important;}';
+
+            $widthPx = (int) ($payload['content_max_width_px'] ?? 1240);
+            if ($widthPx < 320 || $widthPx > 2560) {
+                $widthPx = 1240;
+            }
+            $cssParts[] = ':root{--chd-content-max-width:'.$widthPx.'px;}'
+                .'#main_content,#main_content.max-w-7xl,[id="main_content"],.chd-content-col{'
+                .'max-width:var(--chd-content-max-width)!important;width:100%!important;'
+                .'margin-inline:auto!important;box-sizing:border-box!important;}'
+                .'#main_content > *:not([data-chd-full-bleed]),#main_content .chd-home-fill,'
+                .'#main_content [data-chd-home-fill],#main_content .grid{'
+                .'width:100%!important;max-width:100%!important;box-sizing:border-box!important;}';
             $bootCss = implode('', $cssParts);
             $cssJson = json_encode($bootCss, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '""';
 

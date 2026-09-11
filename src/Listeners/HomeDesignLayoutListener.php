@@ -829,10 +829,9 @@ class HomeDesignLayoutListener implements HookListenerInterface
     }
 
     /**
-     * Patch home mid-section width nodes:
-     *  - layout Container (home root / section wrappers)
-     *  - any max-w-* / style.maxWidth
-     * Skip obvious full-bleed: class is only w-full / mb-* without max-w, or hero/carousel ids.
+     * Home section wrappers/grids should FILL `#main_content`.
+     * The content-column cap lives only on `#main_content`; a second px cap on
+     * nested Containers made the home boxes narrower than the setting.
      */
     private function maybePatchHomeWidthNode(array $node, int $px): array
     {
@@ -842,56 +841,67 @@ class HomeDesignLayoutListener implements HookListenerInterface
             return $node;
         }
 
-        $patched = $this->maybePatchMaxWidthNode($node, $px, skipMainContent: false);
+        if (($node['id'] ?? null) === 'main_content') {
+            return $this->maybePatchMaxWidthNode($node, $px, skipMainContent: false);
+        }
 
-        // Home root / section Containers: force maxWidth even without max-w-* class
-        // so nested grids grow with content_max_width_px (parent main_content alone
-        // is not always enough when React remounts child slot trees).
         $isContainer = ($node['type'] ?? '') === 'layout' && $name === 'Container';
-        if ($isContainer) {
-            $className = (string) (($patched['props']['className'] ?? '') ?: '');
-            $isFullBleed = $className !== ''
-                && preg_match('/\bw-full\b/', $className)
-                && ! preg_match('/\bmax-w-/', $className)
-                && ! preg_match('/\bmx-auto\b/', $className)
-                && ! preg_match('/\bpx-/', $className); // home root uses px-4/6/8 — not full-bleed
+        $className = (string) (($node['props']['className'] ?? '') ?: '');
+        $isGrid = $className !== '' && preg_match('/\bgrid\b/', $className);
+        if (! $isContainer && ! $isGrid) {
+            return $node;
+        }
 
-            if (! $isFullBleed) {
-                if (! isset($patched['props']) || ! is_array($patched['props'])) {
-                    $patched['props'] = [];
-                }
-                $style = isset($patched['props']['style']) && is_array($patched['props']['style'])
-                    ? $patched['props']['style']
-                    : [];
-                $style['maxWidth'] = $px.'px';
-                $style['width'] = '100%';
-                $style['marginInline'] = 'auto';
-                $patched['props']['style'] = $style;
-                $patched['props']['data-chd-max-width'] = (string) $px;
+        return $this->markHomeFillNode($node);
+    }
 
-                // Also set on each responsive breakpoint props
-                if (isset($patched['responsive']) && is_array($patched['responsive'])) {
-                    foreach ($patched['responsive'] as $bp => $bpVal) {
-                        if (! is_array($bpVal)) {
-                            continue;
-                        }
-                        if (! isset($bpVal['props']) || ! is_array($bpVal['props'])) {
-                            $bpVal['props'] = [];
-                        }
-                        $bpStyle = isset($bpVal['props']['style']) && is_array($bpVal['props']['style'])
-                            ? $bpVal['props']['style']
-                            : [];
-                        $bpStyle['maxWidth'] = $px.'px';
-                        $bpStyle['width'] = '100%';
-                        $bpStyle['marginInline'] = 'auto';
-                        $bpVal['props']['style'] = $bpStyle;
-                        $patched['responsive'][$bp] = $bpVal;
-                    }
+    /**
+     * @param  array<string, mixed>  $node
+     * @return array<string, mixed>
+     */
+    private function markHomeFillNode(array $node): array
+    {
+        $apply = static function (array $props): array {
+            $className = trim((string) ($props['className'] ?? ''));
+            if ($className !== '' && ! str_contains($className, 'w-full')) {
+                $className = trim($className.' w-full');
+            }
+            if ($className !== '' && ! str_contains($className, 'chd-home-fill')) {
+                $className = trim($className.' chd-home-fill');
+            }
+            if ($className !== '') {
+                $props['className'] = $className;
+            }
+            $style = isset($props['style']) && is_array($props['style']) ? $props['style'] : [];
+            $style['width'] = '100%';
+            $style['maxWidth'] = '100%';
+            unset($style['max-width']);
+            $props['style'] = $style;
+            $props['data-chd-home-fill'] = '1';
+            unset($props['data-chd-max-width']);
+
+            return $props;
+        };
+
+        if (! isset($node['props']) || ! is_array($node['props'])) {
+            $node['props'] = [];
+        }
+        $node['props'] = $apply($node['props']);
+
+        if (isset($node['responsive']) && is_array($node['responsive'])) {
+            foreach ($node['responsive'] as $bp => $bpVal) {
+                if (! is_array($bpVal)) {
+                    continue;
                 }
+                if (! isset($bpVal['props']) || ! is_array($bpVal['props'])) {
+                    $bpVal['props'] = [];
+                }
+                $bpVal['props'] = $apply($bpVal['props']);
+                $node['responsive'][$bp] = $bpVal;
             }
         }
 
-        return $patched;
+        return $node;
     }
 
     private function patchFooterLinkGroups(array $layout, mixed $groups): array
