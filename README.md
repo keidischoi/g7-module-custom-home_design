@@ -39,6 +39,11 @@ Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 �
 (`layouts/_user_base.json`, `Footer.tsx` businessInfo/linkGroups, Header 보드 필터).
 라이브 사이트에는 feat React 기능이 없어도 동작하도록 훅+JS로 이식했습니다.
 
+## 0.2.23 notes
+
+- **Header stability**: 페이지별 콘텐츠 높이에 따라 세로 스크롤바가 생기거나 사라져도
+  상단 헤더와 글로벌 메뉴의 가로 위치가 바뀌지 않습니다.
+
 ## 0.2.19 notes
 
 - **Home align**: 홈 박스 좌우를 헤더/네비와 같은 `px-4 sm:px-6 lg:px-8` 여백으로 맞춥니다.

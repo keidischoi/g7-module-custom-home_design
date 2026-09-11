@@ -169,6 +169,8 @@
     document.documentElement.style.setProperty("--chd-content-max-width", n + "px");
 
     var css =
+      "html{scrollbar-gutter:stable;}" +
+      "@supports not (scrollbar-gutter:stable){html{overflow-y:scroll;}}" +
       ":root{--chd-content-max-width:" +
       n +
       "px;}" +

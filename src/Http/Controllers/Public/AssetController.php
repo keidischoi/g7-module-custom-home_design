@@ -147,7 +147,9 @@ class AssetController extends Controller
             if ($widthPx < 320 || $widthPx > 2560) {
                 $widthPx = 1240;
             }
-            $cssParts[] = ':root{--chd-content-max-width:'.$widthPx.'px;}'
+            $cssParts[] = 'html{scrollbar-gutter:stable;}'
+                .'@supports not (scrollbar-gutter:stable){html{overflow-y:scroll;}}'
+                .':root{--chd-content-max-width:'.$widthPx.'px;}'
                 .'#main_content,#main_content.max-w-7xl,[id="main_content"],.chd-content-col,'
                 .'#desktop_header .max-w-7xl,header.chd-desktop-header .max-w-7xl,'
                 .'.chd-desktop-header .max-w-7xl,#footer .max-w-7xl,footer.chd-footer .max-w-7xl{'
