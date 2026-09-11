@@ -146,6 +146,9 @@ class AssetController extends Controller
                 .'html.chd-auth-page #main_content .chd-content-col:not(#main_content){'
                 .'max-width:28rem!important;width:100%!important;margin-inline:auto!important;'
                 .'padding-left:unset!important;padding-right:unset!important;}';
+            $cssParts[] = '.chd-shop-sort-bar,#chd_shop_sort_bar,'
+                .'#main_content .flex.items-center.justify-between.py-3.bg-gray-50{'
+                .'background:transparent!important;background-color:transparent!important;}';
 
             $widthPx = (int) ($payload['content_max_width_px'] ?? 1240);
             if ($widthPx < 320 || $widthPx > 2560) {

@@ -3,6 +3,12 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.28] - 2026-09-11
+
+### Changed — 쇼핑 정렬 바 배경 투명
+
+- 총 개수와 최신순 드롭박스가 있는 박스 배경을 투명하게 바꿨습니다.
+
 ## [0.2.27] - 2026-09-11
 
 ### Changed — 카테고리 전체 페이지 원래 구성 복원

@@ -336,11 +336,21 @@
 
     css += headerCurrencyHideCss();
     css += authFormCardCss();
+    css += shopSortBarCss();
     syncHeaderCurrencyVisibility();
     syncAuthPageClass();
 
     ensureStyleEl().textContent = css;
     applyInlineMaxWidth(n);
+  }
+
+  function shopSortBarCss() {
+    return (
+      ".chd-shop-sort-bar," +
+      "#chd_shop_sort_bar," +
+      "#main_content .flex.items-center.justify-between.py-3.bg-gray-50{" +
+      "background:transparent!important;background-color:transparent!important;}"
+    );
   }
 
   function authFormCardCss() {

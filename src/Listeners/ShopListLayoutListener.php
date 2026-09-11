@@ -104,6 +104,7 @@ class ShopListLayoutListener implements HookListenerInterface
                 $node = $this->patchCategoryRow($node);
                 $node = $this->hideCarousel($node);
                 $node = $this->hideSearchOnRecent($node);
+                $node = $this->patchSortBarBackground($node);
                 $node = $this->patchProductGrid($node);
                 $node = $this->hidePagination($node);
 
@@ -312,6 +313,37 @@ class ShopListLayoutListener implements HookListenerInterface
         if ($className === 'space-y-4' && $this->containsText($node, '$t:shop.search')) {
             $node['if'] = "{{!(query.list == 'recent')}}";
         }
+
+        return $node;
+    }
+
+    /**
+     * Make the "총 n개 + 최신순" sort bar background transparent.
+     *
+     * @param  array<string, mixed>  $node
+     * @return array<string, mixed>
+     */
+    private function patchSortBarBackground(array $node): array
+    {
+        $comment = (string) ($node['comment'] ?? '');
+        $className = (string) (($node['props']['className'] ?? '') ?: '');
+        $isSortBar = str_contains($comment, '정렬 바')
+            || (str_contains($className, 'justify-between') && str_contains($className, 'bg-gray-50') && $this->containsText($node, '$t:shop.total_count'))
+            || (($node['id'] ?? '') === 'chd_shop_sort_bar');
+        if (! $isSortBar) {
+            return $node;
+        }
+
+        $className = trim(preg_replace('/\b(?:dark:)?bg-(?:gray-50|gray-800(?:\/50)?)\b/', '', $className) ?? $className);
+        $className = trim(preg_replace('/\s+/', ' ', $className) ?? $className);
+        if (! str_contains($className, 'bg-transparent')) {
+            $className = trim($className.' bg-transparent');
+        }
+        if (! str_contains($className, 'chd-shop-sort-bar')) {
+            $className = trim($className.' chd-shop-sort-bar');
+        }
+        $node['id'] = 'chd_shop_sort_bar';
+        $node['props']['className'] = $className;
 
         return $node;
     }
