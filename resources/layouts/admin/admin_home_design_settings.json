@@ -614,7 +614,7 @@
                               "form.hide_header_board_slugs": "{{Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs) ? (($response.data?.data ?? $response.data ?? $response).hide_header_board_slugs) : (_local.form?.hide_header_board_slugs ?? [])}}",
                               "form.footer_link_groups": "{{(($response.data?.data ?? $response.data ?? $response))?.footer_link_groups ?? _local.form?.footer_link_groups}}",
                               "form.enabled": true,
-                              "form.hide_header_board_slugs_text": "{{(function(){ var r = ($response.data?.data ?? $response.data ?? $response) || {}; if (Array.isArray(r.hide_header_board_slugs)) return r.hide_header_board_slugs.join(', '); return r.hide_header_board_slugs_text || _local.form?.hide_header_board_slugs_text || ''; })()}}"
+                              "form.hide_header_board_slugs_text": "{{Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs) ? ($response.data?.data ?? $response.data ?? $response).hide_header_board_slugs.join(', ') : (($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs_text ?? _local.form?.hide_header_board_slugs_text ?? '')}}"
                             }
                           },
                           {

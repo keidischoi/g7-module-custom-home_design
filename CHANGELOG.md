@@ -3,6 +3,14 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.21] - 2026-09-11
+
+### Fixed — 메뉴 제외 입력란에 표현식 원문이 표시되는 문제
+
+- 저장 성공 후 slug 문자열을 복원하던 `var` IIFE가 일부 G7 안전 표현식 평가기에서
+  해석되지 않아 원문이 입력값으로 들어가던 문제를 수정했습니다.
+- 단순 배열 판정식으로 변경해 저장된 slug만 쉼표 문자열로 표시합니다.
+
 ## [0.2.20] - 2026-09-11
 
 ### Fixed — 상단 글로벌 메뉴 최대 폭 정렬
