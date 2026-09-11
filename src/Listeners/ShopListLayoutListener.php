@@ -8,8 +8,8 @@ use App\Contracts\Extension\HookListenerInterface;
  * Event-hook patches for shop/index:
  *  - add 모든 상품 / 최근 본 상품 / 인기상품 / 신상품 chips next to categories
  *  - show those products in the same ProductCard thumbnail grid
- *  - hide page buttons (infinite scroll is handled by home-design.js)
- *  - hide the duplicate bottom carousels
+ *  - list-mode pages use the thumbnail grid + infinite scroll
+ *  - category "전체" keeps the original pager and recent/popular/new sections
  */
 class ShopListLayoutListener implements HookListenerInterface
 {
@@ -137,7 +137,7 @@ class ShopListLayoutListener implements HookListenerInterface
                 $source['params'] = [];
             }
             $source['params']['page'] = '{{query.page ?? 1}}';
-            $source['params']['per_page'] = 20;
+            $source['params']['per_page'] = "{{(!query.list && !query.category) ? 12 : 20}}";
             $source['params']['search'] = '{{query.keyword ?? \'\'}}';
             $source['params']['sort'] = "{{query.list == 'popular' ? 'sales' : ((query.list == 'new' || query.list == 'all') ? 'latest' : (query.sort ?? 'latest'))}}";
             $source['params']['category_id'] = "{{(query.list == 'popular' || query.list == 'new' || query.list == 'recent' || query.list == 'all') ? '' : (query.category ?? '')}}";
@@ -281,7 +281,15 @@ class ShopListLayoutListener implements HookListenerInterface
             || str_contains($partial, '_new_products.json')
             || in_array($scope, ['popular-products-scroll', 'new-products-scroll', 'recent-products-scroll'], true);
         if ($isCarousel) {
-            $node['if'] = '{{false}}';
+            $extra = '';
+            if ($scope === 'popular-products-scroll' || str_contains($partial, '_popular_products.json')) {
+                $extra = ' && popularProducts.data && popularProducts.data.length > 0';
+            } elseif ($scope === 'new-products-scroll' || str_contains($partial, '_new_products.json')) {
+                $extra = ' && newProducts.data && newProducts.data.length > 0';
+            } elseif ($scope === 'recent-products-scroll' || str_contains($partial, '_recent_products.json')) {
+                $extra = ' && recentProducts.data && recentProducts.data.length > 0';
+            }
+            $node['if'] = '{{!query.list && !query.category'.$extra.'}}';
         }
 
         return $node;
@@ -337,14 +345,22 @@ class ShopListLayoutListener implements HookListenerInterface
      */
     private function hidePagination(array $node): array
     {
+        if (($node['id'] ?? '') === self::SENTINEL_ID) {
+            return $node;
+        }
+        if ((string) (($node['props']['data-chd-shop-sentinel'] ?? '') ?: '') === '1') {
+            return $node;
+        }
         $comment = (string) ($node['comment'] ?? '');
         $iff = (string) ($node['if'] ?? '');
         $isPager = str_contains($comment, '페이지네이션')
             || str_contains($iff, 'products?.data?.pagination?.last_page')
-            || str_contains($iff, 'products?.data?.pagination?.has_more_pages');
-        if ($isPager && ($node['id'] ?? '') !== self::SENTINEL_ID) {
-            $node['if'] = '{{false}}';
-            $node['id'] = $node['id'] ?? 'chd_shop_pager_hidden';
+            || (str_contains($iff, 'products?.data?.pagination?.has_more_pages') && str_contains($iff, 'last_page'));
+        if ($isPager) {
+            $node['if'] = '{{!query.list && !query.category && (((products?.data?.pagination?.last_page ?? 0) > 1) || (products?.data?.pagination?.has_more_pages ?? false) || ((products?.data?.pagination?.current_page ?? 1) > 1))}}';
+            if (empty($node['id'])) {
+                $node['id'] = 'chd_shop_pager';
+            }
         }
 
         return $node;
@@ -356,15 +372,22 @@ class ShopListLayoutListener implements HookListenerInterface
      */
     private function ensureSentinel(array $layout): array
     {
+        $sentinelIf = "{{(query.list || query.category) && !(query.list == 'recent') && (products?.data?.pagination?.has_more_pages ?? false)}}";
         if ($this->findById($layout, self::SENTINEL_ID) !== null) {
-            return $layout;
+            return $this->walk($layout, function (array $node) use ($sentinelIf): array {
+                if (($node['id'] ?? '') === self::SENTINEL_ID) {
+                    $node['if'] = $sentinelIf;
+                }
+
+                return $node;
+            });
         }
 
         $sentinel = [
             'id' => self::SENTINEL_ID,
             'type' => 'basic',
             'name' => 'Div',
-            'if' => "{{!(query.list == 'recent') && (products?.data?.pagination?.has_more_pages ?? false)}}",
+            'if' => $sentinelIf,
             'props' => [
                 'className' => 'h-12 flex items-center justify-center mb-10 text-sm text-gray-400 dark:text-gray-500',
                 'data-chd-shop-sentinel' => '1',

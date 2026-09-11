@@ -1457,6 +1457,11 @@
     };
   }
 
+  function isShopAllCategoryPage() {
+    var q = shopListQuery();
+    return !q.list && !q.category;
+  }
+
   function shopScrollKey() {
     var q = shopListQuery();
     return [normalizePath(window.location && window.location.pathname), q.list, q.category, q.sort, q.keyword].join("|");
@@ -1543,7 +1548,7 @@
   function loadMoreShopProducts() {
     if (!isShopProductsListPath(window.location && window.location.pathname)) return;
     var q = shopListQuery();
-    if (q.list === "recent") return;
+    if (q.list === "recent" || isShopAllCategoryPage()) return;
     if (shopScroll.loading || !shopScroll.hasMore) return;
     shopScroll.loading = true;
     var next = shopScroll.page + 1;
@@ -1568,10 +1573,10 @@
     if (shopScroll.key !== key) {
       shopScroll.key = key;
       shopScroll.page = 1;
-      shopScroll.hasMore = shopListQuery().list !== "recent";
+      shopScroll.hasMore = shopListQuery().list !== "recent" && !isShopAllCategoryPage();
       shopScroll.loading = false;
     }
-    if (!isShopProductsListPath(window.location && window.location.pathname) || shopListQuery().list === "recent") {
+    if (!isShopProductsListPath(window.location && window.location.pathname) || shopListQuery().list === "recent" || isShopAllCategoryPage()) {
       if (shopScroll.observer && shopScroll.observed) {
         try {
           shopScroll.observer.unobserve(shopScroll.observed);
