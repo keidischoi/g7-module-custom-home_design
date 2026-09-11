@@ -138,10 +138,10 @@ class AssetController extends Controller
             }
             $cssParts[] = 'html.chd-hide-header-currency [data-testid="currency-switcher"],'
                 .'html.chd-hide-header-currency [id^="ext_header_currency_selector"],'
-                .'html.chd-hide-header-currency #header_currency_slot_desktop,'
-                .'html.chd-hide-header-currency #mobile_drawer_currency_wrap,'
-                .'html.chd-hide-header-currency [id*="header_currency"]{'
-                .'display:none!important;visibility:hidden!important;}';
+                .'html.chd-hide-header-currency #header_currency_slot_desktop{'
+                .'visibility:hidden!important;pointer-events:none!important;}'
+                .'html.chd-hide-header-currency #mobile_drawer_currency_wrap{'
+                .'display:none!important;visibility:hidden!important;pointer-events:none!important;}';
 
             $widthPx = (int) ($payload['content_max_width_px'] ?? 1240);
             if ($widthPx < 320 || $widthPx > 2560) {

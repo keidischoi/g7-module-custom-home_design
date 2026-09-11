@@ -1,6 +1,6 @@
 # custom-home_design
 
-Gnuboard7 홈 디자인 애드온 모듈 (`0.2.21`).
+Gnuboard7 홈 디자인 애드온 모듈 (`0.2.22`).
 
 공식 **gnuboard `sirsoft-basic`** 테마에서 메뉴·콘텐츠 폭·푸터 사업자 고지를
 Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 직접 수정 없음.**
@@ -8,6 +8,11 @@ Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 �
 ## Identifier
 
 `custom-home_design` (vendor: `custom`)
+
+## 0.2.22 notes
+
+- **Stable header actions**: 비쇼핑 페이지에서도 통화 선택기 자리만 유지하고 보이지 않게 해,
+  쇼핑 페이지 이동 시 우측 상단 메뉴가 왼쪽으로 밀리지 않습니다.
 
 ## 0.2.21 notes
 

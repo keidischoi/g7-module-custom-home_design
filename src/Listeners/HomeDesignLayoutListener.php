@@ -178,10 +178,6 @@ class HomeDesignLayoutListener implements HookListenerInterface
             } catch (\Throwable) {
             }
             try {
-                $layout = $this->patchCurrencySelectorVisibility($layout);
-            } catch (\Throwable) {
-            }
-            try {
                 $layout = $this->ensureScripts($layout);
             } catch (\Throwable) {
             }
@@ -954,56 +950,6 @@ class HomeDesignLayoutListener implements HookListenerInterface
 
             return $node;
         });
-    }
-
-    /**
-     * Show the ecommerce currency icon only on shopping layouts.
-     * `_user_base` is left untouched so shop children keep the injected slot.
-     */
-    private function patchCurrencySelectorVisibility(array $layout): array
-    {
-        if ($this->isShopRelatedLayout((string) ($layout['layout_name'] ?? ''))) {
-            return $layout;
-        }
-
-        return $this->mapNodes($layout, function (array $node): array {
-            $id = (string) ($node['id'] ?? '');
-            $slot = (string) ($node['slot'] ?? '');
-            $slotId = '';
-            if (isset($node['props']) && is_array($node['props'])) {
-                $slotId = (string) ($node['props']['slotId'] ?? '');
-            }
-            $isCurrency = $id === 'ext_header_currency_selector'
-                || $id === 'header_currency_inject_anchor'
-                || $id === 'mobile_drawer_currency_wrap'
-                || $id === 'header_currency_slot_desktop'
-                || str_starts_with($id, 'ext_header_currency_selector')
-                || $slot === 'header_currency'
-                || $slotId === 'header_currency';
-            if ($isCurrency) {
-                $node['if'] = '{{false}}';
-            }
-
-            return $node;
-        });
-    }
-
-    private function isShopRelatedLayout(string $layoutName): bool
-    {
-        $name = trim($layoutName);
-        if ($name === '' || $name === '_user_base') {
-            return true;
-        }
-        if ($name === 'shop' || str_starts_with($name, 'shop/')) {
-            return true;
-        }
-        foreach (['mypage/orders', 'mypage/wishlist', 'mypage/mileage', 'mypage/addresses'] as $prefix) {
-            if ($name === $prefix || str_starts_with($name, $prefix.'/')) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
