@@ -142,6 +142,10 @@ class AssetController extends Controller
                 .'visibility:hidden!important;pointer-events:none!important;}'
                 .'html.chd-hide-header-currency #mobile_drawer_currency_wrap{'
                 .'display:none!important;visibility:hidden!important;pointer-events:none!important;}';
+            $cssParts[] = 'html.chd-auth-page #main_content [data-chd-max-width]:not(#main_content),'
+                .'html.chd-auth-page #main_content .chd-content-col:not(#main_content){'
+                .'max-width:28rem!important;width:100%!important;margin-inline:auto!important;'
+                .'padding-left:unset!important;padding-right:unset!important;}';
 
             $widthPx = (int) ($payload['content_max_width_px'] ?? 1240);
             if ($widthPx < 320 || $widthPx > 2560) {
@@ -193,6 +197,12 @@ class AssetController extends Controller
     if (!shop) {
       try { document.documentElement.classList.add("chd-hide-header-currency"); } catch (eCur1) {}
       if (document.body) { try { document.body.classList.add("chd-hide-header-currency"); } catch (eCur2) {} }
+    }
+    var auth = path === "/login" || path === "/register" || path === "/forgot-password"
+      || path.indexOf("/reset-password") === 0 || path === "/identity-challenge" || path.indexOf("/auth/") === 0;
+    if (auth) {
+      try { document.documentElement.classList.add("chd-auth-page"); } catch (eAuth1) {}
+      if (document.body) { try { document.body.classList.add("chd-auth-page"); } catch (eAuth2) {} }
     }
     var css = {$cssJson};
     if (css) {

@@ -119,7 +119,22 @@
     );
   }
 
+  function hasFormScaleMaxWidth(el) {
+    var cls = (el && el.className && String(el.className)) || "";
+    return /\bmax-w-(?:xs|sm|md|lg|xl|2xl|3xl|4xl)\b/.test(cls);
+  }
+
+  function isInsideMainContent(el) {
+    if (!el || el.id === "main_content") return false;
+    try {
+      return !!(el.closest && el.closest("#main_content"));
+    } catch (e) {
+      return false;
+    }
+  }
+
   function applyInlineMaxWidth(n) {
+    var auth = isAuthRelatedPath(window.location && window.location.pathname);
     var nodes;
     try {
       nodes = document.querySelectorAll(contentColumnSelector());
@@ -133,6 +148,8 @@
       var cls = (el.className && String(el.className)) || "";
       if (id.indexOf("carousel") !== -1 || id.indexOf("hero") !== -1) continue;
       if (cls.indexOf("chd-full-bleed") !== -1 || cls.indexOf("chd-home-fill") !== -1) continue;
+      if (hasFormScaleMaxWidth(el)) continue;
+      if (auth && isInsideMainContent(el)) continue;
       try {
         el.style.setProperty("max-width", n + "px", "important");
         el.style.setProperty("width", "100%", "important");
@@ -152,12 +169,15 @@
       var fillId = (fill.id || "").toLowerCase();
       if (fillId === "main_content") continue;
       if (fillId.indexOf("carousel") !== -1 || fillId.indexOf("hero") !== -1) continue;
+      if (hasFormScaleMaxWidth(fill)) continue;
       try {
         fill.style.setProperty("width", "100%", "important");
         fill.style.setProperty("max-width", "100%", "important");
         fill.style.setProperty("box-sizing", "border-box");
       } catch (err2) {}
     }
+
+    restoreAuthFormCards();
   }
 
   function renderStyle(settings) {
@@ -315,10 +335,21 @@
     }
 
     css += headerCurrencyHideCss();
+    css += authFormCardCss();
     syncHeaderCurrencyVisibility();
+    syncAuthPageClass();
 
     ensureStyleEl().textContent = css;
     applyInlineMaxWidth(n);
+  }
+
+  function authFormCardCss() {
+    return (
+      "html.chd-auth-page #main_content [data-chd-max-width]:not(#main_content)," +
+      "html.chd-auth-page #main_content .chd-content-col:not(#main_content){" +
+      "max-width:28rem!important;width:100%!important;margin-inline:auto!important;" +
+      "padding-left:unset!important;padding-right:unset!important;}"
+    );
   }
 
   function headerCurrencyHideCss() {
@@ -338,6 +369,18 @@
       if (cfg.shopBase) return String(cfg.shopBase);
     } catch (e) {}
     return "/shop";
+  }
+
+  function isAuthRelatedPath(path) {
+    path = normalizePath(path);
+    return (
+      path === "/login" ||
+      path === "/register" ||
+      path === "/forgot-password" ||
+      path.indexOf("/reset-password") === 0 ||
+      path === "/identity-challenge" ||
+      path.indexOf("/auth/") === 0
+    );
   }
 
   function isShopRelatedPath(path) {
@@ -388,6 +431,41 @@
     try {
       document.body && document.body.classList.toggle("chd-hide-header-currency", hide);
     } catch (e2) {}
+  }
+
+  function syncAuthPageClass() {
+    var on = isAuthRelatedPath(window.location && window.location.pathname);
+    try {
+      document.documentElement.classList.toggle("chd-auth-page", on);
+    } catch (e) {}
+    try {
+      document.body && document.body.classList.toggle("chd-auth-page", on);
+    } catch (e2) {}
+  }
+
+  function restoreAuthFormCards() {
+    if (!isAuthRelatedPath(window.location && window.location.pathname)) return;
+    var nodes;
+    try {
+      nodes = document.querySelectorAll(
+        "#main_content [data-chd-max-width], #main_content .chd-content-col"
+      );
+    } catch (e) {
+      nodes = [];
+    }
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      if (!el || el.id === "main_content") continue;
+      try {
+        el.style.removeProperty("max-width");
+        el.style.removeProperty("width");
+        el.style.removeProperty("padding-left");
+        el.style.removeProperty("padding-right");
+        el.style.setProperty("max-width", "28rem", "important");
+        el.style.setProperty("width", "100%", "important");
+        el.style.setProperty("margin-inline", "auto");
+      } catch (err) {}
+    }
   }
 
   function clearStyle() {
@@ -1372,6 +1450,10 @@
     try {
       syncHeaderCurrencyVisibility();
     } catch (eCur) {}
+    try {
+      syncAuthPageClass();
+      restoreAuthFormCards();
+    } catch (eAuth) {}
     try {
       hidePoweredBy();
     } catch (ePb) {}

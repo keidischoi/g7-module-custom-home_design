@@ -162,6 +162,10 @@ class HomeDesignLayoutListener implements HookListenerInterface
             } catch (\Throwable) {
             }
             try {
+                $layout = $this->restoreAuthFormWidths($layout);
+            } catch (\Throwable) {
+            }
+            try {
                 $layout = $this->patchDesktopHeaderBoards($layout, $settings->hide_header_board_slugs ?? []);
             } catch (\Throwable) {
             }
@@ -651,6 +655,10 @@ class HomeDesignLayoutListener implements HookListenerInterface
      */
     private function patchContentColumnWidths(array $layout, int $px): array
     {
+        if ($this->isAuthLayout((string) ($layout['layout_name'] ?? ''))) {
+            return $layout;
+        }
+
         $px = max(320, min(2560, $px > 0 ? $px : HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX));
 
         $area = $this->findById($layout, 'main_content_area');
@@ -756,8 +764,8 @@ class HomeDesignLayoutListener implements HookListenerInterface
     {
         $hit = false;
         $className = (string) ($props['className'] ?? '');
-        if ($className !== '' && preg_match('/\bmax-w-[A-Za-z0-9\[\]\-\/]+\b/', $className)) {
-            $className = trim(preg_replace('/\bmax-w-[A-Za-z0-9\[\]\-\/]+\b/', '', $className) ?? $className);
+        if ($this->classNameHasContentColumnMaxWidth($className)) {
+            $className = $this->stripContentColumnMaxWidthClasses($className);
             if ($className === '') {
                 $className = 'mx-auto';
             }
@@ -773,8 +781,10 @@ class HomeDesignLayoutListener implements HookListenerInterface
 
         $style = isset($props['style']) && is_array($props['style']) ? $props['style'] : [];
         if (isset($style['maxWidth']) || isset($style['max-width'])) {
-            // Theme hardcoded maxWidth (1240px / 80rem / etc.) — align to setting.
-            $hit = true;
+            $raw = (string) ($style['maxWidth'] ?? $style['max-width'] ?? '');
+            if ($this->styleMaxWidthIsColumnScale($raw)) {
+                $hit = true;
+            }
         }
         if ($hit || isset($props['data-chd-max-width'])) {
             $style['maxWidth'] = $px.'px';
@@ -794,6 +804,137 @@ class HomeDesignLayoutListener implements HookListenerInterface
         return [$props, $hit];
     }
 
+    private function isAuthLayout(string $layoutName): bool
+    {
+        $name = strtolower(trim($layoutName));
+
+        return $name === 'auth' || str_starts_with($name, 'auth/');
+    }
+
+    /**
+     * Page-column max-width utilities (max-w-5xl and up). Form cards such as
+     * max-w-md on login/register must keep their original width.
+     */
+    private function classNameHasContentColumnMaxWidth(string $className): bool
+    {
+        if ($className === '') {
+            return false;
+        }
+        if (preg_match('/\bmax-w-(?:5xl|6xl|7xl|screen-(?:xl|2xl))\b/', $className)) {
+            return true;
+        }
+        if (preg_match_all('/\bmax-w-\[([^\]]+)\]/', $className, $matches) === false) {
+            return false;
+        }
+        foreach ($matches[1] as $raw) {
+            if ($this->styleMaxWidthIsColumnScale((string) $raw)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function stripContentColumnMaxWidthClasses(string $className): string
+    {
+        $className = trim(preg_replace('/\bmax-w-(?:5xl|6xl|7xl|screen-(?:xl|2xl))\b/', '', $className) ?? $className);
+        $className = trim(preg_replace_callback(
+            '/\bmax-w-\[([^\]]+)\]/',
+            function (array $m): string {
+                return $this->styleMaxWidthIsColumnScale((string) ($m[1] ?? '')) ? '' : $m[0];
+            },
+            $className
+        ) ?? $className);
+
+        return trim(preg_replace('/\s+/', ' ', $className) ?? $className);
+    }
+
+    private function styleMaxWidthIsColumnScale(string $raw): bool
+    {
+        $raw = strtolower(trim($raw));
+        if ($raw === '') {
+            return false;
+        }
+        if (preg_match('/^(\d+(?:\.\d+)?)\s*px$/', $raw, $m)) {
+            return (float) $m[1] >= 1024;
+        }
+        if (preg_match('/^(\d+(?:\.\d+)?)\s*rem$/', $raw, $m)) {
+            return ((float) $m[1] * 16) >= 1024;
+        }
+
+        return false;
+    }
+
+    /**
+     * Undo previous content-width patches on login/register form cards so
+     * cached layouts keep the original max-w-md box.
+     */
+    private function restoreAuthFormWidths(array $layout): array
+    {
+        if (! $this->isAuthLayout((string) ($layout['layout_name'] ?? ''))) {
+            return $layout;
+        }
+
+        $restore = function (array $node): array {
+            return $this->restoreAuthFormNode($node);
+        };
+
+        if (isset($layout['slots']['content']) && is_array($layout['slots']['content'])) {
+            foreach ($layout['slots']['content'] as $i => $child) {
+                if (is_array($child)) {
+                    $layout['slots']['content'][$i] = $this->mapNodes($child, $restore);
+                }
+            }
+
+            return $layout;
+        }
+
+        return $this->mapNodes($layout, $restore);
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     * @return array<string, mixed>
+     */
+    private function restoreAuthFormNode(array $node): array
+    {
+        $apply = static function (array $props): array {
+            $className = (string) ($props['className'] ?? '');
+            $marked = isset($props['data-chd-max-width']) || str_contains($className, 'chd-content-col');
+            if (! $marked) {
+                return $props;
+            }
+            unset($props['data-chd-max-width']);
+            $className = trim(preg_replace('/\bchd-content-col\b/', '', $className) ?? $className);
+            if ($className !== '' && ! preg_match('/\bmax-w-[A-Za-z0-9\[\]\-\/]+\b/', $className)) {
+                $className = trim($className.' max-w-md');
+            }
+            $props['className'] = $className;
+            if (isset($props['style']) && is_array($props['style'])) {
+                unset($props['style']['maxWidth'], $props['style']['max-width'], $props['style']['width'], $props['style']['marginInline']);
+                if ($props['style'] === []) {
+                    unset($props['style']);
+                }
+            }
+
+            return $props;
+        };
+
+        if (isset($node['props']) && is_array($node['props'])) {
+            $node['props'] = $apply($node['props']);
+        }
+        if (isset($node['responsive']) && is_array($node['responsive'])) {
+            foreach ($node['responsive'] as $bp => $bpVal) {
+                if (! is_array($bpVal) || ! isset($bpVal['props']) || ! is_array($bpVal['props'])) {
+                    continue;
+                }
+                $node['responsive'][$bp]['props'] = $apply($bpVal['props']);
+            }
+        }
+
+        return $node;
+    }
+
     /**
      * Home layout mid/lower section wrappers: root Container + any nested
      * Containers/Divs that constrain width. Full-bleed heroes (w-full only,
@@ -803,6 +944,9 @@ class HomeDesignLayoutListener implements HookListenerInterface
     {
         $px = max(320, min(2560, $px > 0 ? $px : HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX));
         $layoutName = (string) ($layout['layout_name'] ?? '');
+        if ($this->isAuthLayout($layoutName)) {
+            return $layout;
+        }
 
         // Always walk slots.content when present (home / merged pages).
         if (isset($layout['slots']['content']) && is_array($layout['slots']['content'])) {
