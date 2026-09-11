@@ -79,8 +79,8 @@
     if (existing) return;
     window.__chdHomeDesignJsLoading = true;
     var urls = [
-      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.16",
-      "/api/modules/custom-home_design/assets/home-design?v=0.2.16",
+      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.17",
+      "/api/modules/custom-home_design/assets/home-design?v=0.2.17",
     ];
     var idx = 0;
     function tryNext() {

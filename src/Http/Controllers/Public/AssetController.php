@@ -136,6 +136,12 @@ class AssetController extends Controller
                     .'.relative:has(>[aria-label="Toggle theme"]) > div.absolute.w-48{'
                     .'display:none!important;visibility:hidden!important;pointer-events:none!important;}';
             }
+            $cssParts[] = 'html.chd-hide-header-currency [data-testid="currency-switcher"],'
+                .'html.chd-hide-header-currency [id^="ext_header_currency_selector"],'
+                .'html.chd-hide-header-currency #header_currency_slot_desktop,'
+                .'html.chd-hide-header-currency #mobile_drawer_currency_wrap,'
+                .'html.chd-hide-header-currency [id*="header_currency"]{'
+                .'display:none!important;visibility:hidden!important;}';
             $bootCss = implode('', $cssParts);
             $cssJson = json_encode($bootCss, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '""';
 
@@ -156,6 +162,15 @@ class AssetController extends Controller
           try { document.body && document.body.classList.add("chd-hide-desktop-top-nav"); } catch (e3) {}
         });
       }
+    }
+    var path = String((window.location && window.location.pathname) || "/").split("?")[0];
+    if (path.length > 1) path = path.replace(/\\/+$/, "");
+    var shop = path === "/shop" || path.indexOf("/shop/") === 0
+      || path === "/mypage/wishlist" || path === "/mypage/mileage" || path === "/mypage/addresses"
+      || path === "/mypage/orders" || path.indexOf("/mypage/orders/") === 0;
+    if (!shop) {
+      try { document.documentElement.classList.add("chd-hide-header-currency"); } catch (eCur1) {}
+      if (document.body) { try { document.body.classList.add("chd-hide-header-currency"); } catch (eCur2) {} }
     }
     var css = {$cssJson};
     if (css) {

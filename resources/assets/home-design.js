@@ -290,8 +290,59 @@
         "display:none!important;visibility:hidden!important;pointer-events:none!important;}";
     }
 
+    css += headerCurrencyHideCss();
+    syncHeaderCurrencyVisibility();
+
     ensureStyleEl().textContent = css;
     applyInlineMaxWidth(n);
+  }
+
+  function headerCurrencyHideCss() {
+    return (
+      "html.chd-hide-header-currency [data-testid='currency-switcher']," +
+      "html.chd-hide-header-currency [id^='ext_header_currency_selector']," +
+      "html.chd-hide-header-currency #header_currency_slot_desktop," +
+      "html.chd-hide-header-currency #mobile_drawer_currency_wrap," +
+      "html.chd-hide-header-currency [id*='header_currency']{" +
+      "display:none!important;visibility:hidden!important;}"
+    );
+  }
+
+  function shopBasePath() {
+    try {
+      var cfg = window.G7Config || {};
+      if (cfg.shopBase) return String(cfg.shopBase);
+    } catch (e) {}
+    return "/shop";
+  }
+
+  function isShopRelatedPath(path) {
+    path = normalizePath(path);
+    var base = normalizePath(shopBasePath());
+    if (base === "/") {
+      return /\/(products|cart|checkout|category)(\/|$)/.test(path);
+    }
+    if (path === base || path.indexOf(base + "/") === 0) return true;
+    if (
+      path === "/mypage/wishlist" ||
+      path === "/mypage/mileage" ||
+      path === "/mypage/addresses" ||
+      path === "/mypage/orders" ||
+      path.indexOf("/mypage/orders/") === 0
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  function syncHeaderCurrencyVisibility() {
+    var hide = !isShopRelatedPath(window.location && window.location.pathname);
+    try {
+      document.documentElement.classList.toggle("chd-hide-header-currency", hide);
+    } catch (e) {}
+    try {
+      document.body && document.body.classList.toggle("chd-hide-header-currency", hide);
+    } catch (e2) {}
   }
 
   function clearStyle() {
@@ -1273,6 +1324,9 @@
     try {
       ensureHiddenBoardNav(lastSettings);
     } catch (eHb) {}
+    try {
+      syncHeaderCurrencyVisibility();
+    } catch (eCur) {}
   }
 
   function scheduleEnsureHeaderUx() {
