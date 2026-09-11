@@ -100,6 +100,8 @@
       ".chd-content-col," +
       "#main_content_area > .max-w-7xl," +
       "#desktop_header .max-w-7xl," +
+      "header.chd-desktop-header .max-w-7xl," +
+      ".chd-desktop-header .max-w-7xl," +
       "#footer .max-w-7xl," +
       "footer.chd-footer .max-w-7xl," +
       "#chd_business_info_mount .max-w-7xl," +

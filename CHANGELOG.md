@@ -3,6 +3,15 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.20] - 2026-09-11
+
+### Fixed — 상단 글로벌 메뉴 최대 폭 정렬
+
+- 공식 Header가 레이아웃의 `desktop_header` id를 DOM에 전달하지 않아 기존 선택자가
+  적용되지 않던 문제를 수정했습니다.
+- 실제 DOM에 유지되는 `chd-desktop-header` 클래스로 상단 바와 글로벌 메뉴의
+  `max-w-7xl` 래퍼를 콘텐츠 최대 폭과 정확히 맞춥니다.
+
 ## [0.2.19] - 2026-09-11
 
 ### Fixed — 홈 좌우 정렬 + Powered by 제거

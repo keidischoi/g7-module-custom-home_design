@@ -148,9 +148,12 @@ class AssetController extends Controller
                 $widthPx = 1240;
             }
             $cssParts[] = ':root{--chd-content-max-width:'.$widthPx.'px;}'
-                .'#main_content,#main_content.max-w-7xl,[id="main_content"],.chd-content-col{'
+                .'#main_content,#main_content.max-w-7xl,[id="main_content"],.chd-content-col,'
+                .'#desktop_header .max-w-7xl,header.chd-desktop-header .max-w-7xl,'
+                .'.chd-desktop-header .max-w-7xl,#footer .max-w-7xl,footer.chd-footer .max-w-7xl{'
                 .'max-width:var(--chd-content-max-width)!important;width:100%!important;'
-                .'margin-inline:auto!important;box-sizing:border-box!important;'
+                .'margin-inline:auto!important;box-sizing:border-box!important;}'
+                .'#main_content,.chd-content-col{'
                 .'padding-left:1rem!important;padding-right:1rem!important;}'
                 .'@media (min-width:640px){#main_content,.chd-content-col{padding-left:1.5rem!important;padding-right:1.5rem!important;}}'
                 .'@media (min-width:1024px){#main_content,.chd-content-col{padding-left:2rem!important;padding-right:2rem!important;}}'
