@@ -1,0 +1,4 @@
+{
+  "name": "custom-home_design (Gnuboard7 module)",
+  "install": "bash .cursor/install.sh"
+}
