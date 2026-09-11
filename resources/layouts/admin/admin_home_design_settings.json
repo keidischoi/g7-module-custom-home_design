@@ -34,39 +34,6 @@
           "hide_header_board_slugs_text": ""
         }
       }
-    },
-    {
-      "id": "boards",
-      "type": "api",
-      "endpoint": "/api/modules/sirsoft-board/boards/board-menu",
-      "method": "GET",
-      "auto_fetch": true,
-      "auth_required": true,
-      "refetchOnMount": true,
-      "fallback": {
-        "data": [
-          {
-            "slug": "notice",
-            "name": "공지"
-          },
-          {
-            "slug": "free",
-            "name": "자유게시판"
-          },
-          {
-            "slug": "gallery",
-            "name": "갤러리"
-          },
-          {
-            "slug": "qna",
-            "name": "Q&A"
-          },
-          {
-            "slug": "inquiry",
-            "name": "문의"
-          }
-        ]
-      }
     }
   ],
   "init_actions": [
@@ -382,71 +349,33 @@
                   },
                   {
                     "type": "basic",
-                    "name": "P",
+                    "name": "Input",
                     "props": {
-                      "className": "text-xs text-gray-500 mb-2"
+                      "type": "text",
+                      "name": "hide_header_board_slugs_text",
+                      "className": "input w-full",
+                      "placeholder": "qna, inquiry",
+                      "value": "{{_local.form?.hide_header_board_slugs_text ?? (Array.isArray(_local.form?.hide_header_board_slugs) ? _local.form.hide_header_board_slugs.join(', ') : '')}}",
+                      "autoBinding": false
                     },
-                    "text": "$t:custom-home_design.admin.settings.fields.hide_header_board_slugs_hint"
-                  },
-                  {
-                    "id": "field_slugs_checkbox_list",
-                    "type": "basic",
-                    "name": "Div",
-                    "props": {
-                      "className": "flex flex-col gap-2 p-3 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 max-h-64 overflow-y-auto"
-                    },
-                    "iteration": {
-                      "source": "{{(() => { const d = boards?.data; if (Array.isArray(d)) return d; if (Array.isArray(d?.data)) return d.data; return []; })()}}",
-                      "item_var": "board"
-                    },
-                    "children": [
+                    "actions": [
                       {
-                        "type": "basic",
-                        "name": "Label",
-                        "props": {
-                          "className": "flex items-center gap-2 cursor-pointer select-none"
-                        },
-                        "children": [
-                          {
-                            "type": "basic",
-                            "name": "Checkbox",
-                            "props": {
-                              "name": "hide_board_{{board.slug || board.bo_table}}",
-                              "autoBinding": false,
-                              "checked": "{{(() => { const s = String(board?.slug || board?.bo_table || '').trim(); if (!s) return false; const arr = Array.isArray(_local.form?.hide_header_board_slugs) ? _local.form.hide_header_board_slugs : []; return arr.includes(s); })()}}"
-                            },
-                            "actions": [
-                              {
-                                "type": "change",
-                                "handler": "setState",
-                                "params": {
-                                  "target": "local",
-                                  "form.hide_header_board_slugs": "{{(() => { const s = String(board?.slug || board?.bo_table || '').trim(); let arr = Array.isArray(_local.form?.hide_header_board_slugs) ? [..._local.form.hide_header_board_slugs] : []; if (!s) return arr; if ($event.target.checked) { if (!arr.includes(s)) arr = [...arr, s]; } else { arr = arr.filter(x => x !== s); } return arr; })()}}",
-                                  "form.hide_header_board_slugs_text": "{{(() => { const s = String(board?.slug || board?.bo_table || '').trim(); let arr = Array.isArray(_local.form?.hide_header_board_slugs) ? [..._local.form.hide_header_board_slugs] : []; if (!s) return arr.join(', '); if ($event.target.checked) { if (!arr.includes(s)) arr = [...arr, s]; } else { arr = arr.filter(x => x !== s); } return arr.join(', '); })()}}"
-                                }
-                              }
-                            ]
-                          },
-                          {
-                            "type": "basic",
-                            "name": "Span",
-                            "props": {
-                              "className": "text-sm"
-                            },
-                            "text": "{{(board?.name || board?.bo_subject || board?.slug || board?.bo_table || '') + ' (' + (board?.slug || board?.bo_table || '') + ')'}}"
-                          }
-                        ]
+                        "type": "change",
+                        "handler": "setState",
+                        "params": {
+                          "target": "local",
+                          "form.hide_header_board_slugs_text": "{{$event.target.value}}"
+                        }
                       }
                     ]
                   },
                   {
                     "type": "basic",
                     "name": "P",
-                    "if": "{{(() => { const d = boards?.data; const list = Array.isArray(d) ? d : (Array.isArray(d?.data) ? d.data : []); return !list.length; })()}}",
                     "props": {
-                      "className": "text-xs text-amber-600 dark:text-amber-400 mt-2"
+                      "className": "text-xs text-gray-500 mt-1"
                     },
-                    "text": "$t:custom-home_design.admin.settings.fields.hide_header_board_slugs_empty"
+                    "text": "$t:custom-home_design.admin.settings.fields.hide_header_board_slugs_hint"
                   },
                   {
                     "type": "basic",
@@ -455,17 +384,6 @@
                       "className": "text-xs text-gray-500 mt-2"
                     },
                     "text": "$t:custom-home_design.admin.settings.fields.hide_header_board_slugs_note"
-                  },
-                  {
-                    "comment": "Hidden sync field — keeps comma text in sync for older save paths / API clients",
-                    "type": "basic",
-                    "name": "Input",
-                    "props": {
-                      "type": "hidden",
-                      "name": "hide_header_board_slugs_text",
-                      "value": "{{Array.isArray(_local.form?.hide_header_board_slugs) ? _local.form.hide_header_board_slugs.join(', ') : (_local.form?.hide_header_board_slugs_text ?? '')}}",
-                      "autoBinding": false
-                    }
                   }
                 ]
               }
@@ -677,8 +595,7 @@
                             "header_search_icon_mode": "{{_local.form?.header_search_icon_mode === false || _local.form?.header_search_icon_mode === 0 || _local.form?.header_search_icon_mode === '0' || _local.form?.header_search_icon_mode === 'false' ? 0 : 1}}",
                             "header_theme_click_toggle": "{{_local.form?.header_theme_click_toggle === false || _local.form?.header_theme_click_toggle === 0 || _local.form?.header_theme_click_toggle === '0' || _local.form?.header_theme_click_toggle === 'false' ? 0 : 1}}",
                             "footer_link_groups_json": "{{typeof _local.form?.footer_link_groups_json === 'object' && _local.form?.footer_link_groups_json !== null ? JSON.stringify(_local.form.footer_link_groups_json) : String(_local.form?.footer_link_groups_json ?? '')}}",
-                            "hide_header_board_slugs_text": "{{Array.isArray(_local.form?.hide_header_board_slugs) ? _local.form.hide_header_board_slugs.join(', ') : String(_local.form?.hide_header_board_slugs_text ?? '')}}",
-                            "hide_header_board_slugs": "{{Array.isArray(_local.form?.hide_header_board_slugs) ? _local.form.hide_header_board_slugs : []}}"
+                            "hide_header_board_slugs_text": "{{String(_local.form?.hide_header_board_slugs_text ?? '')}}"
                           }
                         },
                         "onSuccess": [

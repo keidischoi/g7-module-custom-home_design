@@ -31,11 +31,11 @@
                 "header_theme_click_toggle_hint": "기본 ON. 해/달 아이콘 클릭 시 light↔dark를 바로 전환합니다. 드롭다운 메뉴는 표시하지 않습니다.",
                 "hide_header_board_slugs_json_example_label": "예시 JSON",
                 "footer_link_groups_json_example_label": "예시 JSON",
-                "hide_header_board_slugs": "헤더에서 숨길 게시판",
-                "hide_header_board_slugs_hint": "체크한 게시판은 모든 페이지 헤더(데스크톱·모바일·더보기)에서 숨깁니다. 모두 해제하면 qna·inquiry 포함 전체 표시. 페이지마다 다르게 보이면 hooks:clear && cache:clear 후 새로고침.",
+                "hide_header_board_slugs": "헤더에서 숨길 게시판 slug",
+                "hide_header_board_slugs_hint": "숨길 게시판 slug를 쉼표로 구분해 입력하세요 (예: qna, inquiry). 빈 값이면 모든 게시판을 표시합니다.",
                 "hide_header_board_slugs_example_label": "선택 예시",
                 "hide_header_board_slugs_empty": "게시판 목록을 불러오지 못했습니다. sirsoft-board 모듈과 /api/modules/sirsoft-board/boards/board-menu 를 확인하세요.",
-                "hide_header_board_slugs_note": "참고: DB에 qna,inquiry가 저장돼 있으면 체크된 상태로 유지됩니다. 다시 보이게 하려면 체크를 해제하고 저장하세요. 빈 목록([])일 때 모듈은 필터하지 않습니다."
+                "hide_header_board_slugs_note": "입력한 slug는 모든 페이지 헤더(데스크톱·모바일·더보기)에서 숨깁니다. 페이지마다 다르게 보이면 hooks:clear && cache:clear 후 새로고침하세요."
             }
         }
     }

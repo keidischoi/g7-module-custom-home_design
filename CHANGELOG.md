@@ -3,6 +3,16 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.14] - 2026-09-11
+
+### Changed — 게시판 숨김 설정을 slug 입력란으로 변경
+
+- 게시판 체크박스 목록을 쉼표 구분 slug 입력란으로 변경했습니다
+  (예: `qna, inquiry`).
+- 관리자 화면에서 불필요해진 `board-menu` API 조회를 제거했습니다.
+- 입력값은 기존 `hide_header_board_slugs_text` 요청 경로로 저장하며,
+  빈 값은 `[]`로 저장되어 모든 게시판을 표시합니다.
+
 ## [0.2.13] - 2026-09-10
 
 ### Critical — board hide consistent on ALL pages

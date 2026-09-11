@@ -63,7 +63,7 @@ class HomeDesignSettingService
             );
         }
 
-        // Board slugs (0.2.13+): prefer checkbox array, then comma text, then legacy JSON.
+        // Board slugs: accept arrays from API clients, comma text from admin, or legacy JSON.
         if (array_key_exists('hide_header_board_slugs', $data) && is_array($data['hide_header_board_slugs'])) {
             $data['hide_header_board_slugs'] = array_values($data['hide_header_board_slugs']);
         } elseif (array_key_exists('hide_header_board_slugs_text', $data)) {

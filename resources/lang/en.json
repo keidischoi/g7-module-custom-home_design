@@ -31,11 +31,11 @@
                 "header_theme_click_toggle_hint": "Default ON. Sun/moon icon click immediately toggles light↔dark. No dropdown menu.",
                 "hide_header_board_slugs_json_example_label": "Example JSON",
                 "footer_link_groups_json_example_label": "Example JSON",
-                "hide_header_board_slugs": "Boards to hide from header",
-                "hide_header_board_slugs_hint": "Checked boards are hidden from the header on EVERY page (desktop, mobile, 더보기). Uncheck all to show every board including qna/inquiry. If pages disagree, run hooks:clear && cache:clear.",
+                "hide_header_board_slugs": "Board slugs to hide from header",
+                "hide_header_board_slugs_hint": "Enter comma-separated board slugs to hide (for example: qna, inquiry). Leave empty to show every board.",
                 "hide_header_board_slugs_example_label": "Example",
                 "hide_header_board_slugs_empty": "Could not load boards. Check sirsoft-board and /api/modules/sirsoft-board/boards/board-menu.",
-                "hide_header_board_slugs_note": "If DB still has qna,inquiry saved, they stay checked/hidden until unchecked + saved. Empty [] never filters."
+                "hide_header_board_slugs_note": "The entered slugs are hidden from every page header (desktop, mobile, and more menu). If pages disagree, run hooks:clear && cache:clear."
             }
         }
     }

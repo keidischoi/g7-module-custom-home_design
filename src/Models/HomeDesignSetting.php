@@ -125,7 +125,7 @@ class HomeDesignSetting extends Model
                 ? (bool) $this->header_theme_click_toggle
                 : true,
             'hide_header_board_slugs' => $slugs,
-            // Admin UI (0.2.13+): checkboxes → array. Keep *_text / *_json for older clients.
+            // Admin UI uses comma text; keep the array / JSON forms for public and older clients.
             'hide_header_board_slugs_text' => $slugs === []
                 ? ''
                 : implode(', ', $slugs),
