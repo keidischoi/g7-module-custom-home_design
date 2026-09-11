@@ -10,6 +10,7 @@ use App\Contracts\Extension\HookListenerInterface;
  *  - show those products in the same ProductCard thumbnail grid
  *  - list-mode pages use the thumbnail grid + infinite scroll
  *  - category "전체" keeps the original pager and recent/popular/new sections
+ *  - product cards use Bunjang-like 81:100 thumbnails
  */
 class ShopListLayoutListener implements HookListenerInterface
 {
@@ -106,6 +107,7 @@ class ShopListLayoutListener implements HookListenerInterface
                 $node = $this->hideSearchOnRecent($node);
                 $node = $this->patchSortBarBackground($node);
                 $node = $this->patchProductGrid($node);
+                $node = $this->markBunjangProductCard($node);
                 $node = $this->hidePagination($node);
 
                 return $node;
@@ -385,6 +387,40 @@ class ShopListLayoutListener implements HookListenerInterface
 
         if (($node['id'] ?? '') === self::SENTINEL_ID) {
             return $node;
+        }
+
+        return $node;
+    }
+
+    /**
+     * Mark shop ProductCards and the 2/4-col product grid so CSS can apply
+     * Bunjang-like 81:100 thumbnails without editing the theme.
+     *
+     * @param  array<string, mixed>  $node
+     * @return array<string, mixed>
+     */
+    private function markBunjangProductCard(array $node): array
+    {
+        $name = (string) ($node['name'] ?? '');
+        if ($name === 'ProductCard') {
+            if (! isset($node['props']) || ! is_array($node['props'])) {
+                $node['props'] = [];
+            }
+            $cls = (string) ($node['props']['className'] ?? '');
+            if (! str_contains($cls, 'chd-product-card')) {
+                $node['props']['className'] = trim($cls.' chd-product-card');
+            }
+
+            return $node;
+        }
+
+        $cls = (string) (($node['props']['className'] ?? '') ?: '');
+        if (
+            str_contains($cls, 'grid-cols-2')
+            && str_contains($cls, 'lg:grid-cols-4')
+            && ! str_contains($cls, 'chd-shop-product-grid')
+        ) {
+            $node['props']['className'] = trim($cls.' chd-shop-product-grid');
         }
 
         return $node;

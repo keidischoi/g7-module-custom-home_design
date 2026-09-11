@@ -157,7 +157,23 @@ class AssetController extends Controller
                 .'html.chd-shop-quiet-nav [aria-label="페이지 전환 중"],'
                 .'html.chd-shop-quiet-nav [aria-label="페이지 로딩 중"]{'
                 .'display:none!important;opacity:0!important;visibility:hidden!important;'
-                .'backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}';
+                .'backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}'
+                .'.chd-shop-product-grid{gap:0.75rem!important;'
+                .'grid-template-columns:repeat(2,minmax(0,1fr))!important;}'
+                .'@media (min-width:1024px){.chd-shop-product-grid{'
+                .'grid-template-columns:repeat(4,minmax(0,1fr))!important;}}'
+                .'.chd-product-card{background:transparent!important;background-color:transparent!important;'
+                .'border:none!important;border-radius:0!important;box-shadow:none!important;}'
+                .'.chd-product-card .aspect-square{aspect-ratio:81/100!important;height:auto!important;'
+                .'border-radius:6px!important;overflow:hidden!important;background:#f6f6f6!important;}'
+                .'html.dark .chd-product-card .aspect-square,.dark .chd-product-card .aspect-square{'
+                .'background:#2a2a2a!important;}'
+                .'.chd-product-card .aspect-square img{width:100%!important;height:100%!important;object-fit:cover!important;}'
+                .'.chd-product-card .absolute.top-2.left-2{top:6px!important;left:6px!important;'
+                .'right:auto!important;bottom:auto!important;font-size:11px!important;line-height:1.2!important;'
+                .'padding:2px 5px!important;border-radius:4px!important;font-weight:700!important;}'
+                .'.chd-product-card .absolute.bottom-2.right-2{bottom:6px!important;right:6px!important;}'
+                .'.chd-product-card .p-4{padding:0.5rem 0.125rem 0!important;}';
 
             $widthPx = (int) ($payload['content_max_width_px'] ?? 1240);
             if ($widthPx < 320 || $widthPx > 2560) {
