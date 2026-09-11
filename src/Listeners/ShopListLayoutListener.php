@@ -95,6 +95,9 @@ class ShopListLayoutListener implements HookListenerInterface
         if ((string) ($layout['layout_name'] ?? '') !== self::LAYOUT) {
             return $layout;
         }
+        if ($this->hasId($layout, 'chd_shop_list_mode_row')) {
+            return $layout;
+        }
 
         try {
             $layout = $this->patchProductsDataSource($layout);
@@ -584,13 +587,73 @@ class ShopListLayoutListener implements HookListenerInterface
      */
     private function containsText(array $node, string $needle): bool
     {
-        try {
-            $json = json_encode($node, JSON_UNESCAPED_UNICODE);
+        return $this->nodeContainsNeedle($node, $needle, 0);
+    }
 
-            return is_string($json) && str_contains($json, $needle);
-        } catch (\Throwable) {
+    /**
+     * @param  array<string, mixed>  $node
+     */
+    private function nodeContainsNeedle(array $node, string $needle, int $depth): bool
+    {
+        if ($depth > 8) {
             return false;
         }
+        foreach (['text', 'comment', 'name', 'partial', 'isolatedScopeId'] as $key) {
+            if (isset($node[$key]) && is_string($node[$key]) && str_contains($node[$key], $needle)) {
+                return true;
+            }
+        }
+        $source = (string) (($node['iteration']['source'] ?? '') ?: '');
+        if ($source !== '' && str_contains($source, $needle)) {
+            return true;
+        }
+        foreach (['children', 'components', 'content'] as $key) {
+            if (! isset($node[$key]) || ! is_array($node[$key])) {
+                continue;
+            }
+            foreach ($node[$key] as $child) {
+                if (is_array($child) && $this->nodeContainsNeedle($child, $needle, $depth + 1)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     */
+    private function hasId(array $node, string $id): bool
+    {
+        if ((string) ($node['id'] ?? '') === $id) {
+            return true;
+        }
+        foreach (['children', 'components', 'content'] as $key) {
+            if (! isset($node[$key]) || ! is_array($node[$key])) {
+                continue;
+            }
+            foreach ($node[$key] as $child) {
+                if (is_array($child) && $this->hasId($child, $id)) {
+                    return true;
+                }
+            }
+        }
+        if (isset($node['slots']) && is_array($node['slots'])) {
+            foreach ($node['slots'] as $slot) {
+                if (is_array($slot) && array_is_list($slot)) {
+                    foreach ($slot as $child) {
+                        if (is_array($child) && $this->hasId($child, $id)) {
+                            return true;
+                        }
+                    }
+                } elseif (is_array($slot) && $this->hasId($slot, $id)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

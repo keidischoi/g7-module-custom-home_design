@@ -282,7 +282,7 @@ JS;
     {
         return response($js, 200, [
             'Content-Type' => 'application/javascript; charset=UTF-8',
-            'Cache-Control' => $noStore ? 'no-store' : 'public, max-age=60',
+            'Cache-Control' => $noStore ? 'no-store' : 'public, max-age=604800',
         ]);
     }
 

@@ -24,6 +24,7 @@
   var DEFAULT_MAX = 1240;
   var SPA_DEBOUNCE_MS = 300;
   var ENSURE_DEBOUNCE_MS = 200;
+  var lateEnsureBound = false;
 
   /** @type {object|null} */
   var lastSettings = null;
@@ -1671,7 +1672,7 @@
         if (!entries || !entries.length || !entries[0].isIntersecting) return;
         loadMoreShopProducts();
       },
-      { root: null, rootMargin: "240px 0px", threshold: 0 }
+      { root: null, rootMargin: "80px 0px", threshold: 0 }
     );
     shopScroll.observer.observe(el);
     shopScroll.observed = el;
@@ -1680,7 +1681,9 @@
   function applyShopSortBarTransparent() {
     var nodes = [];
     try {
-      nodes = document.querySelectorAll("#chd_shop_sort_bar, .chd-shop-sort-bar");
+      var marked = document.getElementById("chd_shop_sort_bar");
+      if (marked) return;
+      nodes = document.querySelectorAll(".chd-shop-sort-bar");
     } catch (e) {
       nodes = [];
     }
@@ -1721,6 +1724,7 @@
     row.style.setProperty("overflow", "visible", "important");
     row.style.setProperty("overflow-x", "visible", "important");
     row.style.setProperty("gap", "0.5rem", "important");
+    row.setAttribute("data-chd-cols", String(cols));
     var kids = row.children || [];
     for (var k = 0; k < kids.length; k++) {
       if (!kids[k] || !kids[k].style) continue;
@@ -1747,6 +1751,8 @@
       var thumbs = document.querySelectorAll("#main_content .aspect-square");
       var seen = [];
       for (var t = 0; t < thumbs.length; t++) {
+        if (thumbs[t].getAttribute("data-chd-thumb") === String(cols)) continue;
+        thumbs[t].setAttribute("data-chd-thumb", String(cols));
         thumbs[t].style.setProperty("aspect-ratio", "81/100", "important");
         thumbs[t].style.setProperty("height", "auto", "important");
         thumbs[t].style.setProperty("border-radius", "6px", "important");
@@ -1781,6 +1787,7 @@
         if (!row || row.id === "main_content" || seen.indexOf(row) !== -1) continue;
         if (String(row.className || "").indexOf("chd-shop-product-grid") !== -1) continue;
         seen.push(row);
+        if (row.getAttribute("data-chd-cols") === String(cols)) continue;
         row.classList.add("chd-shop-carousel-row");
         applyShopRowSize(row, cols);
       }
@@ -1796,6 +1803,7 @@
           if (inner && inner.querySelector(".aspect-square")) target = inner;
         }
         if (!target.querySelector(".aspect-square")) continue;
+        if (target.getAttribute("data-chd-cols") === String(cols)) continue;
         target.classList.add("chd-shop-carousel-row");
         applyShopRowSize(target, cols);
       }
@@ -1932,10 +1940,10 @@
     bindThemeClickToggle();
     bindOutsideSearchClose();
     scheduleEnsureHeaderUx();
-    // Delayed ensures for late React remount + SPA page switches (home vs other).
-    setTimeout(ensureHeaderUx, 400);
-    setTimeout(ensureHeaderUx, 1000);
-    setTimeout(ensureHeaderUx, 2500);
+    if (!lateEnsureBound) {
+      lateEnsureBound = true;
+      setTimeout(ensureHeaderUx, 600);
+    }
   }
 
 
@@ -1969,9 +1977,7 @@
   }
 
   function start() {
-    // Instant apply from boot.js embedded settings (DB flags without waiting on fetch)
-    applyFromBoot();
-    // Then refresh from public API (source of truth)
+    if (applyFromBoot()) return;
     refresh();
   }
 

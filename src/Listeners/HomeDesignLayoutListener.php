@@ -127,14 +127,16 @@ class HomeDesignLayoutListener implements HookListenerInterface
 
             // Always try to ensure script when we touch layouts that include chrome.
             $layoutName = (string) ($layout['layout_name'] ?? '');
-            $hasChrome = false;
+            $hasChrome = $layoutName === '_user_base' || $layoutName === 'home';
             try {
-                $hasChrome = $this->findById($layout, 'desktop_header') !== null
-                    || $this->findById($layout, 'main_content') !== null
-                    || $this->findById($layout, 'footer') !== null
-                    || $this->findById($layout, self::BUSINESS_MOUNT_ID) !== null
-                    || $layoutName === '_user_base'
-                    || $layoutName === 'home';
+                if (! $hasChrome) {
+                    $hasChrome = $this->hasAnyId($layout, [
+                        'desktop_header',
+                        'main_content',
+                        'footer',
+                        self::BUSINESS_MOUNT_ID,
+                    ]);
+                }
             } catch (\Throwable) {
                 $hasChrome = ($layoutName === '_user_base' || $layoutName === 'home');
             }
@@ -1409,6 +1411,44 @@ class HomeDesignLayoutListener implements HookListenerInterface
         }
 
         return $node;
+    }
+
+    /**
+     * @param  list<string>  $ids
+     */
+    private function hasAnyId(array $node, array $ids): bool
+    {
+        if (in_array((string) ($node['id'] ?? ''), $ids, true)) {
+            return true;
+        }
+        foreach (['children', 'components', 'content'] as $key) {
+            if (! isset($node[$key]) || ! is_array($node[$key])) {
+                continue;
+            }
+            foreach ($node[$key] as $child) {
+                if (is_array($child) && $this->hasAnyId($child, $ids)) {
+                    return true;
+                }
+            }
+        }
+        if (isset($node['slots']) && is_array($node['slots'])) {
+            foreach ($node['slots'] as $slot) {
+                if (! is_array($slot)) {
+                    continue;
+                }
+                if (array_is_list($slot)) {
+                    foreach ($slot as $child) {
+                        if (is_array($child) && $this->hasAnyId($child, $ids)) {
+                            return true;
+                        }
+                    }
+                } elseif ($this->hasAnyId($slot, $ids)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private function findById(array $node, string $id): ?array

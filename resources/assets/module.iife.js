@@ -81,8 +81,8 @@
     if (existing) return;
     window.__chdHomeDesignJsLoading = true;
     var urls = [
-      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.33",
-      "/api/modules/custom-home_design/assets/home-design?v=0.2.33",
+      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.34",
+      "/api/modules/custom-home_design/assets/home-design?v=0.2.34",
     ];
     var idx = 0;
     function tryNext() {
@@ -96,7 +96,7 @@
       var scr = document.createElement("script");
       if (idx === 0) scr.id = sid;
       scr.src = urls[idx++];
-      scr.async = false;
+      scr.async = true;
       scr.onload = function () {
         window.__chdHomeDesignJsLoading = false;
       };

@@ -3,6 +3,15 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.34] - 2026-09-11
+
+### Changed — 페이지 로딩 최적화
+
+- 이미 페이지에 심긴 설정이 있으면 설정 API를 다시 부르지 않습니다.
+- 헤더/쇼핑 DOM 재적용 횟수와 지연 타이머를 줄입니다.
+- 쇼핑 레이아웃 훅이 같은 트리를 반복 패치하지 않게 합니다.
+- `home-design.js`는 비동기로 받고 더 오래 캐시합니다.
+
 ## [0.2.33] - 2026-09-11
 
 ### Changed — 한 줄 6개 + 전체 카테고리 섹션 동일 크기
