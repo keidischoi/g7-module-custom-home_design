@@ -39,6 +39,11 @@ Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 �
 (`layouts/_user_base.json`, `Footer.tsx` businessInfo/linkGroups, Header 보드 필터).
 라이브 사이트에는 feat React 기능이 없어도 동작하도록 훅+JS로 이식했습니다.
 
+## 0.2.25 notes
+
+- **Shop list modes**: 쇼핑 카테고리 옆에 인기상품 / 모든 상품 / 최근 본 상품 /
+  신상품 버튼을 넣고, 같은 썸네일 그리드에서 해당 상품만 무한 스크롤로 보여 줍니다.
+
 ## 0.2.24 notes
 
 - **Auth forms**: 로그인·회원가입 박스는 콘텐츠 최대 폭과 별개로 원래 `max-w-md`

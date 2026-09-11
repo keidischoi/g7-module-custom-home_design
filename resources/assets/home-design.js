@@ -1431,7 +1431,180 @@
     });
   }
 
+  var shopScroll = {
+    page: 1,
+    hasMore: true,
+    loading: false,
+    key: "",
+    observer: null,
+    observed: null,
+  };
+
+  function isShopProductsListPath(path) {
+    path = normalizePath(path);
+    var base = normalizePath(shopBasePath());
+    if (base === "/") return path === "/products";
+    return path === base + "/products";
+  }
+
+  function shopListQuery() {
+    var params = new URLSearchParams((window.location && window.location.search) || "");
+    return {
+      list: params.get("list") || "",
+      category: params.get("category") || "",
+      sort: params.get("sort") || "latest",
+      keyword: params.get("keyword") || "",
+    };
+  }
+
+  function shopScrollKey() {
+    var q = shopListQuery();
+    return [normalizePath(window.location && window.location.pathname), q.list, q.category, q.sort, q.keyword].join("|");
+  }
+
+  function shopProductsQuery(page) {
+    var q = shopListQuery();
+    var sort = q.sort || "latest";
+    var category = q.category;
+    if (q.list === "popular") {
+      sort = "sales";
+      category = "";
+    } else if (q.list === "new" || q.list === "all") {
+      sort = "latest";
+      category = "";
+    }
+    return {
+      page: String(page),
+      per_page: "20",
+      category_id: category,
+      sort: sort,
+      search: q.keyword,
+    };
+  }
+
+  function extractProductPage(payload) {
+    var body = payload && payload.data !== undefined ? payload.data : payload;
+    var items = [];
+    var pagination = {};
+    if (body && Array.isArray(body.data)) items = body.data;
+    else if (body && body.data && Array.isArray(body.data.data)) items = body.data.data;
+    else if (Array.isArray(body)) items = body;
+    if (body && body.pagination && typeof body.pagination === "object") pagination = body.pagination;
+    else if (body && body.data && body.data.pagination && typeof body.data.pagination === "object") {
+      pagination = body.data.pagination;
+    } else if (payload && payload.meta && typeof payload.meta === "object") {
+      pagination = payload.meta;
+    }
+    return { items: items, pagination: pagination };
+  }
+
+  function appendShopProducts(items) {
+    if (!items || !items.length) return;
+    try {
+      if (window.G7Core && typeof window.G7Core.dispatch === "function") {
+        window.G7Core.dispatch({
+          handler: "appendDataSource",
+          params: {
+            dataSourceId: "products",
+            dataPath: "data.data",
+            newData: items,
+          },
+        });
+      }
+    } catch (e) {}
+  }
+
+  function fetchShopProducts(query) {
+    var G7Core = window.G7Core || {};
+    if (G7Core.api && typeof G7Core.api.get === "function") {
+      return Promise.resolve(G7Core.api.get("/api/modules/sirsoft-ecommerce/products", { params: query }));
+    }
+    var headers = { Accept: "application/json" };
+    try {
+      var token =
+        (G7Core.state && G7Core.state.get && G7Core.state.get("_global.token")) ||
+        (window.localStorage && (localStorage.getItem("token") || localStorage.getItem("auth_token")));
+      if (token) headers.Authorization = "Bearer " + token;
+    } catch (eTok) {}
+    var usp = new URLSearchParams();
+    Object.keys(query).forEach(function (k) {
+      if (query[k] !== undefined && query[k] !== null && query[k] !== "") usp.set(k, query[k]);
+    });
+    return fetch("/api/modules/sirsoft-ecommerce/products?" + usp.toString(), {
+      method: "GET",
+      credentials: "same-origin",
+      headers: headers,
+    }).then(function (r) {
+      if (!r.ok) throw new Error("products " + r.status);
+      return r.json();
+    });
+  }
+
+  function loadMoreShopProducts() {
+    if (!isShopProductsListPath(window.location && window.location.pathname)) return;
+    var q = shopListQuery();
+    if (q.list === "recent") return;
+    if (shopScroll.loading || !shopScroll.hasMore) return;
+    shopScroll.loading = true;
+    var next = shopScroll.page + 1;
+    fetchShopProducts(shopProductsQuery(next))
+      .then(function (payload) {
+        var page = extractProductPage(payload);
+        appendShopProducts(page.items);
+        shopScroll.page = next;
+        shopScroll.hasMore = page.pagination.has_more_pages === true || page.items.length >= 20;
+        if (!page.items.length) shopScroll.hasMore = false;
+      })
+      .catch(function () {
+        shopScroll.hasMore = false;
+      })
+      .then(function () {
+        shopScroll.loading = false;
+      });
+  }
+
+  function bindShopInfiniteScroll() {
+    var key = shopScrollKey();
+    if (shopScroll.key !== key) {
+      shopScroll.key = key;
+      shopScroll.page = 1;
+      shopScroll.hasMore = shopListQuery().list !== "recent";
+      shopScroll.loading = false;
+    }
+    if (!isShopProductsListPath(window.location && window.location.pathname) || shopListQuery().list === "recent") {
+      if (shopScroll.observer && shopScroll.observed) {
+        try {
+          shopScroll.observer.unobserve(shopScroll.observed);
+        } catch (eUn) {}
+      }
+      shopScroll.observed = null;
+      return;
+    }
+    var el =
+      document.getElementById("chd_shop_scroll_sentinel") ||
+      document.querySelector("[data-chd-shop-sentinel='1']");
+    if (!el || typeof IntersectionObserver !== "function") return;
+    if (shopScroll.observed === el && shopScroll.observer) return;
+    if (shopScroll.observer) {
+      try {
+        shopScroll.observer.disconnect();
+      } catch (eDisc) {}
+    }
+    shopScroll.observer = new IntersectionObserver(
+      function (entries) {
+        if (!entries || !entries.length || !entries[0].isIntersecting) return;
+        loadMoreShopProducts();
+      },
+      { root: null, rootMargin: "240px 0px", threshold: 0 }
+    );
+    shopScroll.observer.observe(el);
+    shopScroll.observed = el;
+  }
+
   function ensureHeaderUx() {
+    try {
+      bindShopInfiniteScroll();
+    } catch (eShop) {}
     if (!lastSettings) return;
     ensureDesktopSearchToggle();
     ensureMobileSearchToggle();

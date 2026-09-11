@@ -130,6 +130,7 @@ class Module extends AbstractModule
     {
         return [
             \Modules\Custom\HomeDesign\Listeners\HomeDesignLayoutListener::class,
+            \Modules\Custom\HomeDesign\Listeners\ShopListLayoutListener::class,
         ];
     }
 }

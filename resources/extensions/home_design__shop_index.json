@@ -1,0 +1,7 @@
+{
+  "_comment": "0.2.25: shop list-mode chips + infinite scroll are applied by ShopListLayoutListener event hooks. No layout scripts[].",
+  "target_layout": "shop/index",
+  "priority": 75,
+  "data_sources": [],
+  "injections": []
+}
