@@ -575,17 +575,12 @@ class HomeDesignLayoutListener implements HookListenerInterface
         }
         $list = '['.implode(', ', $parts).']';
 
-        // Match slug, name, id, and href/url/path containing /board/{slug} or /boards/{slug}.
-        // Use function() + indexOf for wider expression-engine compatibility than arrow/includes.
-        return '{{(boards.data ?? []).filter(function(b){var H='.$list.';'
-            .'function has(x){x=String(x==null?"":x); if(!x)return false; for(var i=0;i<H.length;i++){if(H[i]===x||H[i]===x.toLowerCase())return true;} return false;}'
-            .'var s=b&&b.slug!=null?b.slug:(b&&b.bo_table!=null?b.bo_table:"");'
-            .'var n=b&&b.name!=null?b.name:"";'
-            .'var id=b&&b.id!=null?b.id:"";'
-            .'var h=String((b&&(b.href||b.url||b.path||b.link))||"");'
-            .'var m=h.match(/\\/boards?\\/([^\\/?#]+)/);'
-            .'var hs=m&&m[1]?decodeURIComponent(m[1]):"";'
-            .'return !(has(s)||has(n)||has(id)||has(hs));})}}';
+        // G7's safe expression evaluator supports arrow callbacks used by the official
+        // theme, but a nested `function has(){}` declaration is not bound as a local
+        // statement. That made evaluation fail and Header received no boards at all.
+        // Filter only on the official board slug shape, with legacy key fallbacks.
+        return '{{(boards.data ?? []).filter(b => !'.$list
+            .'.includes(String(b?.slug ?? b?.bo_table ?? b?.id ?? "").toLowerCase()))}}';
     }
 
     private function patchMainContentWidth(array $layout, int $px): array

@@ -2,7 +2,7 @@
     "name": "modules/custom-home_design",
     "description": "Custom home design module for Gnuboard7 (official sirsoft-basic via Event Hooks)",
     "type": "library",
-    "version": "0.2.14",
+    "version": "0.2.15",
     "license": "MIT",
     "autoload": {
         "psr-4": {

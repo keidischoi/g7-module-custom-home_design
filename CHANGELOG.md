@@ -3,6 +3,16 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.15] - 2026-09-11
+
+### Fixed — 게시판 일부 제외 시 헤더 메뉴 전체가 사라지는 문제
+
+- 원인: 주입한 필터 표현식 안의 중첩 `function has(){}` 선언은 G7 안전 표현식
+  평가기에서 지역 함수로 바인딩되지 않아 평가에 실패했습니다.
+- 공식 `sirsoft-basic` 레이아웃이 사용하는 화살표 함수와 `filter/includes` 형태로
+  변경했습니다.
+- `qna, inquiry` 입력 시 해당 slug만 제외하고 나머지 게시판 메뉴는 유지합니다.
+
 ## [0.2.14] - 2026-09-11
 
 ### Changed — 게시판 숨김 설정을 slug 입력란으로 변경
