@@ -3,6 +3,13 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.19] - 2026-09-11
+
+### Fixed — 홈 좌우 정렬 + Powered by 제거
+
+- 홈 콘텐츠에 헤더와 다른 가로 패딩이 겹쳐 양옆이 어긋나던 문제를 수정했습니다.
+- 푸터 `Powered by 그누보드7` 문구를 숨깁니다.
+
 ## [0.2.18] - 2026-09-11
 
 ### Fixed — 홈 박스 폭이 콘텐츠 최대 폭보다 좁던 문제

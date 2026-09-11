@@ -1,6 +1,6 @@
 # custom-home_design
 
-Gnuboard7 홈 디자인 애드온 모듈 (`0.2.18`).
+Gnuboard7 홈 디자인 애드온 모듈 (`0.2.19`).
 
 공식 **gnuboard `sirsoft-basic`** 테마에서 메뉴·콘텐츠 폭·푸터 사업자 고지를
 Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 직접 수정 없음.**
@@ -23,6 +23,11 @@ Event Hook / Layout Extensions / 주입 JS로 제공합니다. **테마 파일 �
 **참고 전용:** `keidischoi/g7-template-sirsoft-basic` 브랜치 `feat/open-in-new-tab-1.1.51`
 (`layouts/_user_base.json`, `Footer.tsx` businessInfo/linkGroups, Header 보드 필터).
 라이브 사이트에는 feat React 기능이 없어도 동작하도록 훅+JS로 이식했습니다.
+
+## 0.2.19 notes
+
+- **Home align**: 홈 박스 좌우를 헤더/네비와 같은 `px-4 sm:px-6 lg:px-8` 여백으로 맞춥니다.
+- **Footer**: `Powered by 그누보드7` 문구를 숨깁니다.
 
 ## 0.2.18 notes
 

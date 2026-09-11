@@ -150,10 +150,15 @@ class AssetController extends Controller
             $cssParts[] = ':root{--chd-content-max-width:'.$widthPx.'px;}'
                 .'#main_content,#main_content.max-w-7xl,[id="main_content"],.chd-content-col{'
                 .'max-width:var(--chd-content-max-width)!important;width:100%!important;'
-                .'margin-inline:auto!important;box-sizing:border-box!important;}'
+                .'margin-inline:auto!important;box-sizing:border-box!important;'
+                .'padding-left:1rem!important;padding-right:1rem!important;}'
+                .'@media (min-width:640px){#main_content,.chd-content-col{padding-left:1.5rem!important;padding-right:1.5rem!important;}}'
+                .'@media (min-width:1024px){#main_content,.chd-content-col{padding-left:2rem!important;padding-right:2rem!important;}}'
                 .'#main_content > *:not([data-chd-full-bleed]),#main_content .chd-home-fill,'
                 .'#main_content [data-chd-home-fill],#main_content .grid{'
-                .'width:100%!important;max-width:100%!important;box-sizing:border-box!important;}';
+                .'width:100%!important;max-width:100%!important;box-sizing:border-box!important;'
+                .'padding-left:0!important;padding-right:0!important;}'
+                .'[data-chd-hide-powered-by="1"]{display:none!important;}';
             $bootCss = implode('', $cssParts);
             $cssJson = json_encode($bootCss, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '""';
 

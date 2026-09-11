@@ -174,7 +174,15 @@
       "{max-width:var(--chd-content-max-width)!important;" +
       "width:100%!important;margin-inline:auto!important;box-sizing:border-box!important;}" +
       homeFillSelector() +
-      "{width:100%!important;max-width:100%!important;box-sizing:border-box!important;}" +
+      "{width:100%!important;max-width:100%!important;box-sizing:border-box!important;" +
+      "padding-left:0!important;padding-right:0!important;}" +
+      "#main_content,.chd-content-col{" +
+      "padding-left:1rem!important;padding-right:1rem!important;}" +
+      "@media (min-width:640px){#main_content,.chd-content-col{" +
+      "padding-left:1.5rem!important;padding-right:1.5rem!important;}}" +
+      "@media (min-width:1024px){#main_content,.chd-content-col{" +
+      "padding-left:2rem!important;padding-right:2rem!important;}}" +
+      "[data-chd-hide-powered-by='1']{display:none!important;}" +
       /* Keep full-bleed carousel/hero full width */
       "[data-chd-full-bleed='1']," +
       "#main_content_area [id*='carousel']," +
@@ -345,6 +353,27 @@
       return true;
     }
     return false;
+  }
+
+  function hidePoweredBy() {
+    var roots;
+    try {
+      roots = document.querySelectorAll("#footer, footer, .chd-footer");
+    } catch (e) {
+      roots = [];
+    }
+    for (var i = 0; i < roots.length; i++) {
+      var ps = roots[i].querySelectorAll("p");
+      for (var j = 0; j < ps.length; j++) {
+        var text = String(ps[j].textContent || "").replace(/\s+/g, " ").trim();
+        if (/^Powered by\s+(그누보드7|Gnuboard7)$/i.test(text)) {
+          try {
+            ps[j].setAttribute("data-chd-hide-powered-by", "1");
+            ps[j].style.setProperty("display", "none", "important");
+          } catch (err) {}
+        }
+      }
+    }
   }
 
   function syncHeaderCurrencyVisibility() {
@@ -1339,6 +1368,9 @@
     try {
       syncHeaderCurrencyVisibility();
     } catch (eCur) {}
+    try {
+      hidePoweredBy();
+    } catch (ePb) {}
   }
 
   function scheduleEnsureHeaderUx() {
@@ -1392,6 +1424,7 @@
     ensureFooterLinkIcons(lastSettings);
     refreshBoardNameMap(lastSettings);
     ensureHiddenBoardNav(lastSettings);
+    hidePoweredBy();
     bindThemeClickToggle();
     bindOutsideSearchClose();
     scheduleEnsureHeaderUx();

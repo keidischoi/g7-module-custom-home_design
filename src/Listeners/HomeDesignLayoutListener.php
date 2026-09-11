@@ -603,11 +603,11 @@ class HomeDesignLayoutListener implements HookListenerInterface
             }
 
             $props = &$node['responsive']['desktop']['props'];
-            $className = (string) ($props['className'] ?? 'min-h-fit mx-auto px-8');
+            $className = (string) ($props['className'] ?? 'min-h-fit mx-auto');
             // Drop Tailwind max-w-* so inline maxWidth wins; keep spacing utilities.
             $className = trim(preg_replace('/\bmax-w-[A-Za-z0-9\[\]\-\/]+\b/', '', $className) ?? $className);
             if ($className === '') {
-                $className = 'min-h-fit mx-auto px-8';
+                $className = 'min-h-fit mx-auto';
             }
             if (! str_contains($className, 'mx-auto')) {
                 $className .= ' mx-auto';
@@ -615,7 +615,7 @@ class HomeDesignLayoutListener implements HookListenerInterface
             if (! str_contains($className, 'chd-content-col')) {
                 $className = trim($className.' chd-content-col');
             }
-            $props['className'] = trim($className);
+            $props['className'] = $this->withHeaderGutter(trim($className));
 
             $style = isset($props['style']) && is_array($props['style']) ? $props['style'] : [];
             $style['maxWidth'] = $px.'px';
@@ -631,7 +631,7 @@ class HomeDesignLayoutListener implements HookListenerInterface
             if (! str_contains($baseCls, 'chd-content-col')) {
                 $baseCls = trim($baseCls.' chd-content-col');
             }
-            $node['props']['className'] = $baseCls;
+            $node['props']['className'] = $this->withHeaderGutter($baseCls);
             $baseStyle = isset($node['props']['style']) && is_array($node['props']['style']) ? $node['props']['style'] : [];
             $baseStyle['maxWidth'] = $px.'px';
             $baseStyle['width'] = '100%';
@@ -856,6 +856,16 @@ class HomeDesignLayoutListener implements HookListenerInterface
     }
 
     /**
+     * Match official Header/Footer gutters: px-4 sm:px-6 lg:px-8.
+     */
+    private function withHeaderGutter(string $className): string
+    {
+        $className = trim(preg_replace('/\b(?:sm:|md:|lg:)?px-\d+\b/', '', $className) ?? $className);
+
+        return trim($className.' px-4 sm:px-6 lg:px-8');
+    }
+
+    /**
      * @param  array<string, mixed>  $node
      * @return array<string, mixed>
      */
@@ -863,6 +873,7 @@ class HomeDesignLayoutListener implements HookListenerInterface
     {
         $apply = static function (array $props): array {
             $className = trim((string) ($props['className'] ?? ''));
+            $className = trim(preg_replace('/\b(?:sm:|md:|lg:)?px-\d+\b/', '', $className) ?? $className);
             if ($className !== '' && ! str_contains($className, 'w-full')) {
                 $className = trim($className.' w-full');
             }
