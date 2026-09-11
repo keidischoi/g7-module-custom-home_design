@@ -67,7 +67,9 @@
         st.id = "chd-home-design-boot-style";
         (document.head || document.documentElement).appendChild(st);
       }
-      st.textContent = cssParts.join("");
+      if (!st.textContent) {
+        st.textContent = cssParts.join("");
+      }
     }
   } catch (e5) {}
 
@@ -79,8 +81,8 @@
     if (existing) return;
     window.__chdHomeDesignJsLoading = true;
     var urls = [
-      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.22",
-      "/api/modules/custom-home_design/assets/home-design?v=0.2.22",
+      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.32",
+      "/api/modules/custom-home_design/assets/home-design?v=0.2.32",
     ];
     var idx = 0;
     function tryNext() {

@@ -10,7 +10,7 @@ use App\Contracts\Extension\HookListenerInterface;
  *  - show those products in the same ProductCard thumbnail grid
  *  - list-mode pages use the thumbnail grid + infinite scroll
  *  - category "전체" keeps the original pager and recent/popular/new sections
- *  - product cards use Bunjang-like 81:100 thumbnails
+ *  - product cards use smaller Bunjang-like 81:100 thumbnails (3/4/5 columns)
  */
 class ShopListLayoutListener implements HookListenerInterface
 {
