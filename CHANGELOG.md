@@ -3,6 +3,12 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.26] - 2026-09-11
+
+### Changed — 쇼핑 목록 버튼 순서
+
+- 순서를 모든 상품, 최근 본 상품, 인기상품, 신상품으로 맞춥니다.
+
 ## [0.2.25] - 2026-09-11
 
 ### Added — 쇼핑 목록 모드 버튼 + 무한 스크롤

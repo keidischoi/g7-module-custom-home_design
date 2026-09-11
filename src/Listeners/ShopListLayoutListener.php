@@ -6,7 +6,7 @@ use App\Contracts\Extension\HookListenerInterface;
 
 /**
  * Event-hook patches for shop/index:
- *  - add 인기상품 / 모든 상품 / 최근 본 상품 / 신상품 chips next to categories
+ *  - add 모든 상품 / 최근 본 상품 / 인기상품 / 신상품 chips next to categories
  *  - show those products in the same ProductCard thumbnail grid
  *  - hide page buttons (infinite scroll is handled by home-design.js)
  *  - hide the duplicate bottom carousels
@@ -163,16 +163,23 @@ class ShopListLayoutListener implements HookListenerInterface
             $node['children'] = [];
         }
 
-        $node['children'] = array_map(function ($child) {
-            return is_array($child) ? $this->retargetCategoryChip($child) : $child;
-        }, $node['children']);
-
-        if (! $this->childrenHaveId($node['children'], 'chd_shop_list_popular')) {
-            $node['children'][] = $this->separatorNode();
-            foreach ($this->listModeButtons() as $button) {
-                $node['children'][] = $button;
+        $kept = [];
+        foreach ($node['children'] as $child) {
+            if (! is_array($child)) {
+                $kept[] = $child;
+                continue;
             }
+            $id = (string) ($child['id'] ?? '');
+            if ($id === 'chd_shop_list_mode_sep' || str_starts_with($id, 'chd_shop_list_')) {
+                continue;
+            }
+            $kept[] = $this->retargetCategoryChip($child);
         }
+        $kept[] = $this->separatorNode();
+        foreach ($this->listModeButtons() as $button) {
+            $kept[] = $button;
+        }
+        $node['children'] = $kept;
 
         return $node;
     }
@@ -224,9 +231,9 @@ class ShopListLayoutListener implements HookListenerInterface
     private function listModeButtons(): array
     {
         $items = [
-            ['id' => 'chd_shop_list_popular', 'list' => 'popular', 'text' => '인기상품'],
             ['id' => 'chd_shop_list_all', 'list' => 'all', 'text' => '모든 상품'],
             ['id' => 'chd_shop_list_recent', 'list' => 'recent', 'text' => '최근 본 상품'],
+            ['id' => 'chd_shop_list_popular', 'list' => 'popular', 'text' => '인기상품'],
             ['id' => 'chd_shop_list_new', 'list' => 'new', 'text' => '신상품'],
         ];
 
@@ -445,20 +452,6 @@ class ShopListLayoutListener implements HookListenerInterface
         }
 
         return $this->containsText($node, 'categories?.data');
-    }
-
-    /**
-     * @param  array<int, mixed>  $children
-     */
-    private function childrenHaveId(array $children, string $id): bool
-    {
-        foreach ($children as $child) {
-            if (is_array($child) && ($child['id'] ?? '') === $id) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
