@@ -3,6 +3,13 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.35] - 2026-09-12
+
+### Changed — 숨긴 헤더 아이콘 공백 제거
+
+- 비쇼핑 페이지에서 통화 선택기를 `visibility:hidden`으로 자리만 남기던 방식을
+  `display:none`으로 바꿔, 아이콘이 사라지면 옆 버튼 사이 빈 칸도 함께 접힙니다.
+
 ## [0.2.34] - 2026-09-11
 
 ### Changed — 페이지 로딩 최적화

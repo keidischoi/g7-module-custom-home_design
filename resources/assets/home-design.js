@@ -428,10 +428,15 @@
     return (
       "html.chd-hide-header-currency [data-testid='currency-switcher']," +
       "html.chd-hide-header-currency [id^='ext_header_currency_selector']," +
-      "html.chd-hide-header-currency #header_currency_slot_desktop{" +
-      "visibility:hidden!important;pointer-events:none!important;}" +
+      "html.chd-hide-header-currency #header_currency_slot_desktop," +
+      "html.chd-hide-header-currency [id*='header_currency']," +
+      "html.chd-hide-header-currency .relative:has(>[data-testid='currency-switcher'])," +
+      "html.chd-hide-header-currency .relative:has(>[id^='ext_header_currency_selector'])," +
       "html.chd-hide-header-currency #mobile_drawer_currency_wrap{" +
-      "display:none!important;visibility:hidden!important;pointer-events:none!important;}"
+      "display:none!important;visibility:hidden!important;" +
+      "width:0!important;min-width:0!important;height:0!important;min-height:0!important;" +
+      "margin:0!important;padding:0!important;overflow:hidden!important;" +
+      "pointer-events:none!important;}"
     );
   }
 
