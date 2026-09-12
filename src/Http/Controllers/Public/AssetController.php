@@ -136,12 +136,17 @@ class AssetController extends Controller
                     .'.relative:has(>[aria-label="Toggle theme"]) > div.absolute.w-48{'
                     .'display:none!important;visibility:hidden!important;pointer-events:none!important;}';
             }
-            $cssParts[] = 'html.chd-hide-header-currency [data-testid="currency-switcher"],'
-                .'html.chd-hide-header-currency [id^="ext_header_currency_selector"],'
-                .'html.chd-hide-header-currency #header_currency_slot_desktop{'
-                .'visibility:hidden!important;pointer-events:none!important;}'
+            $cssParts[] = 'html.chd-hide-header-currency #desktop_header #header_currency_slot_desktop,'
+                .'html.chd-hide-header-currency header.sticky #header_currency_slot_desktop,'
+                .'html.chd-hide-header-currency header.chd-desktop-header #header_currency_slot_desktop,'
+                .'html.chd-hide-header-currency #desktop_header [data-testid="currency-switcher"],'
+                .'html.chd-hide-header-currency header.sticky [data-testid="currency-switcher"],'
+                .'html.chd-hide-header-currency header.chd-desktop-header [data-testid="currency-switcher"],'
+                .'html.chd-hide-header-currency #desktop_header [id^="ext_header_currency_selector"],'
+                .'html.chd-hide-header-currency header.sticky [id^="ext_header_currency_selector"],'
+                .'html.chd-hide-header-currency header.chd-desktop-header [id^="ext_header_currency_selector"],'
                 .'html.chd-hide-header-currency #mobile_drawer_currency_wrap{'
-                .'display:none!important;visibility:hidden!important;pointer-events:none!important;}';
+                .'display:none!important;}';
             $cssParts[] = 'html.chd-auth-page #main_content [data-chd-max-width]:not(#main_content),'
                 .'html.chd-auth-page #main_content .chd-content-col:not(#main_content){'
                 .'max-width:28rem!important;width:100%!important;margin-inline:auto!important;'

@@ -425,13 +425,21 @@
   }
 
   function headerCurrencyHideCss() {
+    // display:none on the slot itself (a flex child) so siblings slide over.
+    // Do not use visibility:hidden — that keeps a blank hole.
+    // Scoped to header so share / other menus are not matched.
     return (
-      "html.chd-hide-header-currency [data-testid='currency-switcher']," +
-      "html.chd-hide-header-currency [id^='ext_header_currency_selector']," +
-      "html.chd-hide-header-currency #header_currency_slot_desktop{" +
-      "visibility:hidden!important;pointer-events:none!important;}" +
+      "html.chd-hide-header-currency #desktop_header #header_currency_slot_desktop," +
+      "html.chd-hide-header-currency header.sticky #header_currency_slot_desktop," +
+      "html.chd-hide-header-currency header.chd-desktop-header #header_currency_slot_desktop," +
+      "html.chd-hide-header-currency #desktop_header [data-testid='currency-switcher']," +
+      "html.chd-hide-header-currency header.sticky [data-testid='currency-switcher']," +
+      "html.chd-hide-header-currency header.chd-desktop-header [data-testid='currency-switcher']," +
+      "html.chd-hide-header-currency #desktop_header [id^='ext_header_currency_selector']," +
+      "html.chd-hide-header-currency header.sticky [id^='ext_header_currency_selector']," +
+      "html.chd-hide-header-currency header.chd-desktop-header [id^='ext_header_currency_selector']," +
       "html.chd-hide-header-currency #mobile_drawer_currency_wrap{" +
-      "display:none!important;visibility:hidden!important;pointer-events:none!important;}"
+      "display:none!important;}"
     );
   }
 
@@ -503,6 +511,41 @@
     try {
       document.body && document.body.classList.toggle("chd-hide-header-currency", hide);
     } catch (e2) {}
+    packHeaderCurrencySlot(hide);
+  }
+
+  function isShareRelatedNode(el) {
+    if (!el) return false;
+    var id = String(el.id || "").toLowerCase();
+    var cls = String((el.className && el.className.baseVal) || el.className || "").toLowerCase();
+    if (id.indexOf("share") !== -1 || id.indexOf("cdp_share") !== -1) return true;
+    if (cls.indexOf("share") !== -1) return true;
+    try {
+      if (el.querySelector("[id*='share'], [id*='cdp_share'], [class*='share']")) return true;
+    } catch (e) {}
+    return false;
+  }
+
+  /** Hide only the currency flex item so remaining header icons pack. Never touch share. */
+  function packHeaderCurrencySlot(hide) {
+    var slot = document.getElementById("header_currency_slot_desktop");
+    if (!slot) {
+      try {
+        slot = document.querySelector("[id$='__header_currency_slot_desktop']");
+      } catch (e) {
+        slot = null;
+      }
+    }
+    if (!slot || isShareRelatedNode(slot)) return;
+    try {
+      if (hide) {
+        slot.style.setProperty("display", "none", "important");
+        slot.setAttribute("data-chd-currency-packed", "1");
+      } else if (slot.getAttribute("data-chd-currency-packed") === "1") {
+        slot.style.removeProperty("display");
+        slot.removeAttribute("data-chd-currency-packed");
+      }
+    } catch (err) {}
   }
 
   function syncAuthPageClass() {
