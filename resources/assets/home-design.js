@@ -6,22 +6,22 @@
     "https://cdn.jsdelivr.net/gh/keidischoi/g7-module-custom-home_design@6a79672db28b5f93de7c9c6c3cb1b753c1c9e5b4/resources/assets/home-design.js";
 
   function inject(src) {
-    var stopFn =
+    var extras =
       "function isProductDetailPath(path) {" +
       "path = normalizePath(path);" +
       "var base = normalizePath(shopBasePath());" +
-      "var prefix = base === \"/\" ? \"/products/\" : base + \"/products/\";" +
+      "var prefix = base === '/' ? '/products/' : base + '/products/';" +
       "return path.indexOf(prefix) === 0 && path !== prefix.slice(0, -1);}" +
       "function stopShopListRuntime() {" +
       "shopScroll.hasMore = false;shopScroll.loading = false;" +
       "if (shopScroll.observer) {try {shopScroll.observer.disconnect();} catch (eStop) {}shopScroll.observer = null;}" +
       "shopScroll.observed = null;" +
-      "try {document.documentElement.classList.remove(\"chd-shop-quiet-nav\");} catch (eCls) {}" +
-      "try {document.body && document.body.classList.remove(\"chd-shop-quiet-nav\");} catch (eBody) {}}";
+      "try {document.documentElement.classList.remove('chd-shop-quiet-nav');} catch (eCls) {}" +
+      "try {document.body && document.body.classList.remove('chd-shop-quiet-nav');} catch (eBody) {}}";
 
     src = src.replace(
       "function isShopProductsListPath(path) {",
-      stopFn + "\n  function isShopProductsListPath(path) {"
+      extras + "\n  function isShopProductsListPath(path) {"
     );
 
     src = src.replace(
@@ -35,8 +35,8 @@
     );
 
     src = src.replace(
-      "if (!t.closest(\"#chd_shop_category_row, [data-chd-shop-list], #chd_shop_sort_bar, .chd-shop-sort-bar\")) {",
-      "if (t.closest(\"#cdp_share_list, [id*='cdp_share'], .chd-product-card, a[href*='/products/']\")) { stopShopListRuntime(); return; }\n        if (!t.closest(\"#chd_shop_category_row, [data-chd-shop-list], #chd_shop_sort_bar, .chd-shop-sort-bar\")) {"
+      'if (!t.closest("#chd_shop_category_row, [data-chd-shop-list], #chd_shop_sort_bar, .chd-shop-sort-bar")) {',
+      'if (t.closest("#cdp_share_list, [id*=\'cdp_share\'], .chd-product-card, a[href*=\'/products/\']")) { stopShopListRuntime(); return; }\n        if (!t.closest("#chd_shop_category_row, [data-chd-shop-list], #chd_shop_sort_bar, .chd-shop-sort-bar")) {'
     );
 
     src = src.replace(
@@ -47,15 +47,15 @@
     (0, eval)(src);
   }
 
-  fetch(SRC, { credentials: \"omit\", cache: \"force-cache\" })
+  fetch(SRC, { credentials: "omit", cache: "force-cache" })
     .then(function (r) {
-      if (!r.ok) throw new Error(\"home-design source \" + r.status);
+      if (!r.ok) throw new Error("home-design source " + r.status);
       return r.text();
     })
     .then(inject)
     .catch(function (err) {
       try {
-        console.warn(\"[custom-home_design] detail-fix loader failed\", err);
+        console.warn("[custom-home_design] detail-fix loader failed", err);
       } catch (e) {}
     });
 })();
