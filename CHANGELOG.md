@@ -3,6 +3,15 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.36] - 2026-09-12
+
+### Fixed — 헤더 아이콘이 빠져도 빈 칸이 남는 문제
+
+- 통화 선택기 안쪽만 `display:none` 하면 SlotContainer flex 칸이 그대로 남아
+  장바구니·언어·프로필 사이에 구멍이 생겼습니다.
+- 헤더 우측 묶음의 해당 칸 자체를 접고, `visibility:hidden`인 다른 액션도 같이
+  접어 아이콘이 사라지면 옆 버튼이 붙습니다.
+
 ## [0.2.35] - 2026-09-12
 
 ### Changed — 숨긴 헤더 아이콘 공백 제거

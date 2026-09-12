@@ -426,16 +426,22 @@
 
   function headerCurrencyHideCss() {
     return (
+      "html.chd-hide-header-currency .flex.items-center.gap-2 > #header_currency_slot_desktop," +
+      "html.chd-hide-header-currency .flex.items-center.gap-2 > :has([data-testid='currency-switcher'])," +
+      "html.chd-hide-header-currency .flex.items-center.gap-2 > :has([id*='header_currency'])," +
+      "html.chd-hide-header-currency .flex.items-center.gap-2 > :has([id^='ext_header_currency_selector'])," +
       "html.chd-hide-header-currency [data-testid='currency-switcher']," +
       "html.chd-hide-header-currency [id^='ext_header_currency_selector']," +
       "html.chd-hide-header-currency #header_currency_slot_desktop," +
       "html.chd-hide-header-currency [id*='header_currency']," +
       "html.chd-hide-header-currency .relative:has(>[data-testid='currency-switcher'])," +
       "html.chd-hide-header-currency .relative:has(>[id^='ext_header_currency_selector'])," +
-      "html.chd-hide-header-currency #mobile_drawer_currency_wrap{" +
+      "html.chd-hide-header-currency #mobile_drawer_currency_wrap," +
+      "[data-chd-collapsed-slot='1']{" +
       "display:none!important;visibility:hidden!important;" +
       "width:0!important;min-width:0!important;height:0!important;min-height:0!important;" +
       "margin:0!important;padding:0!important;overflow:hidden!important;" +
+      "flex:0 0 0!important;max-width:0!important;" +
       "pointer-events:none!important;}"
     );
   }
@@ -508,6 +514,129 @@
     try {
       document.body && document.body.classList.toggle("chd-hide-header-currency", hide);
     } catch (e2) {}
+    packHeaderActionSlots();
+  }
+
+  function findHeaderActionClusters() {
+    var out = [];
+    var desk = findDesktopRightCluster();
+    if (desk) out.push(desk);
+    var mobile =
+      document.getElementById("mobile_header_right") ||
+      document.querySelector("#mobile_header .flex.items-center.gap-2") ||
+      document.querySelector("#mobile_header .flex.items-center");
+    if (mobile && out.indexOf(mobile) === -1) out.push(mobile);
+    return out;
+  }
+
+  function clusterChildOf(el, cluster) {
+    if (!el || !cluster) return el;
+    var node = el;
+    while (node && node.parentElement && node.parentElement !== cluster) {
+      node = node.parentElement;
+    }
+    if (node && node.parentElement === cluster) return node;
+    return el;
+  }
+
+  function collapseHeaderSlot(el) {
+    if (!el) return;
+    try {
+      el.style.setProperty("display", "none", "important");
+      el.setAttribute("data-chd-collapsed-slot", "1");
+    } catch (e) {}
+  }
+
+  function restoreCollapsedHeaderSlots() {
+    var nodes;
+    try {
+      nodes = document.querySelectorAll("[data-chd-collapsed-slot='1']");
+    } catch (e) {
+      nodes = [];
+    }
+    for (var i = 0; i < nodes.length; i++) {
+      try {
+        nodes[i].style.removeProperty("display");
+        nodes[i].removeAttribute("data-chd-collapsed-slot");
+      } catch (err) {}
+    }
+  }
+
+  function headerSlotSelector() {
+    return (
+      "[data-testid='currency-switcher']," +
+      "[id^='ext_header_currency_selector']," +
+      "[id*='header_currency']," +
+      "#header_currency_slot_desktop," +
+      "#mobile_drawer_currency_wrap"
+    );
+  }
+
+  function isProtectedHeaderAction(el) {
+    if (!el) return true;
+    var id = el.id || "";
+    if (id === DESKTOP_TOGGLE_ID || id === MOBILE_TOGGLE_ID) return true;
+    if (el.getAttribute && el.getAttribute("data-chd-role") === "header-search-toggle") return true;
+    return false;
+  }
+
+  function isFlexChildInvisible(el) {
+    if (!el || isProtectedHeaderAction(el)) return false;
+    var cs;
+    try {
+      cs = window.getComputedStyle(el);
+    } catch (e) {
+      return false;
+    }
+    if (!cs) return false;
+    if (cs.visibility === "hidden" || cs.visibility === "collapse") return true;
+    if (parseFloat(cs.opacity) === 0) return true;
+    return false;
+  }
+
+  function packInvisibleHeaderSlots() {
+    var clusters = findHeaderActionClusters();
+    for (var c = 0; c < clusters.length; c++) {
+      var kids = clusters[c].children;
+      for (var i = 0; i < kids.length; i++) {
+        if (isFlexChildInvisible(kids[i])) collapseHeaderSlot(kids[i]);
+      }
+    }
+  }
+
+  /** Hide the header flex item itself so a missing icon does not leave a hole. */
+  function packHeaderActionSlots() {
+    var hideCurrency = false;
+    try {
+      hideCurrency = document.documentElement.classList.contains("chd-hide-header-currency");
+    } catch (e0) {}
+
+    if (!hideCurrency) {
+      restoreCollapsedHeaderSlots();
+      packInvisibleHeaderSlots();
+      return;
+    }
+
+    var clusters = findHeaderActionClusters();
+    var sel = headerSlotSelector();
+    for (var c = 0; c < clusters.length; c++) {
+      var cluster = clusters[c];
+      var hits;
+      try {
+        hits = cluster.querySelectorAll(sel);
+      } catch (err) {
+        hits = [];
+      }
+      if (!hits.length && cluster.matches) {
+        try {
+          if (cluster.matches(sel)) collapseHeaderSlot(cluster);
+        } catch (eMatch) {}
+      }
+      for (var i = 0; i < hits.length; i++) {
+        collapseHeaderSlot(clusterChildOf(hits[i], cluster));
+      }
+    }
+    packInvisibleHeaderSlots();
   }
 
   function syncAuthPageClass() {
