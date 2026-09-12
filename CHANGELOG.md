@@ -3,6 +3,15 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)을 준수합니다.
 
+## [0.2.35] - 2026-09-12
+
+### Changed — 숨긴 통화 아이콘 자리로 옆 버튼이 붙음
+
+- 비쇼핑 페이지에서 통화 선택기를 `visibility:hidden`으로 자리만 남기던 방식을
+  헤더 통화 슬롯(`#header_currency_slot_desktop`) `display:none`으로 바꿉니다.
+- flex 칸이 사라져 검색·알림·장바구니·언어·프로필이 자동으로 붙습니다.
+- 공유 메뉴(`cdp_share_list` 등)는 선택하지 않습니다.
+
 ## [0.2.34] - 2026-09-11
 
 ### Changed — 페이지 로딩 최적화
