@@ -1,6 +1,13 @@
 /*! custom-home_design 0.2.36 — load 0.2.35 source then apply detail-page loading fix */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
+  try {
+    var p = String((window.location && window.location.pathname) || "");
+    if (p === "/admin" || p.indexOf("/admin/") === 0) {
+      window.__chdHomeDesignInstalled = true;
+      return;
+    }
+  } catch (eAdmin) {}
 
   var SRC =
     "https://cdn.jsdelivr.net/gh/keidischoi/g7-module-custom-home_design@6a79672db28b5f93de7c9c6c3cb1b753c1c9e5b4/resources/assets/home-design.js";

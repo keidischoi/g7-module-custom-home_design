@@ -5,6 +5,13 @@
  */
 (function () {
   if (window.__chdHomeDesignIife) return;
+  try {
+    var p = String((window.location && window.location.pathname) || "");
+    if (p === "/admin" || p.indexOf("/admin/") === 0) {
+      window.__chdHomeDesignIife = true;
+      return;
+    }
+  } catch (eAdmin) {}
   window.__chdHomeDesignIife = true;
 
   try {
