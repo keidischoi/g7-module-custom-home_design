@@ -129,11 +129,15 @@ class AssetController extends Controller
                     .'pointer-events:auto!important;max-height:none!important;height:auto!important;}';
             }
             if ($themeClick) {
-                $cssParts[] = 'header.sticky .relative:has(>[aria-label="Toggle theme"]) > div.absolute,'
-                    .'#desktop_header .relative:has(>[aria-label="Toggle theme"]) > div.absolute,'
+                // Scope to user-site headers only. Never match G7 admin ThemeToggle
+                // (same aria-label + .w-48 dropdown).
+                $cssParts[] = '#desktop_header .relative:has(>[aria-label="Toggle theme"]) > div.absolute,'
                     .'#mobile_header .relative:has(>[aria-label="Toggle theme"]) > div.absolute,'
-                    .'#mobile_theme_btn > div.absolute,'
-                    .'.relative:has(>[aria-label="Toggle theme"]) > div.absolute.w-48{'
+                    .'#mobile_theme_btn .relative:has(>[aria-label="Toggle theme"]) > div.absolute,'
+                    .'header.chd-desktop-header .relative:has(>[aria-label="Toggle theme"]) > div.absolute,'
+                    .'#desktop_header [aria-label="Toggle theme"] ~ div.absolute,'
+                    .'#mobile_header [aria-label="Toggle theme"] ~ div.absolute,'
+                    .'#mobile_theme_btn > div.absolute{'
                     .'display:none!important;visibility:hidden!important;pointer-events:none!important;}';
             }
             $cssParts[] = 'html.chd-hide-header-currency #desktop_header #header_currency_slot_desktop,'
@@ -242,6 +246,7 @@ class AssetController extends Controller
     }
     var path = String((window.location && window.location.pathname) || "/").split("?")[0];
     if (path.length > 1) path = path.replace(/\\/+$/, "");
+    if (path === "/admin" || path.indexOf("/admin/") === 0) { return; }
     var shop = path === "/shop" || path.indexOf("/shop/") === 0
       || path === "/mypage/wishlist" || path === "/mypage/mileage" || path === "/mypage/addresses"
       || path === "/mypage/orders" || path.indexOf("/mypage/orders/") === 0;
