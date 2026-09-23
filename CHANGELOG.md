@@ -3,6 +3,19 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.62] - 2026-09-23
+
+### Fixed — 게시판 홈 박스 「더보기」를 헤더 우측 상단으로
+
+- **문제:** 게시판 요약 카드(자유게시판/웹진 등)의 「더보기 →」가 카드 **하단 중앙**(pill/풀폭 CTA)에 있어, 「최근 게시글」의 **헤더 우측** 링크와 위치가 다름.
+- **수정:** 모듈 JS가 `[data-board-slug]`/board 요약 카드의 하단 더보기 컨트롤을 헤더 행(`flex justify-between`) **맨 오른쪽**으로 재배치하고, CSS로 최근 게시글과 같은 텍스트 링크 스타일(`data-chd-board-more`) 적용. 빈 게시판도 CTA 유지(접근성), 위치만 상단 우측.
+- **미변경:** Ads/CAS(`data-cas-*`, `#cas_*`, `#ad_*`), hide-home-box, `#chd-home-reflow`, 커스텀 HTML 간격. 테마 partial 마크업은 수정하지 않음(모듈 DOM/CSS만).
+- **캐시:** `home-design.js?v=0.2.62`.
+
+### Fixed — board card View more top-right like Recent posts
+
+- Relocate theme-owned bottom board-summary more CTA into the card header top-right via module JS/CSS; match recent-posts link style. Empty boards keep the CTA top-right. Ads/CAS, hide/reflow, custom HTML spacing untouched. Cache-bust `?v=0.2.62`.
+
 ## [0.2.61] - 2026-09-23
 
 ### Fixed — 홈 커스텀 HTML 남은 세로 간격 붕괴
