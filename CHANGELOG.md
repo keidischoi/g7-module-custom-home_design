@@ -3,6 +3,23 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.49] - 2026-09-23
+
+### Fixed — 홈 박스 숨김: 배타적 kind 분류 (부분 숨김)
+
+- 퍼지 멀티토큰 매칭을 제거하고, 각 홈 박스 leaf를 **정확히 하나의 kind**로 분류합니다:
+  `welcome`, `users`, `posts`, `comments`, `boards`, `recent_posts`, `popular_boards`, `shop`, `community_guide`, `board:<slug>`.
+- `classifyHomeBox(el)`: `data-chd-home-box` → board slug(`data-board-slug` / `/board/{slug}` 인덱스, 고정 크롬 제외) → 제목/헤딩 엄격 점수. 동점·약하면 `null`(숨기지 않음). multi-child `.grid` 래퍼는 분류하지 않습니다.
+- `tokensToHideKinds`: 관리자 토큰을 kind 집합으로 1:1 매핑. **`게시판`/`boards` = 통계 카드만** (모든 `board:*` 아님). 요약 카드는 `webzine` / `1:1 문의`→`board:inquiry` / `Q&A`→`board:qna` 등 slug.
+- `ensureHiddenHomeBoxes`: clear 후 leaf별 kind ∈ hideSet이면 숨김. CAS 스킵·재시도·MO(0.2.46+) 유지.
+- 관리자 힌트: 토큰↔kind 1:1, 부분 예 `welcome, shop, webzine`.
+- **참고:** 라이브 API에 여전히 긴 숨김 목록이 있으면 짧은 목록으로 비우고 저장해야 부분 숨김이 보입니다 — 분류 수정만으로는 목록에 있는 박스가 다시 표시되지 않습니다.
+
+### Fixed — exclusive home-box kind classification (partial hide)
+
+- One kind per leaf; tokens map 1:1. `boards` = stats only; board cards need slug.
+- If API still lists every box, clear/save a short hide list — classification alone will not unhide intentionally listed boxes.
+
 ## [0.2.48] - 2026-09-23
 
 ### Fixed — 짧은 한글 토큰 Hangul-boundary (자유게시판 ≠ 게시판)
