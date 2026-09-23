@@ -5,10 +5,12 @@
  * 0.2.12: business under H3 (superseded); board hide apply; module.iife loader;
  *        read #chd_home_design_cfg data-chd-settings for boot.
  * 0.2.11: search panel form; business sibling (superseded); boards restore when empty.
- * MutationObserver intentionally not used (0.2.1 infinite remount loop).
  * 0.2.37: when header_search_icon_mode is OFF, restore always-visible search.
  * 0.2.38: icon mode ON — mount toggle first, then hide original form; force-show
  *        #chd_header_search_toggle so boot CSS cannot leave a blank header.
+ * 0.2.46: home-only hide retries + debounced MutationObserver (ensureHiddenHomeBoxes
+ *        ONLY — not full header UX; avoids 0.2.1 remount loop). Progressive SPA
+ *        home cards appear after first paint.
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -28,6 +30,17 @@
   var SPA_DEBOUNCE_MS = 300;
   var ENSURE_DEBOUNCE_MS = 200;
   var lateEnsureBound = false;
+  /** Home-box hide retries (progressive SPA cards load after first paint). */
+  var HOME_HIDE_RETRY_MS = [0, 300, 800, 1500, 3000, 5000, 8000];
+  var HOME_BOX_MO_DEBOUNCE_MS = 200;
+  /** @type {number[]} */
+  var homeHideRetryTimers = [];
+  /** @type {MutationObserver|null} */
+  var homeBoxMo = null;
+  /** @type {Element|null} */
+  var homeBoxMoRoot = null;
+  /** @type {number|null} */
+  var homeBoxMoDebounce = null;
 
   /** @type {object|null} */
   var lastSettings = null;
@@ -2184,12 +2197,12 @@
   }
 
   function hideHomeBoxElement(el) {
-    if (!el || !el.style) return;
-    if (isCasAdMount(el)) return;
+    if (!el || !el.style) return false;
+    if (isCasAdMount(el)) return false;
     try {
       var cls = String(el.className || "");
       // Never collapse a multi-card grid row (would scramble home + fight Event Hook layout).
-      if (/\bgrid\b/.test(cls) && el.children && el.children.length >= 2) return;
+      if (/\bgrid\b/.test(cls) && el.children && el.children.length >= 2) return false;
     } catch (eGrid) {}
     try {
       el.setAttribute("data-chd-home-box-hidden", "1");
@@ -2199,7 +2212,29 @@
       el.style.setProperty("overflow", "hidden", "important");
       el.style.setProperty("margin", "0", "important");
       el.style.setProperty("padding", "0", "important");
-    } catch (e) {}
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /** If outer multi-child .grid matched a token but was skipped, hide matching direct children. */
+  function hideMatchingGridChildren(el, token) {
+    if (!el || !token) return false;
+    var any = false;
+    try {
+      var cls = String(el.className || "");
+      if (!/\bgrid\b/.test(cls) || !el.children || el.children.length < 2) return false;
+      for (var ci = 0; ci < el.children.length; ci++) {
+        var child = el.children[ci];
+        if (!child || isCasAdMount(child)) continue;
+        var childLabel = homeBoxLabel(child);
+        if (childLabel && tokenMatchesLabel(token, childLabel)) {
+          if (hideHomeBoxElement(child)) any = true;
+        }
+      }
+    } catch (eChild) {}
+    return any;
   }
 
   function clearHiddenHomeBoxes() {
@@ -2558,11 +2593,103 @@
         var token = tokens[k];
         if (!token || token.length < 2) continue;
         if (tokenMatchesLabel(token, label)) {
-          hideHomeBoxElement(el);
-          claimed[c] = true;
-          break;
+          var hid = hideHomeBoxElement(el);
+          if (!hid) {
+            // Multi-child .grid skip is NOT success — try matching direct children.
+            hid = hideMatchingGridChildren(el, token);
+          }
+          // Only claim when hide actually succeeded (skip ≠ success).
+          if (hid) {
+            claimed[c] = true;
+            break;
+          }
         }
       }
+    }
+  }
+
+  function clearHomeHideRetries() {
+    for (var i = 0; i < homeHideRetryTimers.length; i++) {
+      try {
+        clearTimeout(homeHideRetryTimers[i]);
+      } catch (eClr) {}
+    }
+    homeHideRetryTimers = [];
+  }
+
+  function disconnectHomeBoxObserver() {
+    if (homeBoxMoDebounce) {
+      clearTimeout(homeBoxMoDebounce);
+      homeBoxMoDebounce = null;
+    }
+    if (homeBoxMo) {
+      try {
+        homeBoxMo.disconnect();
+      } catch (eDisc) {}
+      homeBoxMo = null;
+    }
+    homeBoxMoRoot = null;
+  }
+
+  function connectHomeBoxObserver() {
+    if (!isHomePath()) {
+      disconnectHomeBoxObserver();
+      return;
+    }
+    var root =
+      document.getElementById("main_content") ||
+      document.getElementById("main_content_area");
+    if (!root) return;
+    if (homeBoxMo && homeBoxMoRoot === root) return;
+    disconnectHomeBoxObserver();
+    // Progressive home cards appear after first paint via SPA data_sources.
+    // Observe only for ensureHiddenHomeBoxes — NOT search remount / full header UX
+    // (0.2.1 infinite remount loop came from full-path MutationObserver).
+    homeBoxMo = new MutationObserver(function () {
+      if (homeBoxMoDebounce) clearTimeout(homeBoxMoDebounce);
+      homeBoxMoDebounce = setTimeout(function () {
+        homeBoxMoDebounce = null;
+        if (!isHomePath()) {
+          disconnectHomeBoxObserver();
+          return;
+        }
+        try {
+          ensureHiddenHomeBoxes();
+        } catch (eMo) {}
+      }, HOME_BOX_MO_DEBOUNCE_MS);
+    });
+    homeBoxMoRoot = root;
+    try {
+      homeBoxMo.observe(root, { childList: true, subtree: true });
+    } catch (eObs) {
+      homeBoxMo = null;
+      homeBoxMoRoot = null;
+    }
+  }
+
+  /** Schedule staggered re-hides on home; clear previous timers. Disconnect MO off-home. */
+  function scheduleHomeHideRetries() {
+    clearHomeHideRetries();
+    if (!isHomePath()) {
+      disconnectHomeBoxObserver();
+      return;
+    }
+    connectHomeBoxObserver();
+    for (var i = 0; i < HOME_HIDE_RETRY_MS.length; i++) {
+      (function (delay) {
+        var tid = setTimeout(function () {
+          if (!isHomePath()) {
+            disconnectHomeBoxObserver();
+            return;
+          }
+          try {
+            ensureHiddenHomeBoxes();
+          } catch (eRetry) {}
+          // Root may appear after first paint — reconnect if needed.
+          if (!homeBoxMo) connectHomeBoxObserver();
+        }, delay);
+        homeHideRetryTimers.push(tid);
+      })(HOME_HIDE_RETRY_MS[i]);
     }
   }
 
@@ -2625,6 +2752,7 @@
     lastSettings = settings || {};
     renderStyle(lastSettings);
     scheduleEnsureHeaderUx();
+    scheduleHomeHideRetries();
   }
 
   function applyInitial(settings) {
@@ -2668,6 +2796,7 @@
     bindThemeClickToggle();
     bindOutsideSearchClose();
     scheduleEnsureHeaderUx();
+    scheduleHomeHideRetries();
     if (!lateEnsureBound) {
       lateEnsureBound = true;
       setTimeout(ensureHeaderUx, 600);
@@ -2735,5 +2864,4 @@
     window.addEventListener("popstate", scheduleSpaCssOnly);
   } catch (e) {}
 
-  // MutationObserver intentionally not used (0.2.1 infinite remount loop).
 })();

@@ -1,5 +1,5 @@
 /*! custom-home_design module.iife — loaded ONLY while module is active (ModuleAssetLoader).
- * 0.2.45: boot must NOT hide the original search form — home-design.js hides it only
+ * 0.2.46: asset cache-bust; boot must NOT hide the original search form — home-design.js hides it only
  * after the search icon toggle is mounted (avoids blank header if JS is slow/fails).
  */
 (function () {
@@ -58,7 +58,7 @@
           "}"
       );
     }
-    // 0.2.45: never hide header search form here
+    // 0.2.46: never hide header search form here
     var st = document.getElementById("chd-home-design-boot-style");
     if (!st) {
       st = document.createElement("style");
@@ -76,8 +76,8 @@
     if (existing) return;
     window.__chdHomeDesignJsLoading = true;
     var urls = [
-      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.45",
-      "/api/modules/custom-home_design/assets/home-design?v=0.2.45",
+      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.46",
+      "/api/modules/custom-home_design/assets/home-design?v=0.2.46",
     ];
     var idx = 0;
     function tryNext() {
