@@ -21,6 +21,9 @@
  * 0.2.50: resolveHomeBoxRoot (outermost card; nested data-chd-home-box safe);
  *        collect outermost marked only; boardname: Korean title match for
  *        공지사항/자유게시판/웹진 when navigate Buttons lack href slug.
+ * 0.2.51: after hide, collapse empty layout wrappers / force lone grid child
+ *        full width (grid-column 1/-1) so empty sibling columns and tall blank
+ *        bands disappear; clear restores; set HTML hidden on boxes.
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -240,7 +243,7 @@
       "padding-left:1.5rem!important;padding-right:1.5rem!important;}}" +
       "@media (min-width:1024px){#main_content,.chd-content-col{" +
       "padding-left:2rem!important;padding-right:2rem!important;}}" +
-      "[data-chd-hide-powered-by='1']{display:none!important;}" +"[data-chd-home-box-hidden='1']{display:none!important;visibility:hidden!important;height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;}" +
+      "[data-chd-hide-powered-by='1']{display:none!important;}" +"[data-chd-home-box-hidden='1'],[data-chd-home-layout-collapsed='1']{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;border:0!important;}" +"#main_content .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1'])))," +"#main_content_area .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1']))){" +"display:none!important;min-height:0!important;height:0!important;margin:0!important;padding:0!important;gap:0!important;border:0!important;}" +"[data-chd-home-grid-span='1']{grid-column:1/-1!important;width:100%!important;max-width:100%!important;}" +
       /* Keep full-bleed carousel/hero full width */
       "[data-chd-full-bleed='1']," +
       "#main_content_area [id*='carousel']," +
@@ -2272,19 +2275,324 @@
     } catch (eGrid) {}
     try {
       el.setAttribute("data-chd-home-box-hidden", "1");
+      el.setAttribute("hidden", "");
       el.style.setProperty("display", "none", "important");
       el.style.setProperty("visibility", "hidden", "important");
       el.style.setProperty("height", "0", "important");
+      el.style.setProperty("min-height", "0", "important");
       el.style.setProperty("overflow", "hidden", "important");
       el.style.setProperty("margin", "0", "important");
       el.style.setProperty("padding", "0", "important");
+      el.style.setProperty("border", "0", "important");
       return true;
     } catch (e) {
       return false;
     }
   }
 
+  function isProtectedLayoutRoot(el) {
+    if (!el || el.nodeType !== 1) return true;
+    try {
+      var id = String(el.id || "");
+      if (id === "main_content" || id === "main_content_area") return true;
+    } catch (eId) {}
+    if (el === document.body || el === document.documentElement) return true;
+    if (isCasAdMount(el)) return true;
+    return false;
+  }
+
+  function isEffectivelyHiddenHomeChild(el) {
+    if (!el || el.nodeType !== 1) return true;
+    try {
+      if (el.hasAttribute("hidden")) return true;
+      if (el.getAttribute("data-chd-home-box-hidden") === "1") return true;
+      if (el.getAttribute("data-chd-home-layout-collapsed") === "1") return true;
+      if (el.style && el.style.display === "none") return true;
+    } catch (e) {}
+    return false;
+  }
+
+  function isLayoutStackClass(cls) {
+    cls = String(cls || "");
+    if (/\bgrid\b/.test(cls)) return true;
+    if (/\bflex\b/.test(cls)) return true;
+    if (/\bspace-[xy]-/.test(cls)) return true;
+    if (/\bgap-/.test(cls) && (/\bflex\b/.test(cls) || /\bgrid\b/.test(cls))) return true;
+    return false;
+  }
+
+  function isMultiColumnGrid(el) {
+    if (!el || el.nodeType !== 1) return false;
+    var cls = "";
+    try {
+      cls = String(el.className || "");
+    } catch (eC) {}
+    if (!/\bgrid\b/.test(cls)) return false;
+    if (/\bgrid-cols-([2-9]|\d{2,})\b/.test(cls)) return true;
+    if (/\b(sm|md|lg|xl|2xl):grid-cols-([2-9]|\d{2,})\b/.test(cls)) return true;
+    try {
+      var cs = window.getComputedStyle(el);
+      var gt = cs && cs.gridTemplateColumns;
+      if (gt && gt !== "none" && gt !== "masonry") {
+        var parts = String(gt).trim().split(/\s+/);
+        if (parts.length >= 2) return true;
+      }
+    } catch (eCs) {}
+    return false;
+  }
+
+  function countVisibleHomeChildren(parent) {
+    var visible = [];
+    if (!parent || !parent.children) return visible;
+    for (var i = 0; i < parent.children.length; i++) {
+      var ch = parent.children[i];
+      if (!ch || ch.nodeType !== 1) continue;
+      if (isCasAdMount(ch)) continue;
+      if (isEffectivelyHiddenHomeChild(ch)) continue;
+      visible.push(ch);
+    }
+    return visible;
+  }
+
+  function wrapperHasVisibleAdChild(parent) {
+    if (!parent || !parent.children) return false;
+    for (var i = 0; i < parent.children.length; i++) {
+      var ch = parent.children[i];
+      if (isCasAdMount(ch) && !isEffectivelyHiddenHomeChild(ch)) return true;
+    }
+    return false;
+  }
+
+  function collapseLayoutElement(el) {
+    if (!el || el.nodeType !== 1 || !el.style) return;
+    if (isProtectedLayoutRoot(el)) return;
+    if (isCasAdMount(el)) return;
+    try {
+      if (!el.hasAttribute("data-chd-layout-prev-style")) {
+        el.setAttribute("data-chd-layout-prev-style", el.getAttribute("style") || "");
+      }
+      el.setAttribute("data-chd-home-layout-collapsed", "1");
+      el.setAttribute("hidden", "");
+      el.style.setProperty("display", "none", "important");
+      el.style.setProperty("visibility", "hidden", "important");
+      el.style.setProperty("height", "0", "important");
+      el.style.setProperty("min-height", "0", "important");
+      el.style.setProperty("max-height", "0", "important");
+      el.style.setProperty("overflow", "hidden", "important");
+      el.style.setProperty("margin", "0", "important");
+      el.style.setProperty("padding", "0", "important");
+      el.style.setProperty("gap", "0", "important");
+      el.style.setProperty("border", "0", "important");
+    } catch (e) {}
+  }
+
+  function forceLoneGridChildFullWidth(grid, child) {
+    if (!grid || !child || !child.style) return;
+    try {
+      if (!child.hasAttribute("data-chd-grid-span-prev")) {
+        child.setAttribute("data-chd-grid-span-prev", child.getAttribute("style") || "");
+      }
+      child.setAttribute("data-chd-home-grid-span", "1");
+      child.style.setProperty("grid-column", "1 / -1", "important");
+      child.style.setProperty("width", "100%", "important");
+      child.style.setProperty("max-width", "100%", "important");
+    } catch (eChild) {}
+    try {
+      if (!grid.hasAttribute("data-chd-grid-cols-prev")) {
+        grid.setAttribute("data-chd-grid-cols-prev", grid.getAttribute("style") || "");
+      }
+      grid.setAttribute("data-chd-home-grid-onecol", "1");
+      grid.style.setProperty("grid-template-columns", "minmax(0, 1fr)", "important");
+    } catch (eGrid) {}
+  }
+
+  function restoreStyleFromPrev(el, prevAttr) {
+    var prev = el.getAttribute(prevAttr);
+    if (prev != null) {
+      if (prev === "") el.removeAttribute("style");
+      else el.setAttribute("style", prev);
+      el.removeAttribute(prevAttr);
+      return true;
+    }
+    return false;
+  }
+
+  function clearCollapsedHomeLayouts() {
+    try {
+      var spans = document.querySelectorAll("[data-chd-home-grid-span='1']");
+      for (var i = 0; i < spans.length; i++) {
+        var el = spans[i];
+        try {
+          if (!restoreStyleFromPrev(el, "data-chd-grid-span-prev")) {
+            el.style.removeProperty("grid-column");
+            el.style.removeProperty("width");
+            el.style.removeProperty("max-width");
+          }
+          el.removeAttribute("data-chd-home-grid-span");
+        } catch (eSpan) {}
+      }
+      var cols = document.querySelectorAll("[data-chd-home-grid-onecol='1']");
+      for (var j = 0; j < cols.length; j++) {
+        var g = cols[j];
+        try {
+          if (!restoreStyleFromPrev(g, "data-chd-grid-cols-prev")) {
+            g.style.removeProperty("grid-template-columns");
+          }
+          g.removeAttribute("data-chd-home-grid-onecol");
+        } catch (eCol) {}
+      }
+      var nodes = document.querySelectorAll("[data-chd-home-layout-collapsed='1']");
+      for (var k = 0; k < nodes.length; k++) {
+        var n = nodes[k];
+        try {
+          if (!restoreStyleFromPrev(n, "data-chd-layout-prev-style")) {
+            n.style.removeProperty("display");
+            n.style.removeProperty("visibility");
+            n.style.removeProperty("height");
+            n.style.removeProperty("min-height");
+            n.style.removeProperty("max-height");
+            n.style.removeProperty("overflow");
+            n.style.removeProperty("margin");
+            n.style.removeProperty("padding");
+            n.style.removeProperty("gap");
+            n.style.removeProperty("border");
+          }
+          n.removeAttribute("hidden");
+          n.removeAttribute("data-chd-home-layout-collapsed");
+        } catch (eN) {}
+      }
+    } catch (e) {}
+  }
+
+  function collapseEmptyHomeLayouts() {
+    var root = getMainContentRoot();
+    if (!root) return;
+
+    var wrappers = [];
+    try {
+      var all = root.querySelectorAll("*");
+      for (var i = 0; i < all.length; i++) {
+        var w = all[i];
+        if (!w || w.nodeType !== 1) continue;
+        if (isProtectedLayoutRoot(w) || isCasAdMount(w)) continue;
+        var cls = "";
+        try {
+          cls = String(w.className || "");
+        } catch (eCls) {}
+        if (!isLayoutStackClass(cls)) continue;
+        wrappers.push(w);
+      }
+    } catch (eAll) {}
+
+    function depthUnderRoot(n) {
+      var d = 0;
+      var cur = n;
+      while (cur && cur !== root) {
+        d++;
+        cur = cur.parentElement;
+      }
+      return d;
+    }
+    wrappers.sort(function (a, b) {
+      return depthUnderRoot(b) - depthUnderRoot(a);
+    });
+
+    for (var wi = 0; wi < wrappers.length; wi++) {
+      var wrap = wrappers[wi];
+      try {
+        if (wrap.getAttribute("data-chd-home-layout-collapsed") === "1") continue;
+      } catch (eSkip) {}
+      if (wrapperHasVisibleAdChild(wrap)) continue;
+
+      var visible = countVisibleHomeChildren(wrap);
+      if (visible.length === 0) {
+        var kids = wrap.children || [];
+        var hasHomeSignal = false;
+        for (var ki = 0; ki < kids.length; ki++) {
+          var kid = kids[ki];
+          if (!kid || kid.nodeType !== 1) continue;
+          if (isCasAdMount(kid)) continue;
+          try {
+            if (
+              kid.getAttribute("data-chd-home-box-hidden") === "1" ||
+              kid.getAttribute("data-chd-home-layout-collapsed") === "1" ||
+              kid.hasAttribute("hidden") ||
+              kid.getAttribute("data-chd-home-box") ||
+              kid.getAttribute("data-board-slug") ||
+              looksLikeHomeCard(kid)
+            ) {
+              hasHomeSignal = true;
+              break;
+            }
+          } catch (eKid) {}
+        }
+        if (hasHomeSignal || kids.length > 0) {
+          // Collapse empty stacks that previously held home cards / nested collapsed rows.
+          if (hasHomeSignal || visible.length === 0) {
+            // Prefer collapsing only when something was hidden/collapsed under us
+            // OR every child is already effectively hidden (blank band).
+            var allHidden = kids.length > 0;
+            for (var aj = 0; aj < kids.length; aj++) {
+              var ck = kids[aj];
+              if (!ck || ck.nodeType !== 1) continue;
+              if (isCasAdMount(ck)) {
+                allHidden = false;
+                break;
+              }
+              if (!isEffectivelyHiddenHomeChild(ck)) {
+                allHidden = false;
+                break;
+              }
+            }
+            if (allHidden) collapseLayoutElement(wrap);
+          }
+        }
+        continue;
+      }
+
+      if (visible.length === 1 && isMultiColumnGrid(wrap)) {
+        forceLoneGridChildFullWidth(wrap, visible[0]);
+      }
+    }
+
+    // Walk up from hidden/collapsed nodes: empty flex/grid parents collapse too.
+    try {
+      var seeds = root.querySelectorAll(
+        "[data-chd-home-box-hidden='1'],[data-chd-home-layout-collapsed='1']"
+      );
+      for (var si = 0; si < seeds.length; si++) {
+        var parent = seeds[si].parentElement;
+        var hops = 0;
+        while (parent && parent !== root && hops < 6) {
+          hops++;
+          if (isProtectedLayoutRoot(parent) || isCasAdMount(parent)) break;
+          if (parent.getAttribute("data-chd-home-layout-collapsed") === "1") {
+            parent = parent.parentElement;
+            continue;
+          }
+          var pCls = "";
+          try {
+            pCls = String(parent.className || "");
+          } catch (ePc) {}
+          if (!isLayoutStackClass(pCls) && !/\bspace-[xy]-/.test(pCls) && !/\bgap-/.test(pCls)) {
+            parent = parent.parentElement;
+            continue;
+          }
+          if (wrapperHasVisibleAdChild(parent)) break;
+          var visP = countVisibleHomeChildren(parent);
+          if (visP.length === 0) {
+            collapseLayoutElement(parent);
+          } else if (visP.length === 1 && isMultiColumnGrid(parent)) {
+            forceLoneGridChildFullWidth(parent, visP[0]);
+          }
+          parent = parent.parentElement;
+        }
+      }
+    } catch (eUp) {}
+  }
+
   function clearHiddenHomeBoxes() {
+    clearCollapsedHomeLayouts();
     try {
       var nodes = document.querySelectorAll("[data-chd-home-box-hidden='1']");
       for (var i = 0; i < nodes.length; i++) {
@@ -2293,9 +2601,12 @@
           el.style.removeProperty("display");
           el.style.removeProperty("visibility");
           el.style.removeProperty("height");
+          el.style.removeProperty("min-height");
           el.style.removeProperty("overflow");
           el.style.removeProperty("margin");
           el.style.removeProperty("padding");
+          el.style.removeProperty("border");
+          el.removeAttribute("hidden");
           el.removeAttribute("data-chd-home-box-hidden");
         } catch (e2) {}
       }
@@ -3009,6 +3320,11 @@
         if (hideHomeBoxElement(el)) claimed.push(el);
       }
     }
+
+    // Collapse empty grid/flex parents and stretch lone remaining columns.
+    try {
+      collapseEmptyHomeLayouts();
+    } catch (eCollapse) {}
   }
 
   function clearHomeHideRetries() {

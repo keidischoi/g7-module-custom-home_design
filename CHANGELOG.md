@@ -3,6 +3,24 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.51] - 2026-09-23
+
+### Fixed — 홈 박스 숨김 후 빈 레이아웃 공간 접기
+
+- `hideHomeBoxElement`: HTML `hidden` 속성 추가 + `min-height`/`border` 제로.
+- `ensureHiddenHomeBoxes` 이후 `collapseEmptyHomeLayouts()`:
+  - main 콘텐츠 아래 `.grid` / `.flex` 등 스택에서 보이는 홈 자식 수 집계 (hidden / `data-chd-home-box-hidden` / display:none 제외, CAS `data-cas-*` / `#cas_*` 스킵).
+  - 보이는 홈 자식 0개 → 래퍼에 `data-chd-home-layout-collapsed=1` + display:none + hidden (단 `#main_content` / `#main_content_area` / body / 광고 마운트는 절대 접지 않음).
+  - 보이는 자식 1개이고 multi-column grid면 남은 자식에 `grid-column: 1 / -1` + 그리드를 1열로 (이전 inline style 저장).
+  - 숨겨진 카드만 담던 상위 flex/grid도 한 단계 이상 올라가며 접기.
+- `clearHiddenHomeBoxes`: `hidden` 제거, collapsed 부모·grid-column/template 오버라이드 복원.
+- CSS: `[data-chd-home-box-hidden],[data-chd-home-layout-collapsed]`에 min-height/border 강화 + `:has` 보조 규칙 + grid-span.
+- multi-card grid를 “홈 박스 kind”로 숨기지 않음 / Event Hook 광고와 충돌하지 않음 (기존 가드 유지).
+
+### Fixed — collapse empty layout space after home-box hide
+
+- Collapse empty grid/flex parents; stretch lone remaining child to full width (`grid-column: 1 / -1`). Clear restores prior styles.
+
 ## [0.2.50] - 2026-09-23
 
 ### Fixed — 홈 박스 숨김: 카드 루트 해석 + 한글 게시판명 매칭
