@@ -2,6 +2,7 @@
  * Does NOT use layout scripts[] ids (avoids G7 AssetFailureNotice toast when disabled).
  * 1) Read inline settings from #chd_home_design_cfg[data-chd-settings]
  * 2) Dynamically inject home-design.js via DOM (not layout script loader)
+ * 0.2.37: rewrite boot CSS each load; when search icon mode OFF do not hide forms.
  */
 (function () {
   if (window.__chdHomeDesignIife) return;
@@ -28,7 +29,6 @@
     }
   } catch (e2) {}
 
-  // Apply critical hide-nav / search CSS from embedded settings (boot.js replacement)
   try {
     var s = window.__CHD_HOME_DESIGN__ || {};
     var hide =
@@ -45,6 +45,11 @@
         } catch (e4) {}
       }
     }
+    var searchIcon =
+      s.header_search_icon_mode !== false &&
+      s.header_search_icon_mode !== 0 &&
+      s.header_search_icon_mode !== "0" &&
+      s.header_search_icon_mode !== "false";
     var cssParts = [];
     if (hide) {
       cssParts.push(
@@ -60,36 +65,40 @@
           "}"
       );
     }
-    if (s.header_search_icon_mode !== false && s.header_search_icon_mode !== 0 && s.header_search_icon_mode !== "0") {
+    if (searchIcon) {
       cssParts.push(
         "header.sticky .flex.items-center.justify-between.h-16 > form," +
           "header.chd-desktop-header .flex.items-center.justify-between.h-16 > form{" +
           "display:none!important;}"
       );
+    } else {
+      // Explicitly restore original center search when icon mode is off
+      cssParts.push(
+        "header.sticky .flex.items-center.justify-between.h-16 > form," +
+          "header.chd-desktop-header .flex.items-center.justify-between.h-16 > form," +
+          "#desktop_header .flex.items-center.justify-between.h-16 > form{" +
+          "display:flex!important;visibility:visible!important;opacity:1!important;}"
+      );
     }
-    if (cssParts.length) {
-      var st = document.getElementById("chd-home-design-boot-style");
-      if (!st) {
-        st = document.createElement("style");
-        st.id = "chd-home-design-boot-style";
-        (document.head || document.documentElement).appendChild(st);
-      }
-      if (!st.textContent) {
-        st.textContent = cssParts.join("");
-      }
+    var st = document.getElementById("chd-home-design-boot-style");
+    if (!st) {
+      st = document.createElement("style");
+      st.id = "chd-home-design-boot-style";
+      (document.head || document.documentElement).appendChild(st);
     }
+    st.textContent = cssParts.join("");
   } catch (e5) {}
 
   function injectHomeDesignJs() {
-    var sid = "chd-hd-js-dom"; // NOT chd_home_design_js (layout script id)
+    var sid = "chd-hd-js-dom";
     if (document.getElementById(sid)) return;
     if (window.__chdHomeDesignJsLoading) return;
     var existing = document.querySelector('script[src*="custom-home_design/assets/home-design"]');
     if (existing) return;
     window.__chdHomeDesignJsLoading = true;
     var urls = [
-      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.35",
-      "/api/modules/custom-home_design/assets/home-design?v=0.2.35",
+      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.37",
+      "/api/modules/custom-home_design/assets/home-design?v=0.2.37",
     ];
     var idx = 0;
     function tryNext() {
