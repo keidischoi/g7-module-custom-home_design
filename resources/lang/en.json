@@ -38,8 +38,8 @@
                 "hide_header_board_slugs_empty": "Could not load boards. Check sirsoft-board and /api/modules/sirsoft-board/boards/board-menu.",
                 "hide_header_board_slugs_note": "The entered slugs are hidden from every page header (desktop, mobile, and more menu). Related layout caches refresh automatically when saved.",
                 "hide_home_box_ids": "Home boxes to hide (name / slug)",
-                "hide_home_box_ids_hint": "Comma-separated tokens that map 1:1 to box kinds. e.g. welcome, shop, webzine. Board summary cards also accept Korean display names (공지사항, 자유게시판, 웹진). Partial example: welcome, shop, 공지사항. If home looks empty, clear this field and save.",
-                "hide_home_box_ids_note": "Applies on home (/) only. Each token maps 1:1 to one box kind (exclusive classification). boards / 게시판 = Boards stats card only. Board summary cards: slug (webzine, notice, inquiry, qna) or display name (공지사항, 자유게시판, 웹진). Example partial: welcome, shop, 공지사항. Does not hide custom-ad_slots mounts. Empty the list to unhide."
+                "hide_home_box_ids_hint": "Comma-separated tokens that map 1:1 to box kinds. e.g. welcome, shop, webzine. Board summary cards also accept Korean display names (공지사항, 자유게시판, 웹진). Partial example: welcome, shop, 공지사항. After hide, empty grid columns / blank parent stacks collapse automatically. If home looks empty, clear this field and save.",
+                "hide_home_box_ids_note": "Applies on home (/) only. Each token maps 1:1 to one box kind (exclusive classification). boards / 게시판 = Boards stats card only. Board summary cards: slug (webzine, notice, inquiry, qna) or display name (공지사항, 자유게시판, 웹진). Example partial: welcome, shop, 공지사항. Does not hide custom-ad_slots mounts. Empty layout columns beside a lone remaining card collapse. Empty the list to unhide."
             }
         }
     }
