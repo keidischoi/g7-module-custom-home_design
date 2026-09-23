@@ -40,6 +40,7 @@ class UpdateHomeDesignSettingRequest extends FormRequest
             'hide_header_board_slugs_json' => ['sometimes', 'nullable'],
             'hide_home_box_ids_text' => ['sometimes', 'nullable', 'string'],
             'hide_home_box_ids' => ['sometimes', 'nullable'],
+            'home_custom_html' => ['sometimes', 'nullable', 'string'],
             'footer_link_groups' => ['sometimes', 'nullable'],
             // Empty / omitted footer JSON must pass (service stores null)
             'footer_link_groups_json' => ['sometimes', 'nullable', 'string'],
@@ -121,6 +122,17 @@ class UpdateHomeDesignSettingRequest extends FormRequest
             }
         }
 
+        if (! $this->exists('home_custom_html')) {
+            $this->merge(['home_custom_html' => '']);
+        } else {
+            $v = $this->input('home_custom_html');
+            if ($v === null) {
+                $this->merge(['home_custom_html' => '']);
+            } elseif (! is_string($v)) {
+                $this->merge(['home_custom_html' => (string) $v]);
+            }
+        }
+
         if (! $this->exists('footer_link_groups_json')) {
             if ($this->exists('footer_link_groups')) {
                 $groups = $this->input('footer_link_groups');
@@ -162,6 +174,7 @@ class UpdateHomeDesignSettingRequest extends FormRequest
         // (G7 may strip empty strings; prepareForValidation already defaulted them).
         $payload['hide_header_board_slugs_text'] = (string) $this->input('hide_header_board_slugs_text', '');
         $payload['hide_home_box_ids_text'] = (string) $this->input('hide_home_box_ids_text', '');
+        $payload['home_custom_html'] = (string) $this->input('home_custom_html', '');
         if ($this->exists('hide_home_box_ids') && is_array($this->input('hide_home_box_ids'))) {
             $payload['hide_home_box_ids'] = array_values($this->input('hide_home_box_ids'));
         }

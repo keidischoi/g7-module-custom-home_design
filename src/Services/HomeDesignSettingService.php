@@ -137,6 +137,20 @@ class HomeDesignSettingService
             $data['hide_home_box_ids'] = [];
         }
 
+        // Home custom HTML (admin-only widget; empty → null / '')
+        if (array_key_exists('home_custom_html', $data)) {
+            $html = $data['home_custom_html'];
+            if ($html === null) {
+                $data['home_custom_html'] = '';
+            } elseif (is_string($html)) {
+                $data['home_custom_html'] = $html;
+            } else {
+                $data['home_custom_html'] = (string) $html;
+            }
+        } else {
+            $data['home_custom_html'] = '';
+        }
+
         unset(
             $data['hide_header_board_slugs_json'],
             $data['hide_header_board_slugs_text'],
@@ -213,6 +227,11 @@ class HomeDesignSettingService
         if (array_key_exists('hide_header_board_slugs', $data) && ! $this->hasColumn('hide_header_board_slugs')) {
             throw new \RuntimeException(
                 'hide_header_board_slugs 컬럼이 없습니다. php82 artisan migrate (또는 migrate --force)를 실행하세요. / Column hide_header_board_slugs is missing. Run: php82 artisan migrate (or migrate --force).'
+            );
+        }
+        if (array_key_exists('home_custom_html', $data) && ! $this->hasColumn('home_custom_html')) {
+            throw new \RuntimeException(
+                'home_custom_html 컬럼이 없습니다. php82 artisan migrate (또는 migrate --force)로 migration 2026_09_23_000004_add_home_custom_html... 를 적용하세요. / Column home_custom_html is missing. Run: php82 artisan migrate (or migrate --force) for migration 2026_09_23_000004_add_home_custom_html...'
             );
         }
 
@@ -592,6 +611,7 @@ class HomeDesignSettingService
             'header_theme_click_toggle' => true,
             'hide_header_board_slugs' => HomeDesignSetting::DEFAULT_HIDE_BOARD_SLUGS,
             'hide_home_box_ids' => [],
+            'home_custom_html' => '',
             'footer_link_groups' => null,
             'business_info_enabled' => false,
         ];

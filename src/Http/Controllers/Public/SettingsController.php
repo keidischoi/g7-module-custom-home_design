@@ -54,6 +54,7 @@ class SettingsController extends PublicBaseController
                     'header_theme_click_toggle' => true,
                     'hide_header_board_slugs' => [],
                     'hide_home_box_ids' => [],
+                    'home_custom_html' => '',
                     'footer_link_groups' => null,
                     'business_info_enabled' => false,
                     'business_info' => [
