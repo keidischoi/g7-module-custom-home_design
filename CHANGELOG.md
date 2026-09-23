@@ -3,6 +3,19 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.61] - 2026-09-23
+
+### Fixed — 홈 커스텀 HTML 남은 세로 간격 붕괴
+
+- **원인:** 0.2.60은 마운트 래퍼 margin/padding만 0으로 맞춤. 실제 간격은 (1) 마운트 다음 `.py-6`/`pt-6`의 `padding-top`(~1.5rem), (2) 관리자 HTML 첫·끝 자식 바깥 margin, (3) reflow가 `.py-6` 안이라 `#chd-home-custom-html + #chd-home-reflow` 규칙 미적용.
+- **수정:** `#main_content:has(> #chd-home-custom-html:first-child)` `padding-top:0`; 마운트 직후 `.py-6`/`.pt-6` `padding-top`/`margin-top` 0; `.py-6:has(> 마운트:first-child)`도 `padding-top:0`; 마운트 `> :first-child`/`> :last-child` 바깥 margin만 0(관리자 padding 유지); reflow는 인접 또는 다음 `.py-6` 직계일 때 `margin-top:0`.
+- **미변경:** Ads/CAS(`data-cas-*`, `#cas_*`, `#ad_*`), hide/reflow(0.2.57+) 로직, 관리자 HTML 내부 padding.
+- **캐시:** `home-design.js?v=0.2.61`.
+
+### Fixed — collapse remaining custom HTML vertical gaps
+
+- Zero theme `.py-6`/`.pt-6` top padding when adjacent to (or wrapping) the mount; zero `#main_content` padding-top when mount is first child; strip first/last-child outer margins only; set reflow `margin-top:0` for adjacent and nested-under-`.py-6` cases. Ads/CAS and hide/reflow untouched. Cache-bust `?v=0.2.61`.
+
 ## [0.2.60] - 2026-09-23
 
 ### Fixed — 홈 커스텀 HTML 래퍼 상·하 여백 과다

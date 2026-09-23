@@ -74,6 +74,11 @@
  *        under #main_content keeps margin-top:0 (do not strip page padding);
  *        adjacent #chd-home-reflow gets small margin-top (0.5rem). Admin
  *        HTML internal margins untouched. Ads/CAS/reflow hide logic same.
+ * 0.2.61: Collapse remaining custom-HTML gaps — #main_content:has(first-child)
+ *        padding-top 0; sibling .py-6/.pt-6 padding-top 0; mount inside .py-6
+ *        padding-top 0; first/last-child outer margin 0; reflow margin-top 0
+ *        when adjacent or nested under following .py-6. Ads/CAS untouched;
+ *        admin HTML padding left alone; hide/reflow logic unchanged.
  *
 */
 (function () {
@@ -304,23 +309,41 @@
       "@media (min-width:1024px){#main_content,.chd-content-col{" +
       "padding-left:2rem!important;padding-right:2rem!important;}}" +
       "[data-chd-hide-powered-by='1']{display:none!important;}" +"[data-chd-home-box-hidden='1'],[data-chd-home-layout-collapsed='1']{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;border:0!important;}" +"#main_content .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1'])))," +"#main_content_area .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1']))){" +"display:none!important;min-height:0!important;height:0!important;margin:0!important;padding:0!important;gap:0!important;border:0!important;}" +"#main_content .grid[data-chd-home-grid-compact='1']," +"#main_content_area .grid[data-chd-home-grid-compact='1']{" +"grid-template-columns:repeat(var(--chd-home-visible-cols,1),minmax(0,1fr))!important;" +"width:calc((100% - (var(--chd-home-orig-cols,3) - 1) * var(--chd-home-gap,1rem)) * var(--chd-home-visible-cols,1) / var(--chd-home-orig-cols,3) + (var(--chd-home-visible-cols,1) - 1) * var(--chd-home-gap,1rem))!important;" +"max-width:100%!important;justify-self:start;" +"}" +"#chd-home-reflow[data-chd-home-reflow='1']," +"[data-chd-home-reflow='1']#chd-home-reflow{" +"display:grid!important;" +"grid-template-columns:repeat(var(--chd-home-reflow-cols,1),minmax(0,1fr))!important;" +"gap:var(--chd-home-reflow-gap,1rem)!important;" +"width:100%!important;max-width:100%!important;" +"box-sizing:border-box!important;align-items:stretch;" +"margin:0 0 1rem 0!important;}" +"#chd-home-reflow[data-chd-home-reflow='1'][data-chd-home-reflow-n='1']{" +"width:calc((100% - (var(--chd-home-reflow-orig-cols,3) - 1) * var(--chd-home-reflow-gap,1rem)) / var(--chd-home-reflow-orig-cols,3))!important;" +"max-width:100%!important;justify-self:start;}" +"@media (max-width:767px){" +"#chd-home-reflow[data-chd-home-reflow='1']," +"#chd-home-reflow[data-chd-home-reflow='1'][data-chd-home-reflow-n='1']{" +"grid-template-columns:minmax(0,1fr)!important;width:100%!important;}}" +
-      /* 0.2.59/0.2.60: custom HTML mount visible + tight wrapper spacing only */
+      /* 0.2.59/0.2.61: mount visible + collapse MODULE/theme gaps around custom HTML */
       "#chd-home-custom-html," +
       "[data-chd-home-custom-html='1']{" +
       "visibility:visible!important;display:block!important;opacity:1!important;" +
       "height:auto!important;max-height:none!important;min-height:0!important;" +
       "overflow:visible!important;pointer-events:auto!important;" +
       "margin:0!important;padding:0!important;box-sizing:border-box!important;}" +
-      /* First child under #main_content (full-bleed carousel above): no extra top gap from mount */
-      "#main_content > #chd-home-custom-html:first-child," +
-      "#main_content > [data-chd-home-custom-html='1']:first-child{" +
+      "#main_content:has(> #chd-home-custom-html:first-child)," +
+      "#main_content:has(> [data-chd-home-custom-html='1']:first-child){" +
+      "padding-top:0!important;}" +
+      "#chd-home-custom-html + .py-6," +
+      "#chd-home-custom-html + .pt-6," +
+      "[data-chd-home-custom-html='1'] + .py-6," +
+      "[data-chd-home-custom-html='1'] + .pt-6{" +
+      "padding-top:0!important;margin-top:0!important;}" +
+      ".py-6:has(> #chd-home-custom-html:first-child)," +
+      ".py-6:has(> [data-chd-home-custom-html='1']:first-child)," +
+      ".pt-6:has(> #chd-home-custom-html:first-child)," +
+      ".pt-6:has(> [data-chd-home-custom-html='1']:first-child){" +
+      "padding-top:0!important;}" +
+      "#chd-home-custom-html > :first-child," +
+      "[data-chd-home-custom-html='1'] > :first-child{" +
       "margin-top:0!important;}" +
-      /* Tighten gap between custom HTML and reflow host (do not use reflow's 1rem top) */
+      "#chd-home-custom-html > :last-child," +
+      "[data-chd-home-custom-html='1'] > :last-child{" +
+      "margin-bottom:0!important;}" +
       "#chd-home-custom-html + #chd-home-reflow," +
       "#chd-home-custom-html + [data-chd-home-reflow='1']," +
       "[data-chd-home-custom-html='1'] + #chd-home-reflow," +
-      "[data-chd-home-custom-html='1'] + [data-chd-home-reflow='1']{" +
-      "margin-top:0.5rem!important;}" +
+      "[data-chd-home-custom-html='1'] + [data-chd-home-reflow='1']," +
+      "#chd-home-custom-html + .py-6 > #chd-home-reflow," +
+      "#chd-home-custom-html + .py-6 > [data-chd-home-reflow='1']," +
+      "[data-chd-home-custom-html='1'] + .py-6 > #chd-home-reflow," +
+      "[data-chd-home-custom-html='1'] + .py-6 > [data-chd-home-reflow='1']{" +
+      "margin-top:0!important;}" +
       /* Keep full-bleed carousel/hero full width */
       "[data-chd-full-bleed='1']," +
       "#main_content_area [id*='carousel']," +
