@@ -10,8 +10,7 @@
             "sections": {
                 "general": "레이아웃",
                 "footer": "푸터 링크",
-                "business": "사업자 고지",
-                "home_boxes": "홈 박스"
+                "business": "사업자 고지"
             },
             "fields": {
                 "enabled": "모듈 사용",
@@ -36,10 +35,7 @@
                 "hide_header_board_slugs_hint": "숨길 게시판 slug를 쉼표로 구분해 입력하세요 (예: qna, inquiry). 빈 값이면 모든 게시판을 표시합니다.",
                 "hide_header_board_slugs_example_label": "선택 예시",
                 "hide_header_board_slugs_empty": "게시판 목록을 불러오지 못했습니다. sirsoft-board 모듈과 /api/modules/sirsoft-board/boards/board-menu 를 확인하세요.",
-                "hide_header_board_slugs_note": "입력한 slug는 모든 페이지 헤더(데스크톱·모바일·더보기)에서 숨깁니다. 저장하면 관련 레이아웃 캐시가 자동 갱신됩니다.",
-                "hide_home_box_ids": "숨길 홈 박스 (이름 / slug)",
-                "hide_home_box_ids_hint": "홈에서 숨길 박스의 게시판 slug 또는 제목 일부를 쉼표로 입력하세요. 예: free, qna, 공지",
-                "hide_home_box_ids_note": "홈(/)에만 적용됩니다. 새 게시판을 만들면 그 slug(또는 홈 박스 제목)를 여기 목록에 추가하세요. 헤더 게시판 숨김과는 별개입니다."
+                "hide_header_board_slugs_note": "입력한 slug는 모든 페이지 헤더(데스크톱·모바일·더보기)에서 숨깁니다. 저장하면 관련 레이아웃 캐시가 자동 갱신됩니다."
             }
         }
     }
