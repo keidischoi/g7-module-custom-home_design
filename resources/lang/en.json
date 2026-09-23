@@ -10,7 +10,8 @@
             "sections": {
                 "general": "Layout",
                 "footer": "Footer links",
-                "business": "Business notice"
+                "business": "Business notice",
+                "home_boxes": "Home boxes"
             },
             "fields": {
                 "enabled": "Enable module",
@@ -35,7 +36,10 @@
                 "hide_header_board_slugs_hint": "Enter comma-separated board slugs to hide (for example: qna, inquiry). Leave empty to show every board.",
                 "hide_header_board_slugs_example_label": "Example",
                 "hide_header_board_slugs_empty": "Could not load boards. Check sirsoft-board and /api/modules/sirsoft-board/boards/board-menu.",
-                "hide_header_board_slugs_note": "The entered slugs are hidden from every page header (desktop, mobile, and more menu). Related layout caches refresh automatically when saved."
+                "hide_header_board_slugs_note": "The entered slugs are hidden from every page header (desktop, mobile, and more menu). Related layout caches refresh automatically when saved.",
+                "hide_home_box_ids": "Home boxes to hide (name / slug)",
+                "hide_home_box_ids_hint": "Comma-separated home box titles or slugs to hide. e.g. welcome, members, posts, comments, boards, recent, popular, shop, guide, webzine, inquiry, qna",
+                "hide_home_box_ids_note": "Applies on home (/) only. Does not hide custom-ad_slots Event Hook mounts. Separate from header board hide."
             }
         }
     }
