@@ -28,6 +28,11 @@
  *        Collapse .grid/flex ONLY when zero visible non-ad home children;
  *        walk up empty parents; keep HTML hidden + min-height/border harden;
  *        clear still undoes collapsed wrappers and any leftover span attrs.
+ * 0.2.53: CSS-first compact partial grids — when 1+ visible home children remain
+ *        in a multi-col .grid but some siblings are hidden, set
+ *        data-chd-home-grid-compact + --chd-home-visible-cols/orig-cols/gap so
+ *        the row shrinks to N/orig width (NOT full-bleed). Also collapse bare
+ *        iteration wrappers around hidden cards so empty grid tracks vanish.
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -247,7 +252,7 @@
       "padding-left:1.5rem!important;padding-right:1.5rem!important;}}" +
       "@media (min-width:1024px){#main_content,.chd-content-col{" +
       "padding-left:2rem!important;padding-right:2rem!important;}}" +
-      "[data-chd-hide-powered-by='1']{display:none!important;}" +"[data-chd-home-box-hidden='1'],[data-chd-home-layout-collapsed='1']{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;border:0!important;}" +"#main_content .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1'])))," +"#main_content_area .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1']))){" +"display:none!important;min-height:0!important;height:0!important;margin:0!important;padding:0!important;gap:0!important;border:0!important;}" +
+      "[data-chd-hide-powered-by='1']{display:none!important;}" +"[data-chd-home-box-hidden='1'],[data-chd-home-layout-collapsed='1']{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;border:0!important;}" +"#main_content .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1'])))," +"#main_content_area .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1']))){" +"display:none!important;min-height:0!important;height:0!important;margin:0!important;padding:0!important;gap:0!important;border:0!important;}" +"#main_content .grid[data-chd-home-grid-compact='1']," +"#main_content_area .grid[data-chd-home-grid-compact='1']{" +"grid-template-columns:repeat(var(--chd-home-visible-cols,1),minmax(0,1fr))!important;" +"width:calc((100% - (var(--chd-home-orig-cols,3) - 1) * var(--chd-home-gap,1rem)) * var(--chd-home-visible-cols,1) / var(--chd-home-orig-cols,3) + (var(--chd-home-visible-cols,1) - 1) * var(--chd-home-gap,1rem))!important;" +"max-width:100%!important;justify-self:start;" +"}" +
       /* Keep full-bleed carousel/hero full width */
       "[data-chd-full-bleed='1']," +
       "#main_content_area [id*='carousel']," +
@@ -2288,6 +2293,7 @@
       el.style.setProperty("margin", "0", "important");
       el.style.setProperty("padding", "0", "important");
       el.style.setProperty("border", "0", "important");
+      collapseBareWrapperAncestors(el);
       return true;
     } catch (e) {
       return false;
@@ -2305,6 +2311,38 @@
     return false;
   }
 
+  function isLayoutStackClass(cls) {
+    cls = String(cls || "");
+    if (/\bgrid\b/.test(cls)) return true;
+    if (/\bflex\b/.test(cls)) return true;
+    if (/\bspace-[xy]-/.test(cls)) return true;
+    if (/\bgap-/.test(cls) && (/\bflex\b/.test(cls) || /\bgrid\b/.test(cls))) return true;
+    return false;
+  }
+
+  /** Iteration / pass-through Div: not a layout stack, not a card root. */
+  function isBareHomeWrapper(el) {
+    if (!el || el.nodeType !== 1) return false;
+    if (isProtectedLayoutRoot(el) || isCasAdMount(el)) return false;
+    try {
+      if (
+        el.getAttribute("data-chd-home-box") ||
+        el.getAttribute("data-board-slug") ||
+        el.getAttribute("data-slug")
+      ) {
+        return false;
+      }
+    } catch (eMark) {}
+    if (looksLikeHomeCard(el)) return false;
+    var cls = "";
+    try {
+      cls = String(el.className || "");
+    } catch (eCls) {}
+    if (isLayoutStackClass(cls)) return false;
+    // contents / empty class / plain Div wrappers around partials
+    return true;
+  }
+
   function isEffectivelyHiddenHomeChild(el) {
     if (!el || el.nodeType !== 1) return true;
     try {
@@ -2313,16 +2351,101 @@
       if (el.getAttribute("data-chd-home-layout-collapsed") === "1") return true;
       if (el.style && el.style.display === "none") return true;
     } catch (e) {}
+    // Bare iteration wrapper whose children are all hidden still occupies a grid track
+    // unless we treat it as hidden (or collapse it). Prefer both.
+    try {
+      if (isBareHomeWrapper(el) && el.children && el.children.length > 0) {
+        var anyVis = false;
+        for (var i = 0; i < el.children.length; i++) {
+          var ch = el.children[i];
+          if (!ch || ch.nodeType !== 1) continue;
+          if (isCasAdMount(ch)) {
+            anyVis = true;
+            break;
+          }
+          if (!isEffectivelyHiddenHomeChild(ch)) {
+            anyVis = true;
+            break;
+          }
+        }
+        if (!anyVis) return true;
+      }
+    } catch (eBare) {}
     return false;
   }
 
-  function isLayoutStackClass(cls) {
-    cls = String(cls || "");
-    if (/\bgrid\b/.test(cls)) return true;
-    if (/\bflex\b/.test(cls)) return true;
-    if (/\bspace-[xy]-/.test(cls)) return true;
-    if (/\bgap-/.test(cls) && (/\bflex\b/.test(cls) || /\bgrid\b/.test(cls))) return true;
-    return false;
+  function parseGridOrigCols(el) {
+    var cls = "";
+    try {
+      cls = String(el.className || "");
+    } catch (e) {}
+    var m = cls.match(/(?:^|\s)grid-cols-(\d+)(?:\s|$)/);
+    if (m) {
+      var n = parseInt(m[1], 10);
+      if (n >= 1) return n;
+    }
+    return 3;
+  }
+
+  function parseGridGap(el) {
+    var cls = "";
+    try {
+      cls = String(el.className || "");
+    } catch (e) {}
+    var m = cls.match(/(?:^|\s)gap-(\d+(?:\.\d+)?)(?:\s|$)/);
+    if (!m) m = cls.match(/(?:^|\s)gap-x-(\d+(?:\.\d+)?)(?:\s|$)/);
+    if (m) {
+      var n = parseFloat(m[1]);
+      if (!isNaN(n)) return n * 0.25 + "rem";
+    }
+    try {
+      var cs = window.getComputedStyle(el);
+      var g = cs.columnGap || cs.gap;
+      if (g && g !== "normal" && g !== "0px") return g;
+    } catch (eCs) {}
+    return "1rem";
+  }
+
+  function clearCompactAttr(el) {
+    if (!el) return;
+    try {
+      el.removeAttribute("data-chd-home-grid-compact");
+      if (el.style) {
+        el.style.removeProperty("--chd-home-visible-cols");
+        el.style.removeProperty("--chd-home-orig-cols");
+        el.style.removeProperty("--chd-home-gap");
+      }
+    } catch (e) {}
+  }
+
+  function compactPartialHomeGrid(grid, visibleCount, origCols) {
+    if (!grid || grid.nodeType !== 1) return;
+    if (isProtectedLayoutRoot(grid) || isCasAdMount(grid)) return;
+    try {
+      grid.setAttribute("data-chd-home-grid-compact", "1");
+      grid.style.setProperty("--chd-home-visible-cols", String(visibleCount));
+      grid.style.setProperty("--chd-home-orig-cols", String(origCols));
+      grid.style.setProperty("--chd-home-gap", parseGridGap(grid));
+    } catch (e) {}
+  }
+
+  /** After hiding a card, collapse bare parent Divs (Grid3 iteration wrappers). */
+  function collapseBareWrapperAncestors(el) {
+    if (!el || !el.parentElement) return;
+    var parent = el.parentElement;
+    var hops = 0;
+    while (parent && hops < 5) {
+      hops++;
+      if (isProtectedLayoutRoot(parent) || isCasAdMount(parent)) break;
+      if (!isBareHomeWrapper(parent)) break;
+      var vis = countVisibleHomeChildren(parent);
+      if (vis.length === 0) {
+        collapseLayoutElement(parent);
+        parent = parent.parentElement;
+        continue;
+      }
+      break;
+    }
   }
 
   function countVisibleHomeChildren(parent) {
@@ -2404,6 +2527,12 @@
           }
           g.removeAttribute("data-chd-home-grid-onecol");
         } catch (eCol) {}
+      }
+      var compacts = document.querySelectorAll("[data-chd-home-grid-compact='1']");
+      for (var ci = 0; ci < compacts.length; ci++) {
+        try {
+          clearCompactAttr(compacts[ci]);
+        } catch (eComp) {}
       }
       var nodes = document.querySelectorAll("[data-chd-home-layout-collapsed='1']");
       for (var k = 0; k < nodes.length; k++) {
@@ -2514,11 +2643,22 @@
         continue;
       }
 
-      // 0.2.52: if 1+ visible home children remain, do NOT touch template columns
-      // or grid-column — leave CSS grid as designed (lone card keeps natural width).
+      // 0.2.53: partial grid — compact to visibleCols (NOT full-bleed / grid-column 1/-1).
+      var wrapCls = "";
+      try {
+        wrapCls = String(wrap.className || "");
+      } catch (eWc) {}
+      if (/\bgrid\b/.test(wrapCls) && visible.length >= 1) {
+        var origCols = parseGridOrigCols(wrap);
+        if (visible.length < origCols) {
+          compactPartialHomeGrid(wrap, visible.length, origCols);
+        } else {
+          clearCompactAttr(wrap);
+        }
+      }
     }
 
-    // Walk up from hidden/collapsed nodes: empty flex/grid parents collapse too.
+    // Walk up from hidden/collapsed nodes: bare wrappers + empty flex/grid parents.
     try {
       var seeds = root.querySelectorAll(
         "[data-chd-home-box-hidden='1'],[data-chd-home-layout-collapsed='1']"
@@ -2526,13 +2666,26 @@
       for (var si = 0; si < seeds.length; si++) {
         var parent = seeds[si].parentElement;
         var hops = 0;
-        while (parent && parent !== root && hops < 6) {
+        while (parent && parent !== root && hops < 8) {
           hops++;
           if (isProtectedLayoutRoot(parent) || isCasAdMount(parent)) break;
           if (parent.getAttribute("data-chd-home-layout-collapsed") === "1") {
             parent = parent.parentElement;
             continue;
           }
+          if (wrapperHasVisibleAdChild(parent)) break;
+
+          // Bare iteration wrappers: collapse when no visible home kids remain.
+          if (isBareHomeWrapper(parent)) {
+            var visBare = countVisibleHomeChildren(parent);
+            if (visBare.length === 0) {
+              collapseLayoutElement(parent);
+              parent = parent.parentElement;
+              continue;
+            }
+            break;
+          }
+
           var pCls = "";
           try {
             pCls = String(parent.className || "");
@@ -2541,12 +2694,17 @@
             parent = parent.parentElement;
             continue;
           }
-          if (wrapperHasVisibleAdChild(parent)) break;
           var visP = countVisibleHomeChildren(parent);
           if (visP.length === 0) {
             collapseLayoutElement(parent);
+            clearCompactAttr(parent);
           } else {
-            // Visible home child remains — stop climbing; never span/force columns.
+            // Partial grid: compact (leave climb so deeper wrappers already handled).
+            if (/\bgrid\b/.test(pCls) && visP.length >= 1) {
+              var oc = parseGridOrigCols(parent);
+              if (visP.length < oc) compactPartialHomeGrid(parent, visP.length, oc);
+              else clearCompactAttr(parent);
+            }
             break;
           }
           parent = parent.parentElement;
@@ -3285,7 +3443,7 @@
       }
     }
 
-    // Collapse empty grid/flex parents and stretch lone remaining columns.
+    // Collapse empty stacks; compact partial multi-col grids (no full-bleed).
     try {
       collapseEmptyHomeLayouts();
     } catch (eCollapse) {}

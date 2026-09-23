@@ -3,6 +3,20 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.53] - 2026-09-23
+
+### Fixed — 부분 숨김 그리드 빈 트랙 압축 (CSS compact, 전폭 아님)
+
+- **원인:** 홈 템플릿 `grid-cols-3`는 `display:none` 형제에도 **빈 1fr 트랙**을 남깁니다. 0.2.52는 완전 빈 행만 접어 「최근 게시글」 옆 ~2/3 공백이 남았습니다. 0.2.51 전폭(`grid-column:1/-1`)은 거절됨.
+- **Compact CSS:** `.grid[data-chd-home-grid-compact='1']`에 `grid-template-columns: repeat(var(--chd-home-visible-cols), …)` + 원래 열 수 대비 폭 `calc` (gap 반영). 1/3 남으면 왼쪽 정렬 ~33% — **풀블리드 아님**.
+- **JS:** `collapseEmptyHomeLayouts`가 보이는 자식 ≥1 이고 `visible < grid-cols-N`이면 compact 속성·CSS 변수 설정. 완전 빈 `.grid`/`.flex`는 기존처럼 `data-chd-home-layout-collapsed`.
+- **Bare wrapper:** 숨긴 카드의 부모(이터레이션 Div 등, grid/flex 아님)도 자식이 모두 숨겨지면 접어 Row C 빈 셀 제거.
+- `clearHiddenHomeBoxes` / `clearCollapsedHomeLayouts`가 compact attrs/vars 복원. carousel·CAS·`#main_content`는 접지/압축하지 않음.
+
+### Fixed — compact partial home grids (no empty tracks, no full-bleed)
+
+- When some siblings in a `grid-cols-N` row are hidden, shrink the grid to the remaining column count/width instead of leaving empty tracks or stretching the lone card full width.
+
 ## [0.2.52] - 2026-09-23
 
 ### Fixed — 남은 홈 카드 전폭 확장 되돌림 (빈 행만 접기)
