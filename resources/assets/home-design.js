@@ -79,6 +79,11 @@
  *        padding-top 0; first/last-child outer margin 0; reflow margin-top 0
  *        when adjacent or nested under following .py-6. Ads/CAS untouched;
  *        admin HTML padding left alone; hide/reflow logic unchanged.
+ * 0.2.62: Board summary cards — relocate theme bottom 「더보기」 into card
+ *        header top-right (match 최근 게시글). Module-owned CSS/JS only;
+ *        theme markup untouched. Empty boards keep CTA, top-right not
+ *        bottom-center. Ads/CAS, hide-home-box, reflow, custom HTML spacing
+ *        unchanged. Cache-bust ?v=0.2.62.
  *
 */
 (function () {
@@ -344,6 +349,29 @@
       "[data-chd-home-custom-html='1'] + .py-6 > #chd-home-reflow," +
       "[data-chd-home-custom-html='1'] + .py-6 > [data-chd-home-reflow='1']{" +
       "margin-top:0!important;}" +
+      /* 0.2.62: board summary 「더보기」 top-right (match 최근 게시글) */
+      "[data-chd-board-card-header='1']{" +
+      "display:flex!important;align-items:center!important;" +
+      "justify-content:flex-start!important;gap:0.5rem!important;" +
+      "width:100%!important;box-sizing:border-box!important;}" +
+      "[data-chd-board-more='1']{" +
+      "margin-left:auto!important;width:auto!important;max-width:none!important;" +
+      "display:inline-flex!important;align-items:center!important;justify-content:center!important;" +
+      "gap:0.25rem!important;flex-shrink:0!important;" +
+      "padding:0!important;border:0!important;border-top-width:0!important;" +
+      "border-radius:0!important;background:transparent!important;box-shadow:none!important;" +
+      "text-align:left!important;font-size:0.875rem!important;font-weight:500!important;" +
+      "line-height:1.25rem!important;color:rgb(37 99 235)!important;" +
+      "cursor:pointer!important;text-decoration:none!important;}" +
+      "[data-chd-board-more='1']:hover{" +
+      "text-decoration:underline!important;background:transparent!important;}" +
+      ".dark [data-chd-board-more='1']," +
+      "html.dark [data-chd-board-more='1']," +
+      "body.dark [data-chd-board-more='1']{" +
+      "color:rgb(96 165 250)!important;}" +
+      "[data-chd-board-more='1'] i," +
+      "[data-chd-board-more='1'] svg{" +
+      "width:1rem!important;height:1rem!important;flex-shrink:0!important;}" +
       /* Keep full-bleed carousel/hero full width */
       "[data-chd-full-bleed='1']," +
       "#main_content_area [id*='carousel']," +
@@ -4721,7 +4749,236 @@
     }
   }
 
+  /**
+   * Theme board-summary partials put 「더보기」 as a full-width bottom CTA.
+   * Recent posts already has header top-right more-link. Relocate + restyle
+   * board more controls to match (module-owned; theme markup untouched).
+   */
+  function isBoardMoreLinkText(raw) {
+    var t = String(raw == null ? "" : raw)
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!t) return false;
+    if (t.indexOf("더보기") !== -1) return true;
+    if (/^more(\s*(→|»|>|→))?$/i.test(t)) return true;
+    if (/view\s*more/i.test(t)) return true;
+    return false;
+  }
+
+  function isBoardSummaryHomeCard(el) {
+    if (!el || el.nodeType !== 1) return false;
+    if (isCasAdMount(el) || isInsideHomeCustomHtml(el)) return false;
+    try {
+      var box = el.getAttribute && el.getAttribute("data-chd-home-box");
+      if (box) {
+        var nk = normalizeHomeBoxKind(box);
+        if (nk && nk.indexOf("board:") !== 0) return false;
+      }
+    } catch (eBox) {}
+    try {
+      if (el.getAttribute("data-board-slug") || el.getAttribute("data-slug")) {
+        var labelA = homeBoxTitleLabel(el);
+        var headsA = homeBoxExactHeadings(el);
+        if (!isFixedChromeByTitle(labelA, headsA)) return true;
+      }
+    } catch (eAttr) {}
+    try {
+      var slug = extractBoardSlugFromCard(el);
+      if (!slug) return false;
+      var label = homeBoxTitleLabel(el);
+      var heads = homeBoxExactHeadings(el);
+      if (isFixedChromeByTitle(label, heads)) return false;
+      if (labelHasRecentPosts(String(label || "").toLowerCase())) return false;
+      if (labelHasPopularBoards(String(label || "").toLowerCase())) return false;
+      return true;
+    } catch (eSlug) {}
+    return false;
+  }
+
+  function findBoardCardHeaderRow(card) {
+    if (!card) return null;
+    try {
+      var marked = card.querySelector("[data-chd-board-card-header='1']");
+      if (marked) return marked;
+    } catch (eM) {}
+    try {
+      var rows = card.querySelectorAll("div");
+      for (var i = 0; i < rows.length && i < 12; i++) {
+        var row = rows[i];
+        if (!row || row === card) continue;
+        // Prefer direct / near-direct children
+        if (row.parentElement !== card && row.parentElement && row.parentElement.parentElement !== card) {
+          continue;
+        }
+        var cls = String(row.className || "");
+        if (!/\bflex\b/.test(cls)) continue;
+        if (!/\bjustify-between\b/.test(cls) && !/\bitems-center\b/.test(cls)) continue;
+        // Header should contain title control, not the more link alone
+        var title =
+          row.querySelector(
+            "button.font-semibold, .font-semibold, h1, h2, h3, h4, [class*='font-semibold']"
+          ) || null;
+        if (!title) continue;
+        var titleText = String(title.textContent || "").replace(/\s+/g, " ").trim();
+        if (isBoardMoreLinkText(titleText)) continue;
+        return row;
+      }
+    } catch (eRows) {}
+    try {
+      if (card.firstElementChild && card.firstElementChild !== card) {
+        var first = card.firstElementChild;
+        var fcls = String(first.className || "");
+        if (/\bflex\b/.test(fcls)) return first;
+      }
+    } catch (eFirst) {}
+    return null;
+  }
+
+  function findBoardBottomMoreControl(card) {
+    if (!card) return null;
+    var best = null;
+    var bestScore = -1;
+    try {
+      var nodes = card.querySelectorAll("a,button");
+      for (var i = 0; i < nodes.length && i < 40; i++) {
+        var n = nodes[i];
+        if (!n || n.nodeType !== 1) continue;
+        // Skip nested cards
+        try {
+          var nest = n.closest("[data-board-slug],[data-chd-home-box]");
+          if (nest && nest !== card) continue;
+        } catch (eNest) {}
+        var text = String(n.textContent || "").replace(/\s+/g, " ").trim();
+        if (!isBoardMoreLinkText(text)) continue;
+        // Skip title-sized board-name buttons that somehow include more (unlikely)
+        var cls = String(n.className || "");
+        var score = 1;
+        if (/\bw-full\b/.test(cls)) score += 4;
+        if (/\bborder-t\b/.test(cls)) score += 5;
+        if (/\btext-center\b/.test(cls)) score += 2;
+        if (/\brounded-full\b/.test(cls) || /\brounded-pill\b/.test(cls)) score += 3;
+        if (/\bpx-4\b/.test(cls) && /\bpy-3\b/.test(cls)) score += 2;
+        if (/\bpy-3\b/.test(cls) || /\bpy-2\.5\b/.test(cls)) score += 1;
+        // Prefer controls that are not already inside the header row
+        try {
+          var headerGuess = findBoardCardHeaderRow(card);
+          if (headerGuess && headerGuess.contains(n)) score -= 3;
+          else score += 2;
+        } catch (eH) {}
+        // Prefer last / bottom-ish
+        score += i * 0.01;
+        if (score > bestScore) {
+          bestScore = score;
+          best = n;
+        }
+      }
+    } catch (eQ) {}
+    return best;
+  }
+
+  function ensureBoardCardMoreLinks() {
+    if (!isHomePath()) return;
+    var root = getMainContentRoot();
+    if (!root) {
+      try {
+        root = document.getElementById("main_content_area") || document.body;
+      } catch (eR) {
+        root = document.body;
+      }
+    }
+    if (!root || !root.querySelectorAll) return;
+
+    var cards = [];
+    var seen = [];
+
+    function pushCard(el) {
+      if (!el || el.nodeType !== 1) return;
+      try {
+        el = resolveHomeBoxRoot(el) || el;
+      } catch (eRes) {}
+      if (!el || !isBoardSummaryHomeCard(el)) return;
+      for (var i = 0; i < seen.length; i++) {
+        if (seen[i] === el) return;
+      }
+      seen.push(el);
+      cards.push(el);
+    }
+
+    try {
+      var marked = root.querySelectorAll("[data-board-slug], [data-slug]");
+      for (var mi = 0; mi < marked.length; mi++) pushCard(marked[mi]);
+    } catch (eMark) {}
+
+    try {
+      var host =
+        document.getElementById("chd-home-reflow") ||
+        root.querySelector("[data-chd-home-reflow='1']");
+      if (host && host.querySelectorAll) {
+        var kids = host.children;
+        for (var ki = 0; ki < kids.length; ki++) pushCard(kids[ki]);
+      }
+    } catch (eHost) {}
+
+    // Unmarked board cards (live templates)
+    try {
+      var candidates = collectHomeBoxCandidates(root);
+      for (var ci = 0; ci < candidates.length; ci++) {
+        var c = candidates[ci];
+        try {
+          c = resolveHomeBoxRoot(c) || c;
+        } catch (eC) {}
+        if (!c) continue;
+        var kind = null;
+        try {
+          kind = classifyHomeBox(c);
+        } catch (eK) {}
+        if (kind && String(kind).indexOf("board:") === 0) pushCard(c);
+      }
+    } catch (eCand) {}
+
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      if (!card || !card.isConnected) continue;
+      var more = findBoardBottomMoreControl(card);
+      if (!more) continue;
+      var header = findBoardCardHeaderRow(card);
+      if (!header) {
+        // Create a minimal header row at top if theme has title but no flex row
+        try {
+          var titleEl =
+            card.querySelector(
+              "button.font-semibold, h3, h2, h4, .font-semibold.cursor-pointer"
+            ) || null;
+          if (titleEl && titleEl.parentElement === card) {
+            header = document.createElement("div");
+            header.className = "flex items-center justify-between mb-2 px-4";
+            card.insertBefore(header, titleEl);
+            header.appendChild(titleEl);
+          } else if (titleEl && titleEl.parentElement) {
+            header = titleEl.parentElement;
+          }
+        } catch (eCreate) {}
+      }
+      if (!header) continue;
+
+      try {
+        header.setAttribute("data-chd-board-card-header", "1");
+        more.setAttribute("data-chd-board-more", "1");
+        card.setAttribute("data-chd-board-more-relocated", "1");
+      } catch (eAttr2) {}
+
+      try {
+        if (more.parentNode !== header) {
+          header.appendChild(more);
+        } else if (header.lastElementChild !== more) {
+          header.appendChild(more);
+        }
+      } catch (eMove) {}
+    }
+  }
+
   function ensureHiddenHomeBoxes() {
+
     if (homeBoxApplyLock) return;
     homeBoxApplyLock = true;
     // Reflow appendChild fires childList MO — pause observer for this apply pass.
@@ -4847,6 +5104,9 @@
         ensureHomeCustomHtml();
       } catch (eHtmlEnd) {}
     } finally {
+      try {
+        if (lastSettings && isHomePath()) ensureBoardCardMoreLinks();
+      } catch (eBoardMore) {}
       homeBoxApplyLock = false;
       if (moPaused && homeBoxMoRoot) {
         try {
@@ -4937,6 +5197,9 @@
             ensureHiddenHomeBoxes();
           } catch (eRetry) {}
           try {
+            ensureBoardCardMoreLinks();
+          } catch (eRetryMore) {}
+          try {
             ensureHomeCustomHtml();
           } catch (eRetryHtml) {}
           // Root may appear after first paint — reconnect if needed.
@@ -4961,6 +5224,9 @@
     try {
       ensureHiddenHomeBoxes();
     } catch (eHomeBox) {}
+    try {
+      ensureBoardCardMoreLinks();
+    } catch (eBoardMoreUx) {}
     try {
       ensureHomeCustomHtml();
     } catch (eHomeHtml) {}
