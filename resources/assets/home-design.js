@@ -7,8 +7,8 @@
  * 0.2.11: search panel form; business sibling (superseded); boards restore when empty.
  * MutationObserver intentionally not used (0.2.1 infinite remount loop).
  * 0.2.37: when header_search_icon_mode is OFF, restore always-visible search.
- * 0.2.38: icon mode ON — mount toggle first, then hide original form; force-show
- *        #chd_header_search_toggle so boot CSS cannot leave a blank header.
+ * 0.2.38: icon mode ON — mount toggle first, then hide original form.
+ * 0.2.39: hide home boxes by id / board slug / title keyword (admin list).
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -210,7 +210,7 @@
       "padding-left:1.5rem!important;padding-right:1.5rem!important;}}" +
       "@media (min-width:1024px){#main_content,.chd-content-col{" +
       "padding-left:2rem!important;padding-right:2rem!important;}}" +
-      "[data-chd-hide-powered-by='1']{display:none!important;}" +
+      "[data-chd-hide-powered-by='1']{display:none!important;}" +"[data-chd-home-box-hidden='1']{display:none!important;visibility:hidden!important;height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;}" +
       /* Keep full-bleed carousel/hero full width */
       "[data-chd-full-bleed='1']," +
       "#main_content_area [id*='carousel']," +
@@ -2135,6 +2135,133 @@
     );
   }
 
+
+  function isHomePath(path) {
+    path = normalizePath(path || (window.location && window.location.pathname) || "/");
+    return path === "/" || path === "";
+  }
+
+  function homeBoxTokens(settings) {
+    var list = (settings && settings.hide_home_box_ids) || [];
+    if (!Array.isArray(list)) return [];
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var t = String(list[i] == null ? "" : list[i]).trim().toLowerCase();
+      if (t) out.push(t);
+    }
+    return out;
+  }
+
+  function hideHomeBoxElement(el) {
+    if (!el || !el.style) return;
+    try {
+      el.setAttribute("data-chd-home-box-hidden", "1");
+      el.style.setProperty("display", "none", "important");
+      el.style.setProperty("visibility", "hidden", "important");
+      el.style.setProperty("height", "0", "important");
+      el.style.setProperty("overflow", "hidden", "important");
+      el.style.setProperty("margin", "0", "important");
+      el.style.setProperty("padding", "0", "important");
+    } catch (e) {}
+  }
+
+  function clearHiddenHomeBoxes() {
+    try {
+      var nodes = document.querySelectorAll("[data-chd-home-box-hidden='1']");
+      for (var i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        try {
+          el.style.removeProperty("display");
+          el.style.removeProperty("visibility");
+          el.style.removeProperty("height");
+          el.style.removeProperty("overflow");
+          el.style.removeProperty("margin");
+          el.style.removeProperty("padding");
+          el.removeAttribute("data-chd-home-box-hidden");
+        } catch (e2) {}
+      }
+    } catch (e) {}
+  }
+
+  function homeBoxHaystack(el) {
+    if (!el) return "";
+    var parts = [];
+    try {
+      parts.push(String(el.id || ""));
+    } catch (e) {}
+    try {
+      parts.push(String(el.getAttribute && (el.getAttribute("data-board-slug") || el.getAttribute("data-slug") || "") || ""));
+    } catch (e2) {}
+    try {
+      parts.push(String(el.className && el.className.baseVal != null ? el.className.baseVal : el.className || ""));
+    } catch (e3) {}
+    try {
+      var heads = el.querySelectorAll("h1,h2,h3,h4,.text-lg,.font-semibold,[data-testid]");
+      for (var i = 0; i < heads.length && i < 8; i++) {
+        parts.push(String(heads[i].textContent || "").replace(/\s+/g, " ").trim());
+      }
+    } catch (e4) {}
+    return parts.join(" ").toLowerCase();
+  }
+
+  function ensureHiddenHomeBoxes() {
+    clearHiddenHomeBoxes();
+    if (!lastSettings) return;
+    if (!isHomePath()) return;
+    var tokens = homeBoxTokens(lastSettings);
+    if (!tokens.length) return;
+
+    var root = document.getElementById("main_content") || document.getElementById("main_content_area");
+    if (!root) return;
+
+    // Exact id match anywhere under main content
+    for (var t = 0; t < tokens.length; t++) {
+      var tok = tokens[t];
+      try {
+        var byId = document.getElementById(tok);
+        if (byId && root.contains(byId)) hideHomeBoxElement(byId);
+      } catch (eId) {}
+      try {
+        var bySlug = root.querySelectorAll('[data-board-slug="' + tok + '"],[data-slug="' + tok + '"]');
+        for (var s = 0; s < bySlug.length; s++) {
+          var node = bySlug[s];
+          var box = node.closest ? (node.closest("[id],.chd-home-fill,section,article") || node) : node;
+          hideHomeBoxElement(box);
+        }
+      } catch (eSlug) {}
+    }
+
+    // Top-level / nested home cards: match id contains or title/slug keyword
+    var candidates = [];
+    try {
+      var kids = root.children;
+      for (var i = 0; i < kids.length; i++) candidates.push(kids[i]);
+    } catch (eKids) {}
+    try {
+      var fills = root.querySelectorAll(".chd-home-fill,[data-chd-home-fill='1'],section,article,[id]");
+      for (var j = 0; j < fills.length; j++) candidates.push(fills[j]);
+    } catch (eFill) {}
+
+    var seen = {};
+    for (var c = 0; c < candidates.length; c++) {
+      var el = candidates[c];
+      if (!el || el === root) continue;
+      var key = el.id || ("n" + c);
+      if (seen[key]) continue;
+      seen[key] = true;
+      var hay = homeBoxHaystack(el);
+      if (!hay) continue;
+      for (var k = 0; k < tokens.length; k++) {
+        var token = tokens[k];
+        if (!token) continue;
+        if (hay.indexOf(token) !== -1) {
+          hideHomeBoxElement(el);
+          break;
+        }
+      }
+    }
+  }
+
   function ensureHeaderUx() {
     try {
       bindShopInfiniteScroll();
@@ -2145,6 +2272,9 @@
       applyShopProductCardMarks();
     } catch (eShop) {}
     if (!lastSettings) return;
+    try {
+      ensureHiddenHomeBoxes();
+    } catch (eHomeBox) {}
     if (settingOn(lastSettings, "header_search_icon_mode", true)) {
       // Icon mode: drop always-visible fallback, mount icon+panel, then hide original form
       ensureAlwaysVisibleSearch();

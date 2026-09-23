@@ -5,10 +5,10 @@
         "ko": "홈 디자인",
         "en": "Home Design"
     },
-    "version": "0.2.38",
+    "version": "0.2.39",
     "license": "MIT",
     "description": {
-        "ko": "공식 sirsoft-basic 기준 콘텐츠 폭·헤더 UX·게시판 숨김(전체 페이지 일관)·푸터 아이콘/사업자 고지. 레이아웃 scripts[] 미사용.",
+        "ko": "공식 sirsoft-basic 기준 콘텐츠 폭·헤더 UX·홈 박스 숨김·게시판 숨김·푸터. 레이아웃 scripts[] 미사용.",
         "en": "Content width, header UX, consistent board hide on all pages, footer icons and business notice. No layout scripts[]."
     },
     "g7_version": ">=7.0.0",
