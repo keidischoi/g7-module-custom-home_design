@@ -210,7 +210,7 @@
       "padding-left:1.5rem!important;padding-right:1.5rem!important;}}" +
       "@media (min-width:1024px){#main_content,.chd-content-col{" +
       "padding-left:2rem!important;padding-right:2rem!important;}}" +
-      "[data-chd-hide-powered-by='1']{display:none!important;}" +
+      "[data-chd-hide-powered-by='1']{display:none!important;}" +"[data-chd-home-box-hidden='1']{display:none!important;visibility:hidden!important;height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;}" +
       /* Keep full-bleed carousel/hero full width */
       "[data-chd-full-bleed='1']," +
       "#main_content_area [id*='carousel']," +
@@ -2135,6 +2135,256 @@
     );
   }
 
+
+  function isHomePath(path) {
+    path = normalizePath(path || (window.location && window.location.pathname) || "/");
+    return path === "/" || path === "";
+  }
+
+  function homeBoxTokens(settings) {
+    var list = (settings && settings.hide_home_box_ids) || [];
+    if (!Array.isArray(list)) return [];
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var t = String(list[i] == null ? "" : list[i]).trim().toLowerCase();
+      if (t) out.push(t);
+    }
+    // Longer tokens first so "최근 게시글" wins over "게시글"
+    out.sort(function (a, b) { return b.length - a.length; });
+    return out;
+  }
+
+  function isCasAdMount(el) {
+    if (!el || el.nodeType !== 1) return false;
+    try {
+      if (
+        el.closest &&
+        el.closest(
+          "[data-cas-ad-slot],[data-cas-ad-role],[data-cas-hero],[data-cas-ad-host],[data-cas-hero-host],[data-cas-hero-slot],[data-cas-page-slot]"
+        )
+      ) {
+        return true;
+      }
+    } catch (e) {}
+    var id = "";
+    try {
+      id = String(el.id || "").toLowerCase();
+    } catch (e2) {}
+    if (!id) return false;
+    if (id.indexOf("cas_") === 0 || id.indexOf("ad_") === 0) return true;
+    if (id.indexOf("carousel") !== -1 || id.indexOf("hero") !== -1) return true;
+    return false;
+  }
+
+  function hideHomeBoxElement(el) {
+    if (!el || !el.style) return;
+    if (isCasAdMount(el)) return;
+    try {
+      var cls = String(el.className || "");
+      // Never collapse a multi-card grid row (would scramble home + fight Event Hook layout).
+      if (/\bgrid\b/.test(cls) && el.children && el.children.length >= 2) return;
+    } catch (eGrid) {}
+    try {
+      el.setAttribute("data-chd-home-box-hidden", "1");
+      el.style.setProperty("display", "none", "important");
+      el.style.setProperty("visibility", "hidden", "important");
+      el.style.setProperty("height", "0", "important");
+      el.style.setProperty("overflow", "hidden", "important");
+      el.style.setProperty("margin", "0", "important");
+      el.style.setProperty("padding", "0", "important");
+    } catch (e) {}
+  }
+
+  function clearHiddenHomeBoxes() {
+    try {
+      var nodes = document.querySelectorAll("[data-chd-home-box-hidden='1']");
+      for (var i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        try {
+          el.style.removeProperty("display");
+          el.style.removeProperty("visibility");
+          el.style.removeProperty("height");
+          el.style.removeProperty("overflow");
+          el.style.removeProperty("margin");
+          el.style.removeProperty("padding");
+          el.removeAttribute("data-chd-home-box-hidden");
+        } catch (e2) {}
+      }
+    } catch (e) {}
+  }
+
+  function homeBoxLabel(el) {
+    if (!el) return "";
+    var parts = [];
+    try {
+      parts.push(String(el.id || ""));
+    } catch (e) {}
+    try {
+      parts.push(
+        String(
+          (el.getAttribute &&
+            (el.getAttribute("data-board-slug") ||
+              el.getAttribute("data-slug") ||
+              el.getAttribute("data-board") ||
+              "")) ||
+            ""
+        )
+      );
+    } catch (e2) {}
+    try {
+      var heads = el.querySelectorAll("h1,h2,h3,h4,.text-lg,.font-semibold,.font-bold");
+      for (var i = 0; i < heads.length && i < 6; i++) {
+        parts.push(String(heads[i].textContent || "").replace(/\s+/g, " ").trim());
+      }
+    } catch (e3) {}
+    // Short plain text snapshot (welcome / stat labels) without swallowing whole page
+    try {
+      var raw = String(el.textContent || "").replace(/\s+/g, " ").trim();
+      if (raw.length > 180) raw = raw.slice(0, 180);
+      parts.push(raw);
+    } catch (e4) {}
+    return parts.join(" ").toLowerCase();
+  }
+
+  function tokenMatchesLabel(token, label) {
+    if (!token || !label) return false;
+    // Short tokens must not steal longer sibling boxes
+    if (token === "게시글" && label.indexOf("최근 게시글") !== -1) return false;
+    if (token === "게시판" && label.indexOf("인기 게시판") !== -1) return false;
+    if (token === "문의" && label.indexOf("1:1") === -1 && label.indexOf("inquiry") === -1) {
+      /* bare 문의 ignored unless inquiry-like */
+    }
+    if (label.indexOf(token) !== -1) {
+      if (token === "게시글" && label.indexOf("최근 게시글") !== -1) return false;
+      if (token === "게시판" && label.indexOf("인기 게시판") !== -1) return false;
+      return true;
+    }
+    var aliases = {
+      welcome: ["welcome", "웰컴", "오신 것을 환영"],
+      "웰컴": ["welcome", "웰컴", "오신 것을 환영"],
+      "회원": ["회원"],
+      "게시글": ["게시글"],
+      "댓글": ["댓글"],
+      "게시판": ["게시판"],
+      "최근 게시글": ["최근 게시글"],
+      "인기 게시판": ["인기 게시판"],
+      "쇼핑몰": ["쇼핑몰"],
+      "커뮤니티 가이드": ["커뮤니티 가이드", "커뮤니티가이드"],
+      webzine: ["webzine", "웹진"],
+      "웹진": ["webzine", "웹진"],
+      inquiry: ["inquiry", "1:1 문의", "1:1문의"],
+      "1:1 문의": ["inquiry", "1:1 문의", "1:1문의"],
+      qna: ["qna", "q&a"],
+      "q&a": ["qna", "q&a"]
+    };
+    var list = aliases[token];
+    if (!list) return false;
+    for (var i = 0; i < list.length; i++) {
+      var a = list[i];
+      if (label.indexOf(a) === -1) continue;
+      if (a === "게시글" && label.indexOf("최근 게시글") !== -1) continue;
+      if (a === "게시판" && label.indexOf("인기 게시판") !== -1) continue;
+      return true;
+    }
+    return false;
+  }
+
+  function collectHomeBoxCandidates(root) {
+    var out = [];
+    if (!root) return out;
+    function pushLeaf(el) {
+      if (!el || el.nodeType !== 1) return;
+      if (isCasAdMount(el)) return;
+      var cls = String(el.className || "");
+      if (/\bcontents\b/.test(cls)) {
+        for (var i = 0; i < el.children.length; i++) pushLeaf(el.children[i]);
+        return;
+      }
+      out.push(el);
+    }
+    // Direct children of home grid rows (and one nested level for shop+guide column)
+    try {
+      var grids = root.querySelectorAll(".grid");
+      for (var g = 0; g < grids.length; g++) {
+        if (isCasAdMount(grids[g])) continue;
+        var kids = grids[g].children;
+        for (var i = 0; i < kids.length; i++) {
+          var kid = kids[i];
+          if (isCasAdMount(kid)) continue;
+          var kcls = String(kid.className || "");
+          if (/\bcontents\b/.test(kcls)) {
+            pushLeaf(kid);
+          } else if (/\bflex\b/.test(kcls) && kid.children && kid.children.length) {
+            // shop + community guide stack
+            for (var c = 0; c < kid.children.length; c++) pushLeaf(kid.children[c]);
+          } else {
+            pushLeaf(kid);
+          }
+        }
+      }
+    } catch (e) {}
+    try {
+      var marked = root.querySelectorAll(
+        "[data-board-slug],[data-slug],.chd-home-fill,[data-chd-home-fill='1']"
+      );
+      for (var m = 0; m < marked.length; m++) {
+        if (!isCasAdMount(marked[m])) out.push(marked[m]);
+      }
+    } catch (e2) {}
+    return out;
+  }
+
+  function ensureHiddenHomeBoxes() {
+    clearHiddenHomeBoxes();
+    if (!lastSettings) return;
+    if (!isHomePath()) return;
+    var tokens = homeBoxTokens(lastSettings);
+    if (!tokens.length) return;
+
+    var root =
+      document.getElementById("main_content") ||
+      document.getElementById("main_content_area");
+    if (!root) return;
+
+    // Exact id / slug
+    for (var t = 0; t < tokens.length; t++) {
+      var tok = tokens[t];
+      try {
+        var byId = document.getElementById(tok);
+        if (byId && root.contains(byId) && !isCasAdMount(byId)) hideHomeBoxElement(byId);
+      } catch (eId) {}
+      try {
+        var bySlug = root.querySelectorAll(
+          '[data-board-slug="' + tok + '"],[data-slug="' + tok + '"]'
+        );
+        for (var s = 0; s < bySlug.length; s++) {
+          if (isCasAdMount(bySlug[s])) continue;
+          hideHomeBoxElement(bySlug[s]);
+        }
+      } catch (eSlug) {}
+    }
+
+    var candidates = collectHomeBoxCandidates(root);
+    var claimed = {};
+    for (var c = 0; c < candidates.length; c++) {
+      var el = candidates[c];
+      if (!el || claimed[c]) continue;
+      if (isCasAdMount(el)) continue;
+      var label = homeBoxLabel(el);
+      if (!label) continue;
+      for (var k = 0; k < tokens.length; k++) {
+        var token = tokens[k];
+        if (!token || token.length < 2) continue;
+        if (tokenMatchesLabel(token, label)) {
+          hideHomeBoxElement(el);
+          claimed[c] = true;
+          break;
+        }
+      }
+    }
+  }
+
+
   function ensureHeaderUx() {
     try {
       bindShopInfiniteScroll();
@@ -2145,6 +2395,9 @@
       applyShopProductCardMarks();
     } catch (eShop) {}
     if (!lastSettings) return;
+    try {
+      ensureHiddenHomeBoxes();
+    } catch (eHomeBox) {}
     if (settingOn(lastSettings, "header_search_icon_mode", true)) {
       // Icon mode: drop always-visible fallback, mount icon+panel, then hide original form
       ensureAlwaysVisibleSearch();
