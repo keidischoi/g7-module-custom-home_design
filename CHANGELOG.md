@@ -3,6 +3,16 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.37] - 2026-09-23
+
+### Fixed — 검색 아이콘 모드 OFF 시 입력란 미표시
+
+- `header_search_icon_mode` 체크 해제 시 헤더 검색 입력란이 원본처럼 상시 보이도록 복구합니다.
+- 아이콘/슬라이드 패널 위젯을 제거하고, 원본 가운데 검색 form이 있으면 강제로 다시 표시합니다.
+- 원본 form이 없는 테마에서는 데스크톱·모바일용 상시 검색 입력란을 주입합니다.
+- boot CSS가 아이콘 모드 ON일 때만 form을 숨기도록 매번 다시 쓰고, OFF일 때는 form을 표시합니다.
+- `home-design.js`를 CDN 래퍼 없이 모듈에 다시 포함합니다 (0.2.36 상세 진입 런타임 해제 포함).
+
 ## [0.2.36] - 2026-09-13
 
 ### Fixed — 공유메뉴/썸네일에서 상세 진입 시 무한 로딩
