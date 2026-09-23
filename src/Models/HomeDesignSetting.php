@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool $header_search_icon_mode
  * @property bool $header_theme_click_toggle
  * @property array|null $hide_header_board_slugs
+ * @property array|null $hide_home_box_ids
  * @property array|null $footer_link_groups
  * @property bool $business_info_enabled
  * @property string|null $business_company_name Legacy unused (0.2.2+: ecommerce basic_info)
@@ -46,6 +47,7 @@ class HomeDesignSetting extends Model
         'header_search_icon_mode',
         'header_theme_click_toggle',
         'hide_header_board_slugs',
+        'hide_home_box_ids',
         'footer_link_groups',
         'business_info_enabled',
     ];
@@ -57,6 +59,7 @@ class HomeDesignSetting extends Model
         'header_search_icon_mode' => 'boolean',
         'header_theme_click_toggle' => 'boolean',
         'hide_header_board_slugs' => 'array',
+        'hide_home_box_ids' => 'array',
         'footer_link_groups' => 'array',
         'business_info_enabled' => 'boolean',
     ];
@@ -89,6 +92,7 @@ class HomeDesignSetting extends Model
                 ? (bool) $this->header_theme_click_toggle
                 : true,
             'hide_header_board_slugs' => array_values($this->hide_header_board_slugs ?? []),
+            'hide_home_box_ids' => array_values($this->hide_home_box_ids ?? []),
             'footer_link_groups' => $this->footer_link_groups,
             'business_info_enabled' => (bool) $this->business_info_enabled,
             'business_info' => [
@@ -111,6 +115,7 @@ class HomeDesignSetting extends Model
     public function toAdminArray(): array
     {
         $slugs = array_values($this->hide_header_board_slugs ?? []);
+        $homeBoxes = array_values($this->hide_home_box_ids ?? []);
         $groups = $this->footer_link_groups;
 
         return [
@@ -132,6 +137,10 @@ class HomeDesignSetting extends Model
             'hide_header_board_slugs_json' => $slugs === []
                 ? '[]'
                 : json_encode($slugs, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+            'hide_home_box_ids' => $homeBoxes,
+            'hide_home_box_ids_text' => $homeBoxes === []
+                ? ''
+                : implode(', ', $homeBoxes),
             'footer_link_groups' => $groups,
             'footer_link_groups_json' => $groups === null
                 ? ''
