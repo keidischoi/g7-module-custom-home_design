@@ -3,6 +3,20 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.52] - 2026-09-23
+
+### Fixed — 남은 홈 카드 전폭 확장 되돌림 (빈 행만 접기)
+
+- **Revert 0.2.51 full-bleed:** `data-chd-home-grid-span` / `grid-column: 1 / -1` / 1열 `grid-template-columns` 강제 제거. 남은 카드(예: 「최근 게시글」만 남음)는 템플릿 원래 폭(~반열)을 유지합니다.
+- **좁힌 collapse:** `collapseEmptyHomeLayouts`는 보이는 non-ad 홈 자식이 **0개**인 `.grid`/flex 래퍼만 접습니다. 1개 이상 남으면 template columns / grid-column을 건드리지 않습니다.
+- 완전 빈 부모는 이전과 같이 올라가며 접어 빈 세로 밴드를 제거합니다. `#main_content` / `#main_content_area` / body / carousel·hero / CAS(`data-cas-*`, `#cas_*`)는 절대 접지 않음.
+- **유지:** `hideHomeBoxElement`의 HTML `hidden`, `min-height:0`/`border:0`, display:none 경로; CSS hidden/collapsed harden + `:has` 완전 빈 grid 보조 규칙.
+- `clearHiddenHomeBoxes` / `clearCollapsedHomeLayouts`: collapsed 래퍼 복원 + 남은 span/onecol attrs도 정리.
+
+### Fixed — stop stretching lone remaining home cards
+
+- Revert full-width lone-child span from 0.2.51. Collapse wrappers only when zero visible home children remain; leave CSS grid alone when any card is still visible.
+
 ## [0.2.51] - 2026-09-23
 
 ### Fixed — 홈 박스 숨김 후 빈 레이아웃 공간 접기
