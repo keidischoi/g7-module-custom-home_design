@@ -3,6 +3,21 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.50] - 2026-09-23
+
+### Fixed — 홈 박스 숨김: 카드 루트 해석 + 한글 게시판명 매칭
+
+- `resolveHomeBoxRoot(el)`: `main_content` 안에서 가장 바깥 `[data-chd-home-box]` / `[data-board-slug]`(또는 `rounded-xl`+border+shadow 카드)로 올라갑니다. `hideHomeBoxElement`는 이 루트만 숨깁니다 — 중첩 마킹된 H3/헤더 행만 숨겨 리스트가 남는 문제를 고칩니다.
+- `collectHomeBoxCandidates`: `[data-chd-home-box]` / `[data-board-slug]` 수집 시 **조상에도 동일 속성이 있으면 건너뛰고** 최외곽만 유지합니다.
+- `tokensToHideKinds`: 고정 맵·ascii slug가 아닌 토큰은 `boardname:<normalize>` 추가. 별칭: `웹진`→`board:webzine`+`boardname:웹진`, `공지사항`→`board:notice`+`boardname:공지사항`, `자유게시판`→`boardname:자유게시판`.
+- `ensureHiddenHomeBoxes` / `extractBoardTitleFromCard`: 게시판 요약 카드는 slug(`data-board-slug`) 또는 제목(첫 두드러진 Button/heading = item.name)으로 숨김. navigate Button(href 없음)에서도 한글 이름 매칭.
+- 배타적 kind·재시도·MO·CAS 스킵(0.2.46–0.2.49) 유지.
+- **템플릿 참고:** Windows 쪽 partial에서 중첩 `data-chd-home-box`를 제거하고 **카드 루트에만** 두세요 (`_recent_posts.json`, `_popular_boards.json` 등). 게시판 요약은 루트 `data-board-slug`만.
+
+### Fixed — home-box hide: outermost root + Korean board-name match
+
+- Hide card roots only (nested `data-chd-home-box` safe). Match board summary cards by slug or display name (`공지사항`, `자유게시판`, `웹진`).
+
 ## [0.2.49] - 2026-09-23
 
 ### Fixed — 홈 박스 숨김: 배타적 kind 분류 (부분 숨김)

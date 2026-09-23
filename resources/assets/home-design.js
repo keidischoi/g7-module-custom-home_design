@@ -18,6 +18,9 @@
  * 0.2.49: exclusive home-box classification — each leaf maps to exactly one kind
  *        (welcome|users|posts|…|board:slug); tokens map 1:1 to kinds (no fuzzy
  *        multi-token all-or-nothing). 게시판 = stats card only; board cards need slug.
+ * 0.2.50: resolveHomeBoxRoot (outermost card; nested data-chd-home-box safe);
+ *        collect outermost marked only; boardname: Korean title match for
+ *        공지사항/자유게시판/웹진 when navigate Buttons lack href slug.
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -2203,7 +2206,63 @@
     return false;
   }
 
+  function getMainContentRoot() {
+    return (
+      document.getElementById("main_content") ||
+      document.getElementById("main_content_area")
+    );
+  }
+
+  /** Typical home card chrome: rounded-xl + border + shadow. */
+  function looksLikeHomeCard(el) {
+    if (!el || el.nodeType !== 1) return false;
+    try {
+      var cls = String(el.className || "");
+      return /\brounded-xl\b/.test(cls) && /\bborder\b/.test(cls) && /\bshadow/.test(cls);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * Climb to outermost home-box root within main_content.
+   * Prefer outermost [data-chd-home-box] / [data-board-slug]; else card-like ancestor.
+   * Never treat a lone H3/header row as the hide target.
+   */
+  function resolveHomeBoxRoot(el) {
+    if (!el || el.nodeType !== 1) return el;
+    var main = getMainContentRoot();
+    var bestMarked = null;
+    var bestCard = null;
+    var cur = el;
+    while (cur && cur.nodeType === 1) {
+      if (main) {
+        if (cur === main) break;
+        if (!main.contains(cur)) break;
+      } else if (cur === document.body || cur === document.documentElement) {
+        break;
+      }
+      try {
+        if (
+          cur.getAttribute &&
+          (cur.getAttribute("data-chd-home-box") ||
+            cur.getAttribute("data-board-slug") ||
+            cur.getAttribute("data-slug"))
+        ) {
+          bestMarked = cur;
+        }
+      } catch (eAttr) {}
+      if (looksLikeHomeCard(cur)) bestCard = cur;
+      cur = cur.parentElement;
+    }
+    if (bestMarked) return bestMarked;
+    if (bestCard) return bestCard;
+    return el;
+  }
+
   function hideHomeBoxElement(el) {
+    if (!el || el.nodeType !== 1) return false;
+    el = resolveHomeBoxRoot(el);
     if (!el || !el.style) return false;
     if (isCasAdMount(el)) return false;
     try {
@@ -2528,13 +2587,60 @@
     return /^[a-z0-9][a-z0-9_-]*$/i.test(String(tok || ""));
   }
 
+  /** trim / lower / collapse spaces — for boardname: matching. */
+  function normalizeBoardName(s) {
+    return String(s == null ? "" : s)
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+  }
+
+  /**
+   * Board card title from first prominent button/heading (item.name).
+   * Summary cards use navigate Buttons (no href), so title is required for KO names.
+   */
+  function extractBoardTitleFromCard(el) {
+    if (!el) return "";
+    try {
+      var preferred = el.querySelector(
+        "button.font-semibold, .font-semibold.cursor-pointer, h1, h2, h3, h4"
+      );
+      if (preferred) {
+        var t = String(preferred.textContent || "").replace(/\s+/g, " ").trim();
+        if (t) return t;
+      }
+    } catch (e1) {}
+    try {
+      var btns = el.querySelectorAll("button");
+      for (var i = 0; i < btns.length && i < 4; i++) {
+        var bt = String(btns[i].textContent || "").replace(/\s+/g, " ").trim();
+        // Skip tiny count badges / icon-only
+        if (bt && bt.length >= 2 && bt.length <= 40 && !/^[\d,.]+$/.test(bt)) return bt;
+      }
+    } catch (e2) {}
+    try {
+      var heads = homeBoxExactHeadings(el);
+      if (heads && heads.length) return heads[0];
+    } catch (e3) {}
+    return "";
+  }
+
   /** Board home path /board/{slug} (not /board/{slug}/{postId}). */
   function extractBoardSlugFromCard(el) {
     if (!el) return null;
     var slug = "";
+    // Prefer attributes on el, then on resolved card root (nested title nodes lack slug).
+    var nodes = [el];
     try {
-      if (el.getAttribute) {
-        slug = String(el.getAttribute("data-board-slug") || el.getAttribute("data-slug") || "").trim();
+      var root = resolveHomeBoxRoot(el);
+      if (root && root !== el) nodes.push(root);
+    } catch (eRoot) {}
+    try {
+      for (var ni = 0; ni < nodes.length; ni++) {
+        var node = nodes[ni];
+        if (!node || !node.getAttribute) continue;
+        slug = String(node.getAttribute("data-board-slug") || node.getAttribute("data-slug") || "").trim();
+        // Keep slug-like only (opaque Korean names are matched via boardname:)
         if (slug && isSlugLikeToken(slug)) return slug.toLowerCase();
       }
     } catch (eAttr) {}
@@ -2689,15 +2795,31 @@
       "1:1문의": "board:inquiry",
       qna: "board:qna",
       "q&a": "board:qna",
-      "q＆a": "board:qna"
+      "q＆a": "board:qna",
+      notice: "board:notice",
+      "공지사항": "board:notice",
+      free: "board:free",
+      "자유게시판": "boardname:자유게시판"
     };
 
     for (var i = 0; i < tokens.length; i++) {
       var tok = String(tokens[i] == null ? "" : tokens[i]).toLowerCase().trim();
       if (!tok || tok.length < 1) continue;
 
-      if (tokenKindMap[tok]) {
-        set[tokenKindMap[tok]] = 1;
+      var mapped = tokenKindMap[tok];
+      if (mapped) {
+        set[mapped] = 1;
+        // Known board display-name aliases (navigate Buttons often lack href)
+        if (tok === "웹진" || tok === "webzine") {
+          set["board:webzine"] = 1;
+          set["boardname:웹진"] = 1;
+        } else if (tok === "공지사항" || tok === "notice") {
+          set["board:notice"] = 1;
+          set["boardname:공지사항"] = 1;
+        } else if (tok === "자유게시판" || tok === "free") {
+          set["boardname:자유게시판"] = 1;
+          if (tok === "free") set["board:free"] = 1;
+        }
         continue;
       }
 
@@ -2713,10 +2835,26 @@
         continue;
       }
 
+      // Non-slug token (e.g. Korean board title): boardname:<normalized>
+      var bn = normalizeBoardName(tok);
+      if (bn) set["boardname:" + bn] = 1;
       // Opaque token: keep as-is for data-chd-home-box exact match
       set[tok] = 1;
     }
     return set;
+  }
+
+  function hasMarkedAncestor(el, root, attrName) {
+    if (!el || !root) return false;
+    var p = el.parentElement;
+    while (p && p !== root) {
+      if (!root.contains(p)) break;
+      try {
+        if (p.getAttribute && p.getAttribute(attrName)) return true;
+      } catch (e) {}
+      p = p.parentElement;
+    }
+    return false;
   }
 
   function collectHomeBoxCandidates(root) {
@@ -2758,7 +2896,33 @@
         "[data-chd-home-box],[data-board-slug],[data-slug],.chd-home-fill,[data-chd-home-fill='1']"
       );
       for (var m = 0; m < marked.length; m++) {
-        if (!isCasAdMount(marked[m])) out.push(marked[m]);
+        var node = marked[m];
+        if (isCasAdMount(node)) continue;
+        // Keep outermost only — nested data-chd-home-box (bad template replace) breaks hide
+        try {
+          if (
+            node.getAttribute &&
+            node.getAttribute("data-chd-home-box") &&
+            hasMarkedAncestor(node, root, "data-chd-home-box")
+          ) {
+            continue;
+          }
+          if (
+            node.getAttribute &&
+            node.getAttribute("data-board-slug") &&
+            hasMarkedAncestor(node, root, "data-board-slug")
+          ) {
+            continue;
+          }
+          if (
+            node.getAttribute &&
+            node.getAttribute("data-slug") &&
+            hasMarkedAncestor(node, root, "data-slug")
+          ) {
+            continue;
+          }
+        } catch (eSkip) {}
+        out.push(node);
       }
     } catch (e2) {}
     return out;
@@ -2771,9 +2935,7 @@
     var tokens = homeBoxTokens(lastSettings);
     if (!tokens.length) return;
 
-    var root =
-      document.getElementById("main_content") ||
-      document.getElementById("main_content_area");
+    var root = getMainContentRoot();
     if (!root) return;
 
     var hideSet = tokensToHideKinds(tokens);
@@ -2783,6 +2945,10 @@
     for (var c = 0; c < candidates.length; c++) {
       var el = candidates[c];
       if (!el || isCasAdMount(el)) continue;
+      // Always operate on outermost card root (nested marked nodes → parent card)
+      el = resolveHomeBoxRoot(el);
+      if (!el || isCasAdMount(el)) continue;
+
       // Skip if already hidden this pass (duplicate candidate refs)
       var already = false;
       for (var ci = 0; ci < claimed.length; ci++) {
@@ -2794,11 +2960,21 @@
       if (already) continue;
 
       var kind = classifyHomeBox(el);
-      if (!kind) continue;
+      var boardSlug = extractBoardSlugFromCard(el);
+      var boardTitle = extractBoardTitleFromCard(el);
+      var boardTitleNorm = boardTitle ? normalizeBoardName(boardTitle) : "";
 
-      var shouldHide = !!hideSet[kind];
+      // Prefer board:slug when known; title still used for boardname: match
+      if (!kind && boardSlug) {
+        var label0 = homeBoxTitleLabel(el);
+        var heads0 = homeBoxExactHeadings(el);
+        if (!isFixedChromeByTitle(label0, heads0)) kind = "board:" + boardSlug;
+      }
+
+      var shouldHide = !!(kind && hideSet[kind]);
+
       // board:slug — also allow bare slug token match
-      if (!shouldHide && kind.indexOf("board:") === 0) {
+      if (!shouldHide && kind && kind.indexOf("board:") === 0) {
         var slugOnly = kind.slice(6);
         if (slugOnly && hideSet["board:" + slugOnly]) shouldHide = true;
         else {
@@ -2811,6 +2987,23 @@
           }
         }
       }
+
+      // Board display-name match (공지사항 / 자유게시판 / 웹진, etc.)
+      if (!shouldHide && boardTitleNorm) {
+        if (hideSet["boardname:" + boardTitleNorm]) shouldHide = true;
+        else {
+          for (var tj = 0; tj < tokens.length; tj++) {
+            var tok2 = normalizeBoardName(tokens[tj]);
+            if (tok2 && tok2 === boardTitleNorm) {
+              shouldHide = true;
+              break;
+            }
+          }
+        }
+      }
+
+      // Slug present but kind null / not in set yet
+      if (!shouldHide && boardSlug && hideSet["board:" + boardSlug]) shouldHide = true;
 
       if (shouldHide) {
         if (hideHomeBoxElement(el)) claimed.push(el);

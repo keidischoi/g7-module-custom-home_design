@@ -38,8 +38,8 @@
                 "hide_header_board_slugs_empty": "게시판 목록을 불러오지 못했습니다. sirsoft-board 모듈과 /api/modules/sirsoft-board/boards/board-menu 를 확인하세요.",
                 "hide_header_board_slugs_note": "입력한 slug는 모든 페이지 헤더(데스크톱·모바일·더보기)에서 숨깁니다. 저장하면 관련 레이아웃 캐시가 자동 갱신됩니다.",
                 "hide_home_box_ids": "숨길 홈 박스 (이름 / slug)",
-                "hide_home_box_ids_hint": "토큰은 박스 kind에 1:1로 매핑됩니다. 예: welcome, shop, webzine 또는 웰컴, 쇼핑몰, 웹진. 부분 숨김 예: welcome, shop, webzine. 홈이 비어 보이면 이 칸을 비우고 저장하세요 (API에 긴 목록이 남아 있을 수 있음).",
-                "hide_home_box_ids_note": "홈(/)에만 적용됩니다. 각 토큰은 하나의 박스 kind에만 1:1 매핑됩니다(배타 분류). 「게시판」/boards = Boards 통계 카드만 — 게시판 요약 카드는 해당하지 않습니다. 요약 카드는 slug(webzine, inquiry, qna 등)로 지정하세요. 부분 숨김 예: welcome, shop, webzine. custom-ad_slots 광고 마운트는 숨기지 않습니다. 라이브 API에 여전히 모든 박스가 나열되어 있으면 짧은 목록으로 비우고 저장해야 합니다 — 분류 수정만으로는 의도적으로 목록에 있는 박스가 다시 보이지 않습니다. 목록을 비우면 숨김이 해제됩니다."
+                "hide_home_box_ids_hint": "토큰은 박스 kind에 1:1로 매핑됩니다. 예: welcome, shop, webzine 또는 웰컴, 쇼핑몰, 웹진. 게시판 요약은 slug(webzine) 또는 한글 이름(공지사항, 자유게시판, 웹진)도 됩니다. 부분 숨김 예: welcome, shop, 공지사항. 홈이 비어 보이면 이 칸을 비우고 저장하세요.",
+                "hide_home_box_ids_note": "홈(/)에만 적용됩니다. 각 토큰은 하나의 박스 kind에만 1:1 매핑됩니다(배타 분류). 「게시판」/boards = Boards 통계 카드만. 게시판 요약 카드는 slug(webzine, notice, inquiry, qna) 또는 표시 이름(공지사항, 자유게시판, 웹진)으로 지정하세요. 부분 숨김 예: welcome, shop, 공지사항. custom-ad_slots 광고 마운트는 숨기지 않습니다. 목록을 비우면 숨김이 해제됩니다."
             }
         }
     }
