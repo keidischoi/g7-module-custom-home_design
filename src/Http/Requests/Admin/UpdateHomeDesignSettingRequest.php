@@ -38,8 +38,6 @@ class UpdateHomeDesignSettingRequest extends FormRequest
             'hide_header_board_slugs_text' => ['sometimes', 'nullable', 'string'],
             'hide_header_board_slugs' => ['sometimes', 'nullable'],
             'hide_header_board_slugs_json' => ['sometimes', 'nullable'],
-            'hide_home_box_ids_text' => ['sometimes', 'nullable', 'string'],
-            'hide_home_box_ids' => ['sometimes', 'nullable'],
             'footer_link_groups' => ['sometimes', 'nullable'],
             // Empty / omitted footer JSON must pass (service stores null)
             'footer_link_groups_json' => ['sometimes', 'nullable', 'string'],
@@ -102,25 +100,6 @@ class UpdateHomeDesignSettingRequest extends FormRequest
             }
         }
 
-        if (! $this->exists('hide_home_box_ids_text')) {
-            if ($this->exists('hide_home_box_ids') && is_array($this->input('hide_home_box_ids'))) {
-                $this->merge([
-                    'hide_home_box_ids_text' => $this->arraySlugsToCsv($this->input('hide_home_box_ids')),
-                ]);
-            } else {
-                $this->merge(['hide_home_box_ids_text' => '']);
-            }
-        } else {
-            $v = $this->input('hide_home_box_ids_text');
-            if (is_array($v)) {
-                $this->merge(['hide_home_box_ids_text' => $this->arraySlugsToCsv($v)]);
-            } elseif ($v === null) {
-                $this->merge(['hide_home_box_ids_text' => '']);
-            } else {
-                $this->merge(['hide_home_box_ids_text' => (string) $v]);
-            }
-        }
-
         if (! $this->exists('footer_link_groups_json')) {
             if ($this->exists('footer_link_groups')) {
                 $groups = $this->input('footer_link_groups');
@@ -161,10 +140,6 @@ class UpdateHomeDesignSettingRequest extends FormRequest
         // Always pass through optional text fields even when omitted from body
         // (G7 may strip empty strings; prepareForValidation already defaulted them).
         $payload['hide_header_board_slugs_text'] = (string) $this->input('hide_header_board_slugs_text', '');
-        $payload['hide_home_box_ids_text'] = (string) $this->input('hide_home_box_ids_text', '');
-        if ($this->exists('hide_home_box_ids') && is_array($this->input('hide_home_box_ids'))) {
-            $payload['hide_home_box_ids'] = array_values($this->input('hide_home_box_ids'));
-        }
         // Keep arrays sent by API clients; the admin text input sends only *_text.
         if ($this->exists('hide_header_board_slugs') && is_array($this->input('hide_header_board_slugs'))) {
             $payload['hide_header_board_slugs'] = array_values($this->input('hide_header_board_slugs'));
