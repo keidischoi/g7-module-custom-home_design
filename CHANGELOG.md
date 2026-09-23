@@ -3,6 +3,21 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.48] - 2026-09-23
+
+### Fixed — 짧은 한글 토큰 Hangul-boundary (자유게시판 ≠ 게시판)
+
+- `needleInLabel`에서 짧은 KO 토큰(`웰컴`, `회원`, `게시글`, `댓글`, `게시판`)은 `(^|[^가-힣])TOKEN([^가-힣]|$)` 경계 매칭만 허용합니다. `게시판`이 `자유게시판`·`공지사항` 등 합성 제목에 부분문자열로 걸려 요약 카드까지 숨기던 문제를 고칩니다.
+- 제목 heading이 정확히 `Boards`/`게시판`/`Members`/`회원`/…이면 통계 카드 강매칭으로 취급합니다.
+- 기존 가드 유지: `게시글`/`posts` → Recent Posts, `게시판`/`boards` → Popular Boards 훔치지 않음.
+- `data-chd-home-box` 정확 매칭 우선. 게시판 요약 카드는 slug 토큰(`webzine`, `inquiry`, `qna` 등)의 `data-board-slug` 또는 `/board/{slug}`만으로 숨깁니다 — 토큰 `게시판`으로는 숨기지 않습니다.
+- 부분 숨김 예: `welcome, shop, webzine` → 해당 3종만; `게시판` 단독 → Boards **통계** 카드만.
+
+### Fixed — short Korean tokens: Hangul-boundary match
+
+- `게시판` no longer matches `자유게시판`. Board summary cards hide only via exact slug (`data-board-slug` / `/board/{slug}`).
+- Exact heading boost for stat cards; 0.2.47 title/href split + EN whole-word kept.
+
 ## [0.2.47] - 2026-09-23
 
 ### Fixed — 숨길 홈 박스: 과도한 매칭(`/board/…`) 축소
