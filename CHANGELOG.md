@@ -3,6 +3,13 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.39] - 2026-09-23
+
+### Added — 홈 박스 이름/slug로 숨기기
+
+- 관리자 「숨길 홈 박스 (이름 / slug)」에 게시판 slug·박스 제목 일부를 쉼표로 입력하면 홈(/)에서만 해당 박스를 숨깁니다.
+- 새 게시판을 만들어도 slug만 목록에 추가하면 됩니다. 헤더 게시판 숨김과는 별개입니다.
+
 ## [0.2.38] - 2026-09-23
 
 ### Fixed — 검색 아이콘 모드 ON인데 아이콘 미표시

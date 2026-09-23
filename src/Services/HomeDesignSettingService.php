@@ -19,6 +19,7 @@ class HomeDesignSettingService
     /** @var list<string> Columns that must be JSON-encoded for query-builder writes. */
     private const JSON_KEYS = [
         'hide_header_board_slugs',
+        'hide_home_box_ids',
         'footer_link_groups',
     ];
 
@@ -114,6 +115,7 @@ class HomeDesignSettingService
         unset(
             $data['hide_header_board_slugs_json'],
             $data['hide_header_board_slugs_text'],
+            $data['hide_home_box_ids_text'],
             $data['footer_link_groups_json']
         );
 
@@ -172,6 +174,32 @@ class HomeDesignSettingService
         if (! array_key_exists('hide_header_board_slugs', $data)) {
             $data['hide_header_board_slugs'] = [];
         }
+
+        // Home boxes to hide (ids / name keywords) — same CSV/JSON shape as board slugs
+        if (array_key_exists('hide_home_box_ids', $data) && is_array($data['hide_home_box_ids'])) {
+            $data['hide_home_box_ids'] = array_values($data['hide_home_box_ids']);
+        } elseif (array_key_exists('hide_home_box_ids_text', $data)) {
+            $data['hide_home_box_ids'] = $this->parseCommaSeparatedSlugs($data['hide_home_box_ids_text'] ?? '');
+        } elseif (array_key_exists('hide_home_box_ids', $data)) {
+            $raw = $data['hide_home_box_ids'];
+            if (is_string($raw)) {
+                $trim = trim($raw);
+                $data['hide_home_box_ids'] = ($trim !== '' && ($trim[0] ?? '') !== '[')
+                    ? $this->parseCommaSeparatedSlugs($trim)
+                    : $this->decodeJsonArray($trim);
+            } else {
+                $data['hide_home_box_ids'] = [];
+            }
+        }
+        if (isset($data['hide_home_box_ids']) && is_array($data['hide_home_box_ids'])) {
+            $data['hide_home_box_ids'] = array_values(array_filter(array_map(
+                static fn ($s) => is_string($s) || is_numeric($s) ? trim((string) $s) : '',
+                $data['hide_home_box_ids']
+            )));
+        } elseif (! array_key_exists('hide_home_box_ids', $data)) {
+            $data['hide_home_box_ids'] = [];
+        }
+
 
         if (is_array($data['footer_link_groups'] ?? null)) {
             $data['footer_link_groups'] = self::prependFooterLinkEmojis(self::enrichFooterLinkGroupIcons($data['footer_link_groups']));
@@ -552,6 +580,7 @@ class HomeDesignSettingService
             'header_search_icon_mode' => true,
             'header_theme_click_toggle' => true,
             'hide_header_board_slugs' => HomeDesignSetting::DEFAULT_HIDE_BOARD_SLUGS,
+            'hide_home_box_ids' => [],
             'footer_link_groups' => null,
             'business_info_enabled' => false,
         ];
