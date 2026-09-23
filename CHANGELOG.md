@@ -3,6 +3,21 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.60] - 2026-09-23
+
+### Fixed — 홈 커스텀 HTML 래퍼 상·하 여백 과다
+
+- **문제:** 캐러셀 → `#chd-home-custom-html` → 홈 박스/`#chd-home-reflow` 사이 세로 간격이 모듈 래퍼 때문에 과도함(관리자 HTML 내부 margin과 별개).
+- **마운트:** `#chd-home-custom-html` / `[data-chd-home-custom-html='1']`에 `margin:0`, `padding:0` (가시성 force는 0.2.59 유지). 관리자 HTML **내부** 여백은 건드리지 않음.
+- **첫 자식:** `#main_content > …:first-child`일 때 `margin-top:0`만 강제 — 전역 `#main_content` padding은 유지(페이지 패딩 파괴 없음).
+- **reflow 인접:** `#chd-home-custom-html + #chd-home-reflow { margin-top: 0.5rem; }` — reflow 기본 `margin-bottom:1rem`은 유지, top만 타이트하게.
+- **미변경:** Ads/CAS, hide/collapse/reflow 로직, 0.2.59 배치·가시성.
+- **캐시:** `home-design.js?v=0.2.60`.
+
+### Fixed — tighten custom HTML wrapper vertical gaps
+
+- Zero mount margin/padding (keep visibility); first-child under `#main_content` has `margin-top:0` without changing page padding; adjacent `#chd-home-reflow` uses `margin-top:0.5rem`. Admin HTML internals untouched. Cache-bust `?v=0.2.60`.
+
 ## [0.2.59] - 2026-09-23
 
 ### Fixed — 홈 커스텀 HTML이 캐러셀 아래에서 안 보이던 문제
