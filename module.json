@@ -5,11 +5,11 @@
         "ko": "홈 디자인",
         "en": "Home Design"
     },
-    "version": "0.2.39",
+    "version": "0.2.40",
     "license": "MIT",
     "description": {
-        "ko": "공식 sirsoft-basic 기준 콘텐츠 폭·헤더 UX·홈 박스 숨김·게시판 숨김·푸터. 레이아웃 scripts[] 미사용.",
-        "en": "Content width, header UX, consistent board hide on all pages, footer icons and business notice. No layout scripts[]."
+        "ko": "공식 sirsoft-basic 기준 콘텐츠 폭·헤더 UX·홈 박스 숨김(광고 마운트 보호)·게시판 숨김·푸터. 레이아웃 scripts[] 미사용.",
+        "en": "Content width, header UX, safe home-box hide (skips ad mounts), board hide, footer. No layout scripts[]."
     },
     "g7_version": ">=7.0.0",
     "github_url": "https://github.com/keidischoi/g7-module-custom-home_design",
