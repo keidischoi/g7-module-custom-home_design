@@ -2233,11 +2233,29 @@
             (el.getAttribute("data-board-slug") ||
               el.getAttribute("data-slug") ||
               el.getAttribute("data-board") ||
+              el.getAttribute("data-chd-home-box") ||
               "")) ||
             ""
         )
       );
     } catch (e2) {}
+    // Collect href/to so English board slugs (e.g. webzine) match via /board/webzine
+    try {
+      if (el.getAttribute) {
+        var selfHref = el.getAttribute("href") || el.getAttribute("to") || "";
+        if (selfHref) parts.push(String(selfHref));
+      }
+    } catch (eHref0) {}
+    try {
+      var anchors = el.querySelectorAll("a[href],[to]");
+      for (var ai = 0; ai < anchors.length && ai < 12; ai++) {
+        var ah =
+          (anchors[ai].getAttribute &&
+            (anchors[ai].getAttribute("href") || anchors[ai].getAttribute("to") || "")) ||
+          "";
+        if (ah) parts.push(String(ah));
+      }
+    } catch (eHref) {}
     try {
       var heads = el.querySelectorAll("h1,h2,h3,h4,.text-lg,.font-semibold,.font-bold");
       for (var i = 0; i < heads.length && i < 6; i++) {
@@ -2255,42 +2273,92 @@
 
   function tokenMatchesLabel(token, label) {
     if (!token || !label) return false;
-    // Short tokens must not steal longer sibling boxes
-    if (token === "게시글" && label.indexOf("최근 게시글") !== -1) return false;
-    if (token === "게시판" && label.indexOf("인기 게시판") !== -1) return false;
+    token = String(token).toLowerCase().trim();
+    label = String(label).toLowerCase();
+
+    // Guards: short tokens must not steal longer sibling boxes (KO + EN UI)
+    var isPostsTok =
+      token === "게시글" || token === "posts" || token === "post" || token === "stat_posts";
+    var isBoardsTok =
+      token === "게시판" || token === "boards" || token === "board" || token === "stat_boards";
+    if (isPostsTok && (label.indexOf("최근 게시글") !== -1 || label.indexOf("recent posts") !== -1 || label.indexOf("recent post") !== -1)) {
+      return false;
+    }
+    if (isBoardsTok && (label.indexOf("인기 게시판") !== -1 || label.indexOf("popular boards") !== -1 || label.indexOf("popular board") !== -1)) {
+      return false;
+    }
     if (token === "문의" && label.indexOf("1:1") === -1 && label.indexOf("inquiry") === -1) {
       /* bare 문의 ignored unless inquiry-like */
     }
-    if (label.indexOf(token) !== -1) {
-      if (token === "게시글" && label.indexOf("최근 게시글") !== -1) return false;
-      if (token === "게시판" && label.indexOf("인기 게시판") !== -1) return false;
-      return true;
-    }
+
+    // data-chd-home-box keys and English/Korean title needles per admin token
     var aliases = {
-      welcome: ["welcome", "웰컴", "오신 것을 환영"],
-      "웰컴": ["welcome", "웰컴", "오신 것을 환영"],
-      "회원": ["회원"],
-      "게시글": ["게시글"],
-      "댓글": ["댓글"],
-      "게시판": ["게시판"],
-      "최근 게시글": ["최근 게시글"],
-      "인기 게시판": ["인기 게시판"],
-      "쇼핑몰": ["쇼핑몰"],
-      "커뮤니티 가이드": ["커뮤니티 가이드", "커뮤니티가이드"],
+      welcome: ["welcome", "웰컴", "오신 것을 환영", "3d store welcome"],
+      welcome_card: ["welcome", "웰컴", "오신 것을 환영", "3d store welcome"],
+      "웰컴": ["welcome", "웰컴", "오신 것을 환영", "3d store welcome"],
+      users: ["회원", "members", "member", "users", "user"],
+      members: ["회원", "members", "member", "users", "user"],
+      member: ["회원", "members", "member", "users", "user"],
+      stat_users: ["회원", "members", "member", "users", "user"],
+      "회원": ["회원", "members", "member", "users", "user"],
+      posts: ["게시글", "posts", "post"],
+      post: ["게시글", "posts", "post"],
+      stat_posts: ["게시글", "posts", "post"],
+      "게시글": ["게시글", "posts", "post"],
+      comments: ["댓글", "comments", "comment"],
+      comment: ["댓글", "comments", "comment"],
+      stat_comments: ["댓글", "comments", "comment"],
+      "댓글": ["댓글", "comments", "comment"],
+      boards: ["게시판", "boards", "board"],
+      board: ["게시판", "boards", "board"],
+      stat_boards: ["게시판", "boards", "board"],
+      "게시판": ["게시판", "boards", "board"],
+      recent: ["최근 게시글", "recent posts", "recent post", "recent_posts"],
+      recent_posts: ["최근 게시글", "recent posts", "recent post", "recent_posts"],
+      "recent-posts": ["최근 게시글", "recent posts", "recent post", "recent_posts"],
+      "최근 게시글": ["최근 게시글", "recent posts", "recent post", "recent_posts"],
+      popular: ["인기 게시판", "popular boards", "popular board", "popular_boards"],
+      popular_boards: ["인기 게시판", "popular boards", "popular board", "popular_boards"],
+      "popular-boards": ["인기 게시판", "popular boards", "popular board", "popular_boards"],
+      "인기 게시판": ["인기 게시판", "popular boards", "popular board", "popular_boards"],
+      shop: ["쇼핑몰", "shop", "shopping", "browse fresh products"],
+      shopping: ["쇼핑몰", "shop", "shopping", "browse fresh products"],
+      shop_promo: ["쇼핑몰", "shop", "shopping", "browse fresh products"],
+      "쇼핑몰": ["쇼핑몰", "shop", "shopping", "browse fresh products"],
+      community: ["커뮤니티 가이드", "커뮤니티가이드", "community guide", "communityguide", "community_guide"],
+      community_guide: ["커뮤니티 가이드", "커뮤니티가이드", "community guide", "communityguide", "community_guide"],
+      "community-guide": ["커뮤니티 가이드", "커뮤니티가이드", "community guide", "communityguide", "community_guide"],
+      guide: ["커뮤니티 가이드", "커뮤니티가이드", "community guide", "communityguide", "community_guide"],
+      "커뮤니티 가이드": ["커뮤니티 가이드", "커뮤니티가이드", "community guide", "communityguide", "community_guide"],
       webzine: ["webzine", "웹진"],
       "웹진": ["webzine", "웹진"],
       inquiry: ["inquiry", "1:1 문의", "1:1문의"],
       "1:1 문의": ["inquiry", "1:1 문의", "1:1문의"],
+      "1:1문의": ["inquiry", "1:1 문의", "1:1문의"],
       qna: ["qna", "q&a"],
-      "q&a": ["qna", "q&a"]
+      "q&a": ["qna", "q&a"],
+      "q＆a": ["qna", "q&a"]
     };
+
+    // Direct substring of the admin token itself (after guards)
+    if (label.indexOf(token) !== -1) {
+      return true;
+    }
+
     var list = aliases[token];
     if (!list) return false;
     for (var i = 0; i < list.length; i++) {
-      var a = list[i];
+      var a = String(list[i]).toLowerCase();
       if (label.indexOf(a) === -1) continue;
-      if (a === "게시글" && label.indexOf("최근 게시글") !== -1) continue;
-      if (a === "게시판" && label.indexOf("인기 게시판") !== -1) continue;
+      // Alias-level guards for posts/boards needles
+      if ((a === "게시글" || a === "posts" || a === "post") &&
+          (label.indexOf("최근 게시글") !== -1 || label.indexOf("recent posts") !== -1 || label.indexOf("recent post") !== -1)) {
+        continue;
+      }
+      if ((a === "게시판" || a === "boards" || a === "board") &&
+          (label.indexOf("인기 게시판") !== -1 || label.indexOf("popular boards") !== -1 || label.indexOf("popular board") !== -1)) {
+        continue;
+      }
       return true;
     }
     return false;
@@ -2332,13 +2400,86 @@
     } catch (e) {}
     try {
       var marked = root.querySelectorAll(
-        "[data-board-slug],[data-slug],.chd-home-fill,[data-chd-home-fill='1']"
+        "[data-chd-home-box],[data-board-slug],[data-slug],.chd-home-fill,[data-chd-home-fill='1']"
       );
       for (var m = 0; m < marked.length; m++) {
         if (!isCasAdMount(marked[m])) out.push(marked[m]);
       }
     } catch (e2) {}
     return out;
+  }
+
+  function resolveHomeBoxFromLink(link, candidates, root) {
+    if (!link || link.nodeType !== 1) return null;
+    if (isCasAdMount(link)) return null;
+    try {
+      for (var i = 0; i < candidates.length; i++) {
+        var cand = candidates[i];
+        if (!cand || isCasAdMount(cand)) continue;
+        if (cand.contains && cand.contains(link)) return cand;
+      }
+    } catch (eCand) {}
+    try {
+      var el = link;
+      while (el && el !== root) {
+        if (isCasAdMount(el)) return null;
+        var parent = el.parentElement;
+        if (!parent) break;
+        var pcls = String(parent.className || "");
+        if (/\bgrid\b/.test(pcls)) {
+          return isCasAdMount(el) ? null : el;
+        }
+        el = parent;
+      }
+    } catch (eWalk) {}
+    return null;
+  }
+
+  /** Map admin token → canonical data-chd-home-box keys */
+  function tokenToChdHomeBoxKeys(token) {
+    var t = String(token || "").toLowerCase().trim();
+    var map = {
+      welcome: ["welcome"],
+      welcome_card: ["welcome"],
+      "웰컴": ["welcome"],
+      users: ["users"],
+      members: ["users"],
+      member: ["users"],
+      stat_users: ["users"],
+      "회원": ["users"],
+      posts: ["posts"],
+      post: ["posts"],
+      stat_posts: ["posts"],
+      "게시글": ["posts"],
+      comments: ["comments"],
+      comment: ["comments"],
+      stat_comments: ["comments"],
+      "댓글": ["comments"],
+      boards: ["boards"],
+      board: ["boards"],
+      stat_boards: ["boards"],
+      "게시판": ["boards"],
+      recent: ["recent_posts"],
+      recent_posts: ["recent_posts"],
+      "recent-posts": ["recent_posts"],
+      "최근 게시글": ["recent_posts"],
+      popular: ["popular_boards"],
+      popular_boards: ["popular_boards"],
+      "popular-boards": ["popular_boards"],
+      "인기 게시판": ["popular_boards"],
+      shop: ["shop"],
+      shopping: ["shop"],
+      shop_promo: ["shop"],
+      "쇼핑몰": ["shop"],
+      community: ["community_guide"],
+      community_guide: ["community_guide"],
+      "community-guide": ["community_guide"],
+      guide: ["community_guide"],
+      "커뮤니티 가이드": ["community_guide"]
+    };
+    if (map[t]) return map[t];
+    // token already a data-chd-home-box value
+    return [t];
   }
 
   function ensureHiddenHomeBoxes() {
@@ -2353,7 +2494,9 @@
       document.getElementById("main_content_area");
     if (!root) return;
 
-    // Exact id / slug
+    var candidates = collectHomeBoxCandidates(root);
+
+    // Exact id / slug / data-chd-home-box + href /board/{tok}
     for (var t = 0; t < tokens.length; t++) {
       var tok = tokens[t];
       try {
@@ -2369,9 +2512,41 @@
           hideHomeBoxElement(bySlug[s]);
         }
       } catch (eSlug) {}
+      // data-chd-home-box exact / alias keys (case-insensitive)
+      try {
+        var keys = tokenToChdHomeBoxKeys(tok);
+        var boxes = root.querySelectorAll("[data-chd-home-box]");
+        for (var b = 0; b < boxes.length; b++) {
+          var box = boxes[b];
+          if (isCasAdMount(box)) continue;
+          var val = "";
+          try {
+            val = String(box.getAttribute("data-chd-home-box") || "").toLowerCase().trim();
+          } catch (eAttr) {}
+          if (!val) continue;
+          var hit = false;
+          if (val === tok) hit = true;
+          for (var ki = 0; !hit && ki < keys.length; ki++) {
+            if (val === keys[ki]) hit = true;
+          }
+          // Also allow tokenMatchesLabel against the attr value as key
+          if (!hit && tokenMatchesLabel(tok, val)) hit = true;
+          if (hit) hideHomeBoxElement(box);
+        }
+      } catch (eChd) {}
+      try {
+        if (tok.length >= 2) {
+          var links = root.querySelectorAll('[href*="/board/' + tok + '"]');
+          for (var li = 0; li < links.length; li++) {
+            var link = links[li];
+            if (isCasAdMount(link)) continue;
+            var resolved = resolveHomeBoxFromLink(link, candidates, root);
+            if (resolved && !isCasAdMount(resolved)) hideHomeBoxElement(resolved);
+          }
+        }
+      } catch (eHrefMatch) {}
     }
 
-    var candidates = collectHomeBoxCandidates(root);
     var claimed = {};
     for (var c = 0; c < candidates.length; c++) {
       var el = candidates[c];

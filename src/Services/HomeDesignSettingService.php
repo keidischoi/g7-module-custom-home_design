@@ -204,6 +204,18 @@ class HomeDesignSettingService
             $data['footer_link_groups'] = self::prependFooterLinkEmojis(self::enrichFooterLinkGroupIcons($data['footer_link_groups']));
         }
 
+        // Refuse silent drop when admin/API sends hide lists but migration was not applied.
+        if (array_key_exists('hide_home_box_ids', $data) && ! $this->hasColumn('hide_home_box_ids')) {
+            throw new \RuntimeException(
+                'hide_home_box_ids 컬럼이 없습니다. php82 artisan migrate (또는 migrate --force)로 migration 2026_09_23_000003_add_hide_home_box_ids... 를 적용하세요. / Column hide_home_box_ids is missing. Run: php82 artisan migrate (or migrate --force) for migration 2026_09_23_000003_add_hide_home_box_ids...'
+            );
+        }
+        if (array_key_exists('hide_header_board_slugs', $data) && ! $this->hasColumn('hide_header_board_slugs')) {
+            throw new \RuntimeException(
+                'hide_header_board_slugs 컬럼이 없습니다. php82 artisan migrate (또는 migrate --force)를 실행하세요. / Column hide_header_board_slugs is missing. Run: php82 artisan migrate (or migrate --force).'
+            );
+        }
+
         // Always write both JSON columns on every admin save (full-form replace).
         $this->upsertSingleton($data);
 
