@@ -38,6 +38,11 @@
  *        grid (N=min(3,count); 1 card ~1/3 width, not full-bleed). Restore
  *        original parents when hide list clears. Prefer reflow over per-grid
  *        compact for cross-row 나란히 (e.g. recent|popular|webzine).
+ * 0.2.55: isHomeBoxCardRoot — check data-chd-home-box / data-board-slug /
+ *        data-slug / looksLikeHomeCard BEFORE isLayoutStackClass (cards use
+ *        h-full flex flex-col and were rejected as layout stacks). Reflow host
+ *        uses w-full only (no chd-home-fill); exclude #chd-home-reflow from
+ *        homeFillSelector / .chd-home-fill candidate matching.
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -162,10 +167,11 @@
   function homeFillSelector() {
     // Do NOT force max-width:100% on nested grids or ad Event Hook mounts —
     // that overrides custom-ad_slots maxWidth (ads blow up full-bleed).
+    // Exclude #chd-home-reflow so the reflow host is not treated as fill chrome.
     return (
-      "#main_content > *:not([data-chd-full-bleed]):not([data-cas-ad-slot]):not([data-cas-ad-role]):not([data-cas-hero]):not([data-cas-ad-host]):not([id^='cas_']):not([id^='ad_'])," +
-      "#main_content .chd-home-fill," +
-      "#main_content [data-chd-home-fill]"
+      "#main_content > *:not([data-chd-full-bleed]):not([data-cas-ad-slot]):not([data-cas-ad-role]):not([data-cas-hero]):not([data-cas-ad-host]):not([id^='cas_']):not([id^='ad_']):not(#chd-home-reflow):not([data-chd-home-reflow='1'])," +
+      "#main_content .chd-home-fill:not(#chd-home-reflow):not([data-chd-home-reflow='1'])," +
+      "#main_content [data-chd-home-fill]:not(#chd-home-reflow):not([data-chd-home-reflow='1'])"
     );
   }
 
@@ -2743,7 +2749,8 @@
     return root;
   }
 
-  /** True for an actual card leaf — not .grid/.flex/.chd-home-fill layout chrome. */
+  /** True for an actual card leaf — not .grid/.flex/.chd-home-fill layout chrome.
+   *  Cards often use h-full flex flex-col; marked/card-like wins over layout-stack. */
   function isHomeBoxCardRoot(el) {
     if (!el || el.nodeType !== 1) return false;
     if (isProtectedLayoutRoot(el) || isCasAdMount(el)) return false;
@@ -2752,13 +2759,7 @@
         return false;
       }
     } catch (eHost) {}
-    var cls = "";
-    try {
-      cls = String(el.className || "");
-    } catch (eCls) {}
-    // Never reflow layout stacks or the py-6 / chd-home-fill content chrome.
-    if (isLayoutStackClass(cls)) return false;
-    if (/\bcontents\b/.test(cls)) return false;
+    // Marked home cards first — before flex/grid layout-stack rejection.
     try {
       if (
         el.getAttribute("data-chd-home-box") ||
@@ -2769,6 +2770,13 @@
       }
     } catch (eMark) {}
     if (looksLikeHomeCard(el)) return true;
+    var cls = "";
+    try {
+      cls = String(el.className || "");
+    } catch (eCls) {}
+    // Reject layout stacks / contents chrome only when not a marked/card-like root.
+    if (isLayoutStackClass(cls)) return false;
+    if (/\bcontents\b/.test(cls)) return false;
     return false;
   }
 
@@ -2911,7 +2919,7 @@
       host = document.createElement("div");
       host.id = "chd-home-reflow";
       host.setAttribute("data-chd-home-reflow", "1");
-      host.className = "w-full chd-home-fill";
+      host.className = "w-full";
       try {
         if (anchor && anchor.parentElement === region) {
           region.insertBefore(host, anchor);
@@ -3708,11 +3716,16 @@
     } catch (e) {}
     try {
       var marked = root.querySelectorAll(
-        "[data-chd-home-box],[data-board-slug],[data-slug],.chd-home-fill,[data-chd-home-fill='1']"
+        "[data-chd-home-box],[data-board-slug],[data-slug],.chd-home-fill:not(#chd-home-reflow):not([data-chd-home-reflow='1']),[data-chd-home-fill='1']:not(#chd-home-reflow):not([data-chd-home-reflow='1'])"
       );
       for (var m = 0; m < marked.length; m++) {
         var node = marked[m];
         if (isCasAdMount(node)) continue;
+        try {
+          if (node.id === "chd-home-reflow" || node.getAttribute("data-chd-home-reflow") === "1") {
+            continue;
+          }
+        } catch (eRf) {}
         // Keep outermost only — nested data-chd-home-box (bad template replace) breaks hide
         try {
           if (
