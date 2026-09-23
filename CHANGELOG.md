@@ -3,6 +3,14 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.40] - 2026-09-23
+
+### Fixed — 홈 박스 숨김이 그리드·광고를 깨지 않게
+
+- 홈 fill CSS에서 `#main_content .grid` 타깃을 제거하고, 홈(`/`)에서만 fill을 적용합니다.
+- `custom-ad_slots` 마운트(`data-cas-*`, `#cas_*`, `#ad_*`)는 폭 강제·숨김 대상에서 제외합니다.
+- 「숨길 홈 박스」는 설정에 적은 카드만 숨기고, 여러 카드가 묶인 grid 행 전체는 접지 않습니다.
+
 ## [0.2.39] - 2026-09-23
 
 ### Added — 홈 박스 이름/slug로 숨기기
