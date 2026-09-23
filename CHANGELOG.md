@@ -3,6 +3,22 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.57] - 2026-09-23
+
+### Fixed — SPA remount과 reflow 호스트 파괴 경쟁 제거 + 무마크 카드 수집
+
+- **확인된 원인:** `ensureHiddenHomeBoxes`가 매 패스 `clearHiddenHomeBoxes()` → `restoreHomeBoxReflow()`로 `#chd-home-reflow`를 부수고 카드를 원위치로 되돌린 뒤 다시 숨김/reflow합니다. 그 사이 React SPA가 게시판 그리드를 재마운트하면 보드는 원래 행에, 「최근 게시글」만 호스트에 남아 **n=1 + row2**가 됩니다. (캐시된 0.2.54 경로에서는 `isHomeBoxCardRoot`가 flex 카드를 거절해 호스트 자체가 안 생기기도 함 — live에 `data-chd-home-box`/`data-board-slug` 없음.)
+- **호스트 유지:** hide 토큰이 활성인 동안은 `clearHiddenHomeBoxAttrs()`만 호출(숨김/collapse attrs 재적용). `restoreHomeBoxReflow()`는 hide 목록이 비었거나 홈 경로를 떠날 때만.
+- **Merge:** 기존 호스트 밖 보이는 카드 루트를 `#chd-home-reflow`로 병합하고 `--chd-home-reflow-cols` / `data-chd-home-reflow-n` 갱신.
+- **수집 강화:** grid 자식이 bare iteration wrapper면 `looksLikeHomeCard`/마크 자손으로 하강; 템플릿 마커 없이도 rounded-xl+border+shadow 카드 수집.
+- **중복 remount:** 호스트에 같은 slug/title이 있으면 밖 remount는 숨김; 호스트가 노드를 잃었으면 remount를 호스트로 이동.
+- compactPartial 토큰 활성 중 비활성 유지. CAS(`data-cas-*`, `#cas_*`) 미터치. 0.2.55 카드 루트 판별 순서 유지.
+- **캐시:** `module.iife.js`가 `home-design.js?v=0.2.57` 로드 — `module:update` + hard refresh 후 Network에서 확인.
+
+### Fixed — keep reflow host while hide tokens active; harden unmarked collection
+
+- Stop destroy/restore of `#chd-home-reflow` on every ensure (SPA remount fight). Merge outside cards into existing host; full restore only when hide list empty or leaving home. Collect bare-wrapper / unmarked `looksLikeHomeCard` roots; suppress duplicate outside remounts.
+
 ## [0.2.56] - 2026-09-23
 
 ### Fixed — SPA 지연 마운트 시 홈 박스 한 행 병합 (reflow merge)
