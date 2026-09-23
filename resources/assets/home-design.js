@@ -60,6 +60,15 @@
  *        carousel/hero (id/class carousel|hero, data-cas-hero*) and above
  *        home box grids / #chd-home-reflow. Empty → remove mount. SPA/MO
  *        re-ensure without duplicate mounts. CAS ads untouched.
+ * 0.2.59: findHomeCarousel searches #main_content_area + #main_content
+ *        (+ document); reject wrappers that contain home grids / reflow;
+ *        prefer visible carousel over empty/hidden hero; place as first
+ *        child of #main_content when carousel is previous sibling (avoid
+ *        mid-ad / .py-6). Force mount visibility (CSS + inline !important);
+ *        escape collapsed/hidden parents; always write innerHTML when
+ *        connected; ensureHomeCustomHtml at end of ensureHiddenHomeBoxes
+ *        (tokens active or empty) — never clear mount merely because hide
+ *        list is empty; hide/collapse/reflow skip custom-html entirely.
  *
 */
 (function () {
@@ -290,6 +299,12 @@
       "@media (min-width:1024px){#main_content,.chd-content-col{" +
       "padding-left:2rem!important;padding-right:2rem!important;}}" +
       "[data-chd-hide-powered-by='1']{display:none!important;}" +"[data-chd-home-box-hidden='1'],[data-chd-home-layout-collapsed='1']{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;border:0!important;}" +"#main_content .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1'])))," +"#main_content_area .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1']))){" +"display:none!important;min-height:0!important;height:0!important;margin:0!important;padding:0!important;gap:0!important;border:0!important;}" +"#main_content .grid[data-chd-home-grid-compact='1']," +"#main_content_area .grid[data-chd-home-grid-compact='1']{" +"grid-template-columns:repeat(var(--chd-home-visible-cols,1),minmax(0,1fr))!important;" +"width:calc((100% - (var(--chd-home-orig-cols,3) - 1) * var(--chd-home-gap,1rem)) * var(--chd-home-visible-cols,1) / var(--chd-home-orig-cols,3) + (var(--chd-home-visible-cols,1) - 1) * var(--chd-home-gap,1rem))!important;" +"max-width:100%!important;justify-self:start;" +"}" +"#chd-home-reflow[data-chd-home-reflow='1']," +"[data-chd-home-reflow='1']#chd-home-reflow{" +"display:grid!important;" +"grid-template-columns:repeat(var(--chd-home-reflow-cols,1),minmax(0,1fr))!important;" +"gap:var(--chd-home-reflow-gap,1rem)!important;" +"width:100%!important;max-width:100%!important;" +"box-sizing:border-box!important;align-items:stretch;" +"margin:0 0 1rem 0!important;}" +"#chd-home-reflow[data-chd-home-reflow='1'][data-chd-home-reflow-n='1']{" +"width:calc((100% - (var(--chd-home-reflow-orig-cols,3) - 1) * var(--chd-home-reflow-gap,1rem)) / var(--chd-home-reflow-orig-cols,3))!important;" +"max-width:100%!important;justify-self:start;}" +"@media (max-width:767px){" +"#chd-home-reflow[data-chd-home-reflow='1']," +"#chd-home-reflow[data-chd-home-reflow='1'][data-chd-home-reflow-n='1']{" +"grid-template-columns:minmax(0,1fr)!important;width:100%!important;}}" +
+      /* 0.2.59: custom HTML mount must stay visible even if a parent was collapsed */
+      "#chd-home-custom-html," +
+      "[data-chd-home-custom-html='1']{" +
+      "visibility:visible!important;display:block!important;opacity:1!important;" +
+      "height:auto!important;max-height:none!important;min-height:0!important;" +
+      "overflow:visible!important;pointer-events:auto!important;}" +
       /* Keep full-bleed carousel/hero full width */
       "[data-chd-full-bleed='1']," +
       "#main_content_area [id*='carousel']," +
@@ -2314,6 +2329,9 @@
     el = resolveHomeBoxRoot(el);
     if (!el || !el.style) return false;
     if (isCasAdMount(el)) return false;
+    if (isProtectedLayoutRoot(el) || isInsideHomeCustomHtml(el) || isHomeRegionWrapper(el)) {
+      return false;
+    }
     try {
       var cls = String(el.className || "");
       // Never collapse a multi-card grid row (would scramble home + fight Event Hook layout).
@@ -2337,6 +2355,51 @@
     }
   }
 
+  function isInsideHomeCustomHtml(el) {
+    if (!el || el.nodeType !== 1) return false;
+    try {
+      if (el.id === HOME_CUSTOM_HTML_ID || el.getAttribute("data-chd-home-custom-html") === "1") {
+        return true;
+      }
+    } catch (eSelf) {}
+    try {
+      if (el.closest && el.closest("#chd-home-custom-html, [data-chd-home-custom-html='1']")) {
+        return true;
+      }
+    } catch (eC) {}
+    return false;
+  }
+
+  /** Page chrome / full home region — never treat as a single hide/reflow card. */
+  function isHomeRegionWrapper(el) {
+    if (!el || el.nodeType !== 1) return false;
+    try {
+      var id = String(el.id || "");
+      if (id === "main_content" || id === "main_content_area" || id === "ad_global_top_wrap") {
+        return true;
+      }
+    } catch (eId) {}
+    try {
+      if (
+        el.querySelector &&
+        (el.querySelector("#chd-home-reflow") ||
+          el.querySelector("[data-chd-home-reflow='1']") ||
+          el.querySelector("#chd-home-custom-html") ||
+          el.querySelector("[data-chd-home-custom-html='1']"))
+      ) {
+        return true;
+      }
+    } catch (eQ) {}
+    // .py-6 home stack that hosts multiple grids / the reflow host
+    try {
+      var cls = String(el.className || "");
+      if (/\bpy-6\b/.test(cls) && el.querySelector && el.querySelector(".grid")) {
+        return true;
+      }
+    } catch (ePy) {}
+    return false;
+  }
+
   function isProtectedLayoutRoot(el) {
     if (!el || el.nodeType !== 1) return true;
     try {
@@ -2351,6 +2414,8 @@
     try {
       if (el.getAttribute("data-chd-home-custom-html") === "1") return true;
     } catch (eCh) {}
+    if (isInsideHomeCustomHtml(el)) return true;
+    if (isHomeRegionWrapper(el)) return true;
     if (el === document.body || el === document.documentElement) return true;
     if (isCasAdMount(el)) return true;
     return false;
@@ -2499,6 +2564,11 @@
     for (var i = 0; i < parent.children.length; i++) {
       var ch = parent.children[i];
       if (!ch || ch.nodeType !== 1) continue;
+      // Custom HTML mount is never a "hidden home child" for collapse decisions.
+      if (isInsideHomeCustomHtml(ch)) {
+        visible.push(ch);
+        continue;
+      }
       if (isCasAdMount(ch)) continue;
       if (isEffectivelyHiddenHomeChild(ch)) continue;
       visible.push(ch);
@@ -2519,6 +2589,7 @@
     if (!el || el.nodeType !== 1 || !el.style) return;
     if (isProtectedLayoutRoot(el)) return;
     if (isCasAdMount(el)) return;
+    if (isInsideHomeCustomHtml(el) || isHomeRegionWrapper(el)) return;
     try {
       if (!el.hasAttribute("data-chd-layout-prev-style")) {
         el.setAttribute("data-chd-layout-prev-style", el.getAttribute("style") || "");
@@ -2869,6 +2940,7 @@
   function isHomeBoxCardRoot(el) {
     if (!el || el.nodeType !== 1) return false;
     if (isProtectedLayoutRoot(el) || isCasAdMount(el)) return false;
+    if (isInsideHomeCustomHtml(el) || isHomeRegionWrapper(el)) return false;
     try {
       if (el.id === "chd-home-reflow" || el.getAttribute("data-chd-home-reflow") === "1") {
         return false;
@@ -3963,6 +4035,14 @@
           if (ae.id === "chd-home-reflow" || ae.getAttribute("data-chd-home-reflow") === "1") {
             continue;
           }
+          if (
+            ae.id === HOME_CUSTOM_HTML_ID ||
+            ae.getAttribute("data-chd-home-custom-html") === "1" ||
+            isInsideHomeCustomHtml(ae) ||
+            isHomeRegionWrapper(ae)
+          ) {
+            continue;
+          }
         } catch (eRf0) {}
         if (!looksLikeHomeCard(ae)) continue;
         // Prefer outermost card root
@@ -3980,6 +4060,14 @@
         if (isCasAdMount(node)) continue;
         try {
           if (node.id === "chd-home-reflow" || node.getAttribute("data-chd-home-reflow") === "1") {
+            continue;
+          }
+          if (
+            node.id === HOME_CUSTOM_HTML_ID ||
+            node.getAttribute("data-chd-home-custom-html") === "1" ||
+            isInsideHomeCustomHtml(node) ||
+            isHomeRegionWrapper(node)
+          ) {
             continue;
           }
         } catch (eRf) {}
@@ -4015,78 +4103,201 @@
 
 
   /**
+   * True when a carousel/hero candidate looks like page chrome rather than the
+   * top hero (contains home grids, reflow host, or our custom HTML mount).
+   */
+  function isBadCarouselCandidate(el) {
+    if (!el || el.nodeType !== 1) return true;
+    try {
+      var id = String(el.id || "");
+      if (
+        id === "main_content" ||
+        id === "main_content_area" ||
+        id === HOME_CUSTOM_HTML_ID ||
+        id === "chd-home-reflow"
+      ) {
+        return true;
+      }
+    } catch (eId) {}
+    try {
+      if (el.getAttribute("data-chd-home-custom-html") === "1") return true;
+      if (el.getAttribute("data-chd-home-reflow") === "1") return true;
+    } catch (eAttr) {}
+    try {
+      if (
+        el.querySelector &&
+        (el.querySelector("#chd-home-reflow") ||
+          el.querySelector("[data-chd-home-reflow='1']") ||
+          el.querySelector("#chd-home-custom-html") ||
+          el.querySelector("[data-chd-home-custom-html='1']") ||
+          el.querySelector(".grid.chd-home-fill, .grid[class*='grid-cols'], .py-6.chd-home-fill")
+        )
+      ) {
+        return true;
+      }
+    } catch (eQ) {}
+    return false;
+  }
+
+  function isVisibleCarouselCandidate(el) {
+    if (!el || el.nodeType !== 1) return false;
+    try {
+      if (el.offsetParent) return true;
+    } catch (eOp) {}
+    try {
+      if (el.clientHeight > 0) return true;
+    } catch (eH) {}
+    try {
+      var cs = window.getComputedStyle && window.getComputedStyle(el);
+      if (cs && cs.display === "none") return false;
+      if (cs && cs.visibility === "hidden") return false;
+    } catch (eCs) {}
+    return false;
+  }
+
+  function carouselCandidateScore(el) {
+    // Higher is better. Prefer visible carousel over empty/hidden hero.
+    var score = 0;
+    var id = "";
+    var cls = "";
+    try {
+      id = String(el.id || "").toLowerCase();
+    } catch (eId) {}
+    try {
+      cls = String(el.className || "").toLowerCase();
+    } catch (eCls) {}
+    var casHero = false;
+    try {
+      casHero = !!(
+        el.getAttribute("data-cas-hero") != null ||
+        el.getAttribute("data-cas-hero-host") != null ||
+        el.getAttribute("data-cas-hero-slot") != null
+      );
+    } catch (eH) {}
+    var hasCarousel =
+      id.indexOf("carousel") !== -1 || /\bcarousel\b/.test(cls) || /\bcas-ad-carousel\b/.test(cls);
+    var hasHero = id.indexOf("hero") !== -1 || /\bhero\b/.test(cls);
+    if (hasCarousel) score += 50;
+    if (casHero) score += 35;
+    if (hasHero && !hasCarousel) score += 15;
+    if (isVisibleCarouselCandidate(el)) score += 40;
+    // Prefer shallower / top-of-page nodes slightly via negative depth added by caller
+    return score;
+  }
+
+  /**
    * Find home carousel / hero for custom HTML placement.
-   * Prefer CAS hero markers, then id/class containing carousel|hero.
-   * Never return our own mount. Prefer outermost top-level candidate under root.
+   * Search #main_content_area and #main_content (and document as last resort).
+   * Reject wrappers that contain home grids / reflow / our mount.
+   * Prefer visible carousel over vague/empty hero; still honor data-cas-hero*.
    */
   function findHomeCarousel(root) {
-    if (!root || !root.querySelectorAll) return null;
+    var scopes = [];
+    try {
+      var mca = document.getElementById("main_content_area");
+      if (mca) scopes.push(mca);
+    } catch (eMca) {}
+    try {
+      var mc = document.getElementById("main_content");
+      if (mc && scopes.indexOf(mc) === -1) scopes.push(mc);
+    } catch (eMc) {}
+    if (root && scopes.indexOf(root) === -1) scopes.push(root);
+    if (!scopes.length && document && document.documentElement) {
+      scopes.push(document.documentElement);
+    }
+
     var best = null;
+    var bestScore = -1e9;
     var bestDepth = 1e9;
-    function depthOf(el) {
+
+    function depthOf(el, scope) {
       var d = 0;
       var cur = el;
-      while (cur && cur !== root) {
+      while (cur && cur !== scope) {
         d++;
         cur = cur.parentElement;
         if (d > 40) break;
       }
       return d;
     }
-    function consider(el) {
+
+    function consider(el, scope) {
       if (!el || el.nodeType !== 1) return;
+      // Skip non-element mounts like <script id="cas_hero_carousel">
       try {
-        if (el.id === HOME_CUSTOM_HTML_ID || el.getAttribute("data-chd-home-custom-html") === "1") return;
+        var tag = String(el.tagName || "").toUpperCase();
+        if (tag === "SCRIPT" || tag === "STYLE" || tag === "LINK" || tag === "META") return;
+      } catch (eTag) {}
+      try {
+        if (el.id === HOME_CUSTOM_HTML_ID || el.getAttribute("data-chd-home-custom-html") === "1") {
+          return;
+        }
       } catch (eSkip) {}
-      // Prefer the outermost mount (shallowest under root) — e.g. ad_global_top_hero wrap
-      var d = depthOf(el);
-      if (!best || d < bestDepth) {
+      if (isBadCarouselCandidate(el)) return;
+      var score = carouselCandidateScore(el);
+      var d = depthOf(el, scope || el.parentElement);
+      // Prefer higher score; tie-break shallower
+      if (
+        !best ||
+        score > bestScore ||
+        (score === bestScore && d < bestDepth)
+      ) {
         best = el;
+        bestScore = score;
         bestDepth = d;
       }
     }
-    try {
-      var cas = root.querySelectorAll(
-        "[data-cas-hero],[data-cas-hero-host],[data-cas-hero-slot]"
-      );
-      for (var i = 0; i < cas.length; i++) consider(cas[i]);
-    } catch (eCas) {}
-    try {
-      var all = root.querySelectorAll("[id],[class], [data-cas-hero], [data-cas-hero-host], [data-cas-hero-slot]");
-      for (var j = 0; j < all.length; j++) {
-        var el = all[j];
-        if (!el || el.nodeType !== 1) continue;
-        var id = "";
-        var cls = "";
-        try {
-          id = String(el.id || "").toLowerCase();
-        } catch (eId) {}
-        try {
-          cls = String(el.className || "").toLowerCase();
-        } catch (eCls) {}
-        var casHero = false;
-        try {
-          casHero = !!(
-            el.getAttribute("data-cas-hero") != null ||
-            el.getAttribute("data-cas-hero-host") != null ||
-            el.getAttribute("data-cas-hero-slot") != null
-          );
-        } catch (eH) {}
-        if (
-          casHero ||
-          id.indexOf("carousel") !== -1 ||
-          id.indexOf("hero") !== -1 ||
-          /\bcarousel\b/.test(cls) ||
-          /\bhero\b/.test(cls)
-        ) {
-          consider(el);
+
+    function scanScope(scope) {
+      if (!scope || !scope.querySelectorAll) return;
+      try {
+        var cas = scope.querySelectorAll(
+          "[data-cas-hero],[data-cas-hero-host],[data-cas-hero-slot],.cas-ad-carousel"
+        );
+        for (var i = 0; i < cas.length; i++) consider(cas[i], scope);
+      } catch (eCas) {}
+      try {
+        var all = scope.querySelectorAll(
+          "[id*='carousel' i],[id*='hero' i],[class*='carousel' i],[class*='hero' i],[data-cas-hero],[data-cas-hero-host],[data-cas-hero-slot],.cas-ad-carousel"
+        );
+        for (var j = 0; j < all.length; j++) {
+          var el = all[j];
+          if (!el || el.nodeType !== 1) continue;
+          var id = "";
+          var cls = "";
+          try {
+            id = String(el.id || "").toLowerCase();
+          } catch (eId) {}
+          try {
+            cls = String(el.className || "").toLowerCase();
+          } catch (eCls) {}
+          var casHero = false;
+          try {
+            casHero = !!(
+              el.getAttribute("data-cas-hero") != null ||
+              el.getAttribute("data-cas-hero-host") != null ||
+              el.getAttribute("data-cas-hero-slot") != null
+            );
+          } catch (eH) {}
+          if (
+            casHero ||
+            id.indexOf("carousel") !== -1 ||
+            id.indexOf("hero") !== -1 ||
+            /\bcarousel\b/.test(cls) ||
+            /\bhero\b/.test(cls) ||
+            /\bcas-ad-carousel\b/.test(cls)
+          ) {
+            consider(el, scope);
+          }
         }
-      }
-    } catch (eAll) {}
+      } catch (eAll) {}
+    }
+
+    for (var s = 0; s < scopes.length; s++) scanScope(scopes[s]);
     return best;
   }
 
-  /** First home-box grid / reflow host under main — insertion fallback anchor. */
+  /** First home-box grid / reflow host / .py-6 home region — insertion fallback anchor. */
   function findFirstHomeBoxAnchor(root) {
     if (!root) return null;
     try {
@@ -4096,16 +4307,23 @@
       if (reflow) return reflow;
     } catch (eR) {}
     try {
-      var grids = root.querySelectorAll(".grid.chd-home-fill, .grid[class*='grid-cols'], .chd-home-fill.grid");
+      var grids = root.querySelectorAll(
+        ".grid.chd-home-fill, .grid[class*='grid-cols'], .chd-home-fill.grid"
+      );
       for (var i = 0; i < grids.length; i++) {
         var g = grids[i];
         if (!g || isCasAdMount(g)) continue;
         try {
           if (g.id === HOME_CUSTOM_HTML_ID) continue;
+          if (isInsideHomeCustomHtml(g)) continue;
         } catch (eSkip) {}
         return g;
       }
     } catch (eG) {}
+    try {
+      var py = root.querySelector(".py-6.chd-home-fill, .py-6.w-full");
+      if (py) return py;
+    } catch (ePy) {}
     try {
       var region = findHomeReflowRegion(root);
       if (region && region !== root && region.firstElementChild) {
@@ -4171,8 +4389,143 @@
   }
 
   /**
+   * Is carousel (or its wrap) a previous sibling of #main_content under the area?
+   * Full-bleed CAS heroes often live in #ad_global_top_wrap before #main_content.
+   */
+  function carouselIsBeforeMainContent(carousel) {
+    if (!carousel) return false;
+    var mc = null;
+    try {
+      mc = document.getElementById("main_content");
+    } catch (e) {}
+    if (!mc || !mc.parentElement) return false;
+    try {
+      if (carousel === mc || (mc.contains && mc.contains(carousel))) return false;
+    } catch (eC) {}
+    // Walk carousel ancestors; if an ancestor is a previous sibling of #main_content, yes.
+    var cur = carousel;
+    var guard = 0;
+    while (cur && cur !== document.body && guard++ < 20) {
+      try {
+        if (cur.parentElement === mc.parentElement) {
+          var kids = cur.parentElement.children;
+          var ci = -1;
+          var mi = -1;
+          for (var i = 0; i < kids.length; i++) {
+            if (kids[i] === cur) ci = i;
+            if (kids[i] === mc) mi = i;
+          }
+          if (ci >= 0 && mi >= 0 && ci < mi) return true;
+        }
+      } catch (eW) {}
+      cur = cur.parentElement;
+    }
+    return false;
+  }
+
+  /** Parent is display:none / visibility:hidden / collapsed hide attrs. */
+  function isHiddenOrCollapsedElement(el) {
+    if (!el || el.nodeType !== 1) return true;
+    try {
+      if (el.hasAttribute("hidden")) return true;
+      if (el.getAttribute("data-chd-home-box-hidden") === "1") return true;
+      if (el.getAttribute("data-chd-home-layout-collapsed") === "1") return true;
+    } catch (eA) {}
+    try {
+      var cs = window.getComputedStyle && window.getComputedStyle(el);
+      if (cs) {
+        if (cs.display === "none") return true;
+        if (cs.visibility === "hidden") return true;
+      }
+    } catch (eCs) {}
+    try {
+      if (el.style && el.style.display === "none") return true;
+    } catch (eSt) {}
+    return false;
+  }
+
+  function hasHiddenOrCollapsedAncestor(el, stopAt) {
+    var cur = el;
+    var guard = 0;
+    while (cur && cur.nodeType === 1 && guard++ < 30) {
+      if (stopAt && cur === stopAt) break;
+      try {
+        if (cur === document.body || cur === document.documentElement) break;
+        if (cur.id === "main_content" || cur.id === "main_content_area") break;
+      } catch (eId) {}
+      if (isHiddenOrCollapsedElement(cur)) return true;
+      cur = cur.parentElement;
+    }
+    return false;
+  }
+
+  /** Force the custom HTML mount itself visible; strip accidental hide/collapse attrs. */
+  function revealHomeCustomHtmlMount(mount) {
+    if (!mount || mount.nodeType !== 1) return;
+    try {
+      mount.removeAttribute("hidden");
+      mount.removeAttribute("data-chd-home-box-hidden");
+      mount.removeAttribute("data-chd-home-layout-collapsed");
+      mount.removeAttribute("data-chd-home-grid-compact");
+      mount.removeAttribute("data-chd-home-grid-span");
+      mount.removeAttribute("data-chd-home-grid-onecol");
+    } catch (eRm) {}
+    try {
+      if (mount.style) {
+        mount.style.setProperty("visibility", "visible", "important");
+        mount.style.setProperty("display", "block", "important");
+        mount.style.setProperty("opacity", "1", "important");
+        mount.style.setProperty("height", "auto", "important");
+        mount.style.setProperty("max-height", "none", "important");
+        mount.style.setProperty("overflow", "visible", "important");
+        mount.style.removeProperty("min-height");
+        mount.style.removeProperty("margin");
+        mount.style.removeProperty("padding");
+        mount.style.removeProperty("border");
+      }
+    } catch (eSt) {}
+  }
+
+  function placeMountAsMainContentFirst(mount) {
+    var mc = null;
+    try {
+      mc = document.getElementById("main_content");
+    } catch (e) {}
+    if (!mc) return false;
+    try {
+      if (mc.firstChild) {
+        if (mount.parentNode !== mc || mount !== mc.firstElementChild) {
+          mc.insertBefore(mount, mc.firstChild);
+        }
+      } else {
+        mc.appendChild(mount);
+      }
+      return true;
+    } catch (eP) {
+      return false;
+    }
+  }
+
+  function placeMountAfterCarousel(mount, carousel) {
+    if (!carousel || !carousel.parentNode) return false;
+    try {
+      if (mount.parentNode !== carousel.parentNode || mount.previousSibling !== carousel) {
+        if (carousel.nextSibling) {
+          carousel.parentNode.insertBefore(mount, carousel.nextSibling);
+        } else {
+          carousel.parentNode.appendChild(mount);
+        }
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
    * Ensure #chd-home-custom-html sits under carousel/hero, above home boxes.
    * Empty setting → remove. Off-home → remove. No duplicate mounts.
+   * Always force-visible; never leave mount inside a collapsed/hidden parent.
    */
   function ensureHomeCustomHtml() {
     if (!isHomePath()) {
@@ -4190,12 +4543,14 @@
       clearHomeCustomHtml();
       return;
     }
-    var root = getMainContentRoot();
+    var root =
+      document.getElementById("main_content") ||
+      document.getElementById("main_content_area") ||
+      getMainContentRoot();
     if (!root) return;
 
     var sig = homeCustomHtmlSignature(html);
     var mount = null;
-    var freshMount = false;
     try {
       mount = document.getElementById(HOME_CUSTOM_HTML_ID);
     } catch (eId) {}
@@ -4206,7 +4561,6 @@
         mount.setAttribute("data-chd-home-custom-html", "1");
         mount.setAttribute("data-chd-role", "home-custom-html");
         mount.className = "chd-home-custom-html w-full chd-home-fill";
-        freshMount = true;
       } catch (eC) {
         return;
       }
@@ -4215,64 +4569,116 @@
         mount.setAttribute("data-chd-home-custom-html", "1");
         mount.setAttribute("data-chd-role", "home-custom-html");
       } catch (eAttr) {}
-      // Detached leftover — treat as fresh so content is re-applied
-      try {
-        if (!mount.isConnected) freshMount = true;
-      } catch (eConn) {}
     }
 
-    // Place: after carousel/hero; else before first home-box grid / reflow / top of region
+    // Never carry hide/collapse attrs on the mount itself.
+    revealHomeCustomHtmlMount(mount);
+
     var carousel = findHomeCarousel(root);
     var placed = false;
+    var placeMode = "";
+    var mc = null;
     try {
-      if (carousel && carousel.parentNode) {
-        // Insert immediately after carousel (sibling)
-        if (mount.parentNode !== carousel.parentNode || mount.previousSibling !== carousel) {
-          if (carousel.nextSibling) {
-            carousel.parentNode.insertBefore(mount, carousel.nextSibling);
-          } else {
-            carousel.parentNode.appendChild(mount);
+      mc = document.getElementById("main_content");
+    } catch (eMc0) {}
+
+    // Preferred: full-bleed carousel is previous sibling of #main_content →
+    // first child of #main_content (under hero, above boxes / .py-6).
+    if (carousel && mc && carouselIsBeforeMainContent(carousel)) {
+      if (placeMountAsMainContentFirst(mount)) {
+        placed = true;
+        placeMode = "main-content-first";
+      }
+    }
+
+    // Else: immediately after the real carousel/hero node (sibling), but only if
+    // that parent chain is not collapsed/hidden and is not the mid-ad / .py-6 chain.
+    if (!placed && carousel && carousel.parentNode) {
+      var afterOk = true;
+      try {
+        // Avoid landing next to #ad_home_mid_wrap inside the home .py-6 stack.
+        var p = carousel.parentElement;
+        if (p && isHiddenOrCollapsedElement(p)) afterOk = false;
+        if (afterOk && hasHiddenOrCollapsedAncestor(carousel.parentNode, mc || root)) {
+          afterOk = false;
+        }
+        if (afterOk && p) {
+          var pcls = String(p.className || "");
+          if (/\bpy-6\b/.test(pcls) && p.querySelector && p.querySelector(".grid")) {
+            afterOk = false;
           }
         }
+      } catch (eChk) {}
+      if (afterOk && placeMountAfterCarousel(mount, carousel)) {
         placed = true;
+        placeMode = "after-carousel";
       }
-    } catch (ePlace) {}
+    }
+
+    // Fallback: before reflow / first home grid / .py-6 — but escape hidden parents.
     if (!placed) {
       try {
         var anchor = findFirstHomeBoxAnchor(root);
         var region = findHomeReflowRegion(root) || root;
-        if (anchor && anchor.parentNode) {
+        if (anchor && anchor.parentNode && !hasHiddenOrCollapsedAncestor(anchor.parentNode, mc || root)) {
           if (mount.parentNode !== anchor.parentNode || mount.nextSibling !== anchor) {
             anchor.parentNode.insertBefore(mount, anchor);
           }
           placed = true;
-        } else if (region) {
+          placeMode = "before-anchor";
+        } else if (mc) {
+          if (placeMountAsMainContentFirst(mount)) {
+            placed = true;
+            placeMode = "main-content-first-fallback";
+          }
+        } else if (region && !isHiddenOrCollapsedElement(region)) {
           if (region.firstChild) {
             region.insertBefore(mount, region.firstChild);
           } else {
             region.appendChild(mount);
           }
           placed = true;
+          placeMode = "region-top";
         }
       } catch (eFb) {}
     }
+
+    // If we somehow still sit under a collapsed/hidden ancestor, escape to #main_content.
+    try {
+      if (placed && hasHiddenOrCollapsedAncestor(mount.parentElement, mc || document.body)) {
+        if (placeMountAsMainContentFirst(mount)) {
+          placeMode = "escaped-hidden-parent";
+          placed = true;
+        }
+      }
+    } catch (eEsc) {}
+
     if (!placed) return;
 
-    // Update content when HTML changed or mount is new/empty (SPA remount).
-    // Skip rewrite when unchanged to avoid re-running admin scripts every ensure.
-    var empty = false;
     try {
-      empty = !mount.childNodes || mount.childNodes.length === 0;
-    } catch (eEmpty) {
-      empty = true;
+      mount.setAttribute("data-chd-home-custom-placed", "1");
+      if (placeMode) mount.setAttribute("data-chd-home-custom-place", placeMode);
+    } catch (ePlaced) {}
+
+    // Re-assert visibility after move (SPA/hide may have stamped attrs meanwhile).
+    revealHomeCustomHtmlMount(mount);
+
+    // Always write when non-empty and mount is connected (SPA may empty the node;
+    // settings may arrive after first paint / intermittent 500s).
+    var connected = false;
+    try {
+      connected = !!mount.isConnected;
+    } catch (eConn) {
+      connected = !!(mount.parentNode);
     }
-    if (freshMount || empty || lastHomeCustomHtmlSig !== sig) {
+    if (connected) {
       try {
         mount.innerHTML = html;
         activateScriptsIn(mount);
         mount.setAttribute("data-chd-sig", String(sig.length));
         lastHomeCustomHtmlSig = sig;
       } catch (eHtml) {}
+      revealHomeCustomHtmlMount(mount);
     }
   }
 
@@ -4296,7 +4702,11 @@
       var tokens = homeBoxTokens(lastSettings);
       if (!tokens.length) {
         // Hide list empty: restore original DOM order.
+        // Do NOT clearHomeCustomHtml() merely because hide-list is empty.
         clearHiddenHomeBoxes();
+        try {
+          ensureHomeCustomHtml();
+        } catch (eHtmlEmpty) {}
         return;
       }
       // 0.2.57: tokens still active — do NOT destroy #chd-home-reflow.
@@ -4313,9 +4723,15 @@
       for (var c = 0; c < candidates.length; c++) {
         var el = candidates[c];
         if (!el || isCasAdMount(el)) continue;
+        if (isInsideHomeCustomHtml(el) || isHomeRegionWrapper(el) || isProtectedLayoutRoot(el)) {
+          continue;
+        }
         // Always operate on outermost card root (nested marked nodes → parent card)
         el = resolveHomeBoxRoot(el);
         if (!el || isCasAdMount(el)) continue;
+        if (isInsideHomeCustomHtml(el) || isHomeRegionWrapper(el) || isProtectedLayoutRoot(el)) {
+          continue;
+        }
 
         // Skip if already hidden this pass (duplicate candidate refs)
         var already = false;
@@ -4386,6 +4802,11 @@
       try {
         collapseEmptyHomeLayouts(false);
       } catch (eCollapse) {}
+      // Re-place custom HTML after hide/reflow so SPA/hide cannot leave it uncleared
+      // or stuck inside a collapsed region. Never clears merely because tokens ran.
+      try {
+        ensureHomeCustomHtml();
+      } catch (eHtmlEnd) {}
     } finally {
       homeBoxApplyLock = false;
       if (moPaused && homeBoxMoRoot) {

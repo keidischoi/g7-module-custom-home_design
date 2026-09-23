@@ -43,7 +43,7 @@
                 "hide_home_box_ids_note": "Home (/) only. Each token maps to exactly one box kind. Boards stats card = boards/게시판; board summary cards need slug or display name. custom-ad_slots mounts are never hidden. While the hide list is non-empty, remaining cards stay one row after SPA late mounts; clearing the list or leaving home restores the template layout.",
                 "home_custom_html": "Home custom HTML",
                 "home_custom_html_hint": "Inserted under the carousel/hero and above home boxes. Admin-only HTML — paste layout markup, inline CSS, and scripts as needed. Leave empty to inject nothing (no empty gap).",
-                "home_custom_html_note": "Home (/) only. Does not touch custom-ad_slots carousel/hero Event Hook mounts. Re-ensured on SPA remounts without duplicate mounts."
+                "home_custom_html_note": "Home (/) only. Placed under the real carousel/hero (including full-bleed mounts outside #main_content) and above home boxes. Forced visible; not affected by home-box hide/collapse. Re-ensured on SPA remounts without duplicate mounts."
             }
         }
     }
