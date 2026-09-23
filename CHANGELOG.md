@@ -3,6 +3,13 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.41] - 2026-09-23
+
+### Reverted — 홈 박스 숨김 (0.2.39–0.2.40)
+
+- `custom-ad_slots` 이벤트훅·마운트와 겹치지 않도록 홈 박스 숨김 기능을 잠시 제거합니다.
+- 런타임은 0.2.38과 동일합니다. DB의 `hide_home_box_ids` 컬럼은 그대로 두며 사용하지 않습니다.
+
 ## [0.2.40] - 2026-09-23
 
 ### Fixed — 홈 박스 숨김이 그리드·광고를 깨지 않게

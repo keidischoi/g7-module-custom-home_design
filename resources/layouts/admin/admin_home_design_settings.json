@@ -31,9 +31,7 @@
           "footer_link_groups": null,
           "business_info_enabled": false,
           "enabled": true,
-          "hide_header_board_slugs_text": "",
-          "hide_home_box_ids": [],
-          "hide_home_box_ids_text": ""
+          "hide_header_board_slugs_text": ""
         }
       }
     }
@@ -388,68 +386,6 @@
                     "text": "$t:custom-home_design.admin.settings.fields.hide_header_board_slugs_note"
                   }
                 ]
-              },
-              {
-                "id": "field_home_boxes",
-                "type": "basic",
-                "name": "Div",
-                "props": {
-                  "className": "form-group w-full"
-                },
-                "children": [
-                  {
-                    "type": "basic",
-                    "name": "Label",
-                    "props": {
-                      "className": "form-label"
-                    },
-                    "children": [
-                      {
-                        "type": "basic",
-                        "name": "Span",
-                        "text": "$t:custom-home_design.admin.settings.fields.hide_home_box_ids"
-                      }
-                    ]
-                  },
-                  {
-                    "type": "basic",
-                    "name": "Input",
-                    "props": {
-                      "type": "text",
-                      "name": "hide_home_box_ids_text",
-                      "className": "input w-full",
-                      "placeholder": "free, qna, 공지",
-                      "value": "{{_local.form?.hide_home_box_ids_text ?? (Array.isArray(_local.form?.hide_home_box_ids) ? _local.form.hide_home_box_ids.join(', ') : '')}}",
-                      "autoBinding": false
-                    },
-                    "actions": [
-                      {
-                        "type": "change",
-                        "handler": "setState",
-                        "params": {
-                          "target": "local",
-                          "form.hide_home_box_ids_text": "{{$event.target.value}}"
-                        }
-                      }
-                    ]
-                  },
-                  {
-                    "type": "basic",
-                    "name": "P",
-                    "props": {
-                      "className": "text-xs text-gray-500 mt-1"
-                    },
-                    "text": "$t:custom-home_design.admin.settings.fields.hide_home_box_ids_hint"
-                  },
-                  {
-                    "type": "basic",
-                    "name": "P",
-                    "props": {
-                      "className": "text-xs text-gray-500 mt-2"
-                    },
-                    "text": "$t:custom-home_design.admin.settings.fields.hide_home_box_ids_note"
-                  }
-                ]
               }
             ]
           },
@@ -659,8 +595,7 @@
                             "header_search_icon_mode": "{{_local.form?.header_search_icon_mode === false || _local.form?.header_search_icon_mode === 0 || _local.form?.header_search_icon_mode === '0' || _local.form?.header_search_icon_mode === 'false' ? 0 : 1}}",
                             "header_theme_click_toggle": "{{_local.form?.header_theme_click_toggle === false || _local.form?.header_theme_click_toggle === 0 || _local.form?.header_theme_click_toggle === '0' || _local.form?.header_theme_click_toggle === 'false' ? 0 : 1}}",
                             "footer_link_groups_json": "{{typeof _local.form?.footer_link_groups_json === 'object' && _local.form?.footer_link_groups_json !== null ? JSON.stringify(_local.form.footer_link_groups_json) : String(_local.form?.footer_link_groups_json ?? '')}}",
-                            "hide_header_board_slugs_text": "{{String(_local.form?.hide_header_board_slugs_text ?? '')}}",
-                            "hide_home_box_ids_text": "{{String(_local.form?.hide_home_box_ids_text ?? '')}}"
+                            "hide_header_board_slugs_text": "{{String(_local.form?.hide_header_board_slugs_text ?? '')}}"
                           }
                         },
                         "onSuccess": [
@@ -679,9 +614,7 @@
                               "form.hide_header_board_slugs": "{{Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs) ? (($response.data?.data ?? $response.data ?? $response).hide_header_board_slugs) : (_local.form?.hide_header_board_slugs ?? [])}}",
                               "form.footer_link_groups": "{{(($response.data?.data ?? $response.data ?? $response))?.footer_link_groups ?? _local.form?.footer_link_groups}}",
                               "form.enabled": true,
-                              "form.hide_header_board_slugs_text": "{{Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs) ? ($response.data?.data ?? $response.data ?? $response).hide_header_board_slugs.join(', ') : (($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs_text ?? _local.form?.hide_header_board_slugs_text ?? '')}}",
-                              "form.hide_home_box_ids": "{{Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_home_box_ids) ? (($response.data?.data ?? $response.data ?? $response).hide_home_box_ids) : (_local.form?.hide_home_box_ids ?? [])}}",
-                              "form.hide_home_box_ids_text": "{{Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_home_box_ids) ? ($response.data?.data ?? $response.data ?? $response).hide_home_box_ids.join(', ') : (($response.data?.data ?? $response.data ?? $response)?.hide_home_box_ids_text ?? _local.form?.hide_home_box_ids_text ?? '')}}"
+                              "form.hide_header_board_slugs_text": "{{Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs) ? ($response.data?.data ?? $response.data ?? $response).hide_header_board_slugs.join(', ') : (($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs_text ?? _local.form?.hide_header_board_slugs_text ?? '')}}"
                             }
                           },
                           {

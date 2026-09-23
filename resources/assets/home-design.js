@@ -7,8 +7,8 @@
  * 0.2.11: search panel form; business sibling (superseded); boards restore when empty.
  * MutationObserver intentionally not used (0.2.1 infinite remount loop).
  * 0.2.37: when header_search_icon_mode is OFF, restore always-visible search.
- * 0.2.38: icon mode ON — mount toggle first, then hide original form.
- * 0.2.39: hide home boxes by id / board slug / title keyword (admin list).
+ * 0.2.38: icon mode ON — mount toggle first, then hide original form; force-show
+ *        #chd_header_search_toggle so boot CSS cannot leave a blank header.
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -115,35 +115,12 @@
   }
 
   function homeFillSelector() {
-    // Home only: fill direct content rows. Do NOT target nested `.grid`
-    // (breaks card grids and fights custom-ad_slots mounts).
     return (
-      "#main_content > *:not([data-chd-full-bleed]):not([data-cas-ad-slot]):not([data-cas-ad-role]):not([data-cas-hero]):not([id^='cas_']):not([id^='ad_'])," +
+      "#main_content > *:not([data-chd-full-bleed])," +
       "#main_content .chd-home-fill," +
-      "#main_content [data-chd-home-fill]"
+      "#main_content [data-chd-home-fill]," +
+      "#main_content .grid"
     );
-  }
-
-  function isCasAdMount(el) {
-    if (!el || el.nodeType !== 1) return false;
-    try {
-      if (el.closest && el.closest("[data-cas-ad-slot],[data-cas-ad-role],[data-cas-hero],[data-cas-ad-host],[data-cas-hero-host],[data-cas-hero-slot]")) {
-        return true;
-      }
-    } catch (e) {}
-    var id = "";
-    try {
-      id = String(el.id || "").toLowerCase();
-    } catch (e2) {}
-    if (
-      id.indexOf("cas_") === 0 ||
-      id.indexOf("ad_") === 0 ||
-      id.indexOf("carousel") !== -1 ||
-      id.indexOf("hero") !== -1
-    ) {
-      return true;
-    }
-    return false;
   }
 
   function hasFormScaleMaxWidth(el) {
@@ -185,26 +162,23 @@
       } catch (err) {}
     }
 
-    if (isHomePath()) {
-      var fills;
+    var fills;
+    try {
+      fills = document.querySelectorAll(homeFillSelector());
+    } catch (e2) {
+      fills = [];
+    }
+    for (var j = 0; j < fills.length; j++) {
+      var fill = fills[j];
+      var fillId = (fill.id || "").toLowerCase();
+      if (fillId === "main_content") continue;
+      if (fillId.indexOf("carousel") !== -1 || fillId.indexOf("hero") !== -1) continue;
+      if (hasFormScaleMaxWidth(fill)) continue;
       try {
-        fills = document.querySelectorAll(homeFillSelector());
-      } catch (e2) {
-        fills = [];
-      }
-      for (var j = 0; j < fills.length; j++) {
-        var fill = fills[j];
-        if (isCasAdMount(fill)) continue;
-        var fillId = (fill.id || "").toLowerCase();
-        if (fillId === "main_content") continue;
-        if (fillId.indexOf("carousel") !== -1 || fillId.indexOf("hero") !== -1) continue;
-        if (hasFormScaleMaxWidth(fill)) continue;
-        try {
-          fill.style.setProperty("width", "100%", "important");
-          fill.style.setProperty("max-width", "100%", "important");
-          fill.style.setProperty("box-sizing", "border-box");
-        } catch (err2) {}
-      }
+        fill.style.setProperty("width", "100%", "important");
+        fill.style.setProperty("max-width", "100%", "important");
+        fill.style.setProperty("box-sizing", "border-box");
+      } catch (err2) {}
     }
 
     restoreAuthFormCards();
@@ -227,21 +201,16 @@
       contentColumnSelector() +
       "{max-width:var(--chd-content-max-width)!important;" +
       "width:100%!important;margin-inline:auto!important;box-sizing:border-box!important;}" +
-      (isHomePath()
-        ? homeFillSelector() +
-          "{width:100%!important;max-width:100%!important;box-sizing:border-box!important;" +
-          "padding-left:0!important;padding-right:0!important;}" +
-          "#main_content [data-cas-ad-slot],#main_content [data-cas-ad-role],#main_content [data-cas-hero]," +
-          "#main_content [id^='cas_'],#main_content [id^='ad_']{" +
-          "max-width:none!important;}"
-        : "") +
+      homeFillSelector() +
+      "{width:100%!important;max-width:100%!important;box-sizing:border-box!important;" +
+      "padding-left:0!important;padding-right:0!important;}" +
       "#main_content,.chd-content-col{" +
       "padding-left:1rem!important;padding-right:1rem!important;}" +
       "@media (min-width:640px){#main_content,.chd-content-col{" +
       "padding-left:1.5rem!important;padding-right:1.5rem!important;}}" +
       "@media (min-width:1024px){#main_content,.chd-content-col{" +
       "padding-left:2rem!important;padding-right:2rem!important;}}" +
-      "[data-chd-hide-powered-by='1']{display:none!important;}" +"[data-chd-home-box-hidden='1']{display:none!important;visibility:hidden!important;height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;}" +
+      "[data-chd-hide-powered-by='1']{display:none!important;}" +
       /* Keep full-bleed carousel/hero full width */
       "[data-chd-full-bleed='1']," +
       "#main_content_area [id*='carousel']," +
@@ -2166,159 +2135,6 @@
     );
   }
 
-
-  function isHomePath(path) {
-    path = normalizePath(path || (window.location && window.location.pathname) || "/");
-    return path === "/" || path === "";
-  }
-
-  function homeBoxTokens(settings) {
-    var list = (settings && settings.hide_home_box_ids) || [];
-    if (!Array.isArray(list)) return [];
-    var out = [];
-    for (var i = 0; i < list.length; i++) {
-      var t = String(list[i] == null ? "" : list[i]).trim().toLowerCase();
-      if (t) out.push(t);
-    }
-    return out;
-  }
-
-  function hideHomeBoxElement(el) {
-    if (!el || !el.style) return;
-    if (isCasAdMount(el)) return;
-    // Never collapse a multi-card grid row (would scramble home layout).
-    try {
-      var cls = String(el.className || "");
-      if (cls.indexOf("grid") !== -1 && el.children && el.children.length >= 2) return;
-    } catch (eGrid) {}
-    try {
-      el.setAttribute("data-chd-home-box-hidden", "1");
-      el.style.setProperty("display", "none", "important");
-      el.style.setProperty("visibility", "hidden", "important");
-      el.style.setProperty("height", "0", "important");
-      el.style.setProperty("overflow", "hidden", "important");
-      el.style.setProperty("margin", "0", "important");
-      el.style.setProperty("padding", "0", "important");
-    } catch (e) {}
-  }
-
-  function clearHiddenHomeBoxes() {
-    try {
-      var nodes = document.querySelectorAll("[data-chd-home-box-hidden='1']");
-      for (var i = 0; i < nodes.length; i++) {
-        var el = nodes[i];
-        try {
-          el.style.removeProperty("display");
-          el.style.removeProperty("visibility");
-          el.style.removeProperty("height");
-          el.style.removeProperty("overflow");
-          el.style.removeProperty("margin");
-          el.style.removeProperty("padding");
-          el.removeAttribute("data-chd-home-box-hidden");
-        } catch (e2) {}
-      }
-    } catch (e) {}
-  }
-
-  function homeBoxHaystack(el) {
-    if (!el) return "";
-    var parts = [];
-    try {
-      parts.push(String(el.id || ""));
-    } catch (e) {}
-    try {
-      parts.push(String(el.getAttribute && (el.getAttribute("data-board-slug") || el.getAttribute("data-slug") || "") || ""));
-    } catch (e2) {}
-    try {
-      parts.push(String(el.className && el.className.baseVal != null ? el.className.baseVal : el.className || ""));
-    } catch (e3) {}
-    try {
-      var heads = el.querySelectorAll("h1,h2,h3,h4,.text-lg,.font-semibold,[data-testid]");
-      for (var i = 0; i < heads.length && i < 8; i++) {
-        parts.push(String(heads[i].textContent || "").replace(/\s+/g, " ").trim());
-      }
-    } catch (e4) {}
-    return parts.join(" ").toLowerCase();
-  }
-
-  function ensureHiddenHomeBoxes() {
-    clearHiddenHomeBoxes();
-    if (!lastSettings) return;
-    if (!isHomePath()) return;
-    var tokens = homeBoxTokens(lastSettings);
-    if (!tokens.length) return;
-
-    var root = document.getElementById("main_content") || document.getElementById("main_content_area");
-    if (!root) return;
-
-    // Exact id / slug match — still skip ad mounts
-    for (var t = 0; t < tokens.length; t++) {
-      var tok = tokens[t];
-      try {
-        var byId = document.getElementById(tok);
-        if (byId && root.contains(byId) && !isCasAdMount(byId)) hideHomeBoxElement(byId);
-      } catch (eId) {}
-      try {
-        var bySlug = root.querySelectorAll('[data-board-slug="' + tok + '"],[data-slug="' + tok + '"]');
-        for (var s = 0; s < bySlug.length; s++) {
-          var node = bySlug[s];
-          if (isCasAdMount(node)) continue;
-          var box = node.closest
-            ? (node.closest(".chd-home-fill,[data-chd-home-fill='1'],section,article,[class*='rounded']") || node)
-            : node;
-          if (isCasAdMount(box)) continue;
-          hideHomeBoxElement(box);
-        }
-      } catch (eSlug) {}
-    }
-
-    // Match only leaf-ish home cards (not outer grid rows, not ads)
-    var candidates = [];
-    try {
-      var fills = root.querySelectorAll(
-        ".chd-home-fill,[data-chd-home-fill='1'],section,article,[data-board-slug],[data-slug]"
-      );
-      for (var j = 0; j < fills.length; j++) candidates.push(fills[j]);
-    } catch (eFill) {}
-    // Direct children of home grid rows (welcome / stats / recent / …)
-    try {
-      var grids = root.querySelectorAll(":scope > .grid, :scope > * > .grid");
-      for (var g = 0; g < grids.length; g++) {
-        var kids = grids[g].children;
-        for (var i = 0; i < kids.length; i++) {
-          var kid = kids[i];
-          var kcls = String(kid.className || "");
-          // `contents` wrapper: use its children (stat cards)
-          if (kcls.indexOf("contents") !== -1) {
-            for (var ci = 0; ci < kid.children.length; ci++) candidates.push(kid.children[ci]);
-          } else {
-            candidates.push(kid);
-          }
-        }
-      }
-    } catch (eGrid) {}
-
-    var seen = {};
-    for (var c = 0; c < candidates.length; c++) {
-      var el = candidates[c];
-      if (!el || el === root) continue;
-      if (isCasAdMount(el)) continue;
-      var key = el.id ? el.id : "n" + c + ":" + String(el.className || "").slice(0, 40);
-      if (seen[key]) continue;
-      seen[key] = true;
-      var hay = homeBoxHaystack(el);
-      if (!hay) continue;
-      for (var k = 0; k < tokens.length; k++) {
-        var token = tokens[k];
-        if (!token || token.length < 2) continue;
-        if (hay.indexOf(token) !== -1) {
-          hideHomeBoxElement(el);
-          break;
-        }
-      }
-    }
-  }
-
   function ensureHeaderUx() {
     try {
       bindShopInfiniteScroll();
@@ -2329,9 +2145,6 @@
       applyShopProductCardMarks();
     } catch (eShop) {}
     if (!lastSettings) return;
-    try {
-      ensureHiddenHomeBoxes();
-    } catch (eHomeBox) {}
     if (settingOn(lastSettings, "header_search_icon_mode", true)) {
       // Icon mode: drop always-visible fallback, mount icon+panel, then hide original form
       ensureAlwaysVisibleSearch();
