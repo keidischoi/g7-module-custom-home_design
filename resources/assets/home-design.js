@@ -43,6 +43,11 @@
  *        h-full flex flex-col and were rejected as layout stacks). Reflow host
  *        uses w-full only (no chd-home-fill); exclude #chd-home-reflow from
  *        homeFillSelector / .chd-home-fill candidate matching.
+ * 0.2.56: Always reflow when hide tokens non-empty (not claimed.length).
+ *        collectVisibleHomeBoxRoots merges cards already in #chd-home-reflow
+ *        with late-mounted boards outside. Disable compactPartialHomeGrid
+ *        while tokens active (only collapse zero-visible wrappers) so
+ *        per-grid compact cannot fight cross-row reflow / leave n=1 + row2.
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -2577,7 +2582,11 @@
     } catch (e) {}
   }
 
-  function collapseEmptyHomeLayouts() {
+  function collapseEmptyHomeLayouts(allowPartialCompact) {
+    // When hide tokens are active, cross-row reflow owns layout — do not
+    // compact partial grids in place (that packs board rows beside a lone
+    // #chd-home-reflow n=1 card). Only collapse wrappers with zero visibles.
+    if (allowPartialCompact == null) allowPartialCompact = true;
     var root = getMainContentRoot();
     if (!root) return;
 
@@ -2663,17 +2672,21 @@
         continue;
       }
 
-      // 0.2.53: partial grid — compact to visibleCols (NOT full-bleed / grid-column 1/-1).
+      // 0.2.53/0.2.56: partial grid compact only when allowed (tokens inactive).
       var wrapCls = "";
       try {
         wrapCls = String(wrap.className || "");
       } catch (eWc) {}
       if (/\bgrid\b/.test(wrapCls) && visible.length >= 1) {
-        var origCols = parseGridOrigCols(wrap);
-        if (visible.length < origCols) {
-          compactPartialHomeGrid(wrap, visible.length, origCols);
-        } else {
+        if (!allowPartialCompact) {
           clearCompactAttr(wrap);
+        } else {
+          var origCols = parseGridOrigCols(wrap);
+          if (visible.length < origCols) {
+            compactPartialHomeGrid(wrap, visible.length, origCols);
+          } else {
+            clearCompactAttr(wrap);
+          }
         }
       }
     }
@@ -2719,11 +2732,15 @@
             collapseLayoutElement(parent);
             clearCompactAttr(parent);
           } else {
-            // Partial grid: compact (leave climb so deeper wrappers already handled).
+            // Partial grid: compact only when allowed (0.2.56: off while reflow tokens).
             if (/\bgrid\b/.test(pCls) && visP.length >= 1) {
-              var oc = parseGridOrigCols(parent);
-              if (visP.length < oc) compactPartialHomeGrid(parent, visP.length, oc);
-              else clearCompactAttr(parent);
+              if (!allowPartialCompact) {
+                clearCompactAttr(parent);
+              } else {
+                var oc = parseGridOrigCols(parent);
+                if (visP.length < oc) compactPartialHomeGrid(parent, visP.length, oc);
+                else clearCompactAttr(parent);
+              }
             }
             break;
           }
@@ -2784,6 +2801,18 @@
     var out = [];
     if (!root) return out;
     var candidates = collectHomeBoxCandidates(root);
+    // 0.2.56: also include cards already inside #chd-home-reflow so late-mounted
+    // boards outside can merge with the early-reflowed card on subsequent ensures.
+    try {
+      var hostEl =
+        document.getElementById("chd-home-reflow") ||
+        (root && root.querySelector && root.querySelector("[data-chd-home-reflow='1']"));
+      if (hostEl && hostEl.children) {
+        for (var hi = 0; hi < hostEl.children.length; hi++) {
+          candidates.push(hostEl.children[hi]);
+        }
+      }
+    } catch (eHostCand) {}
     var seen = [];
     for (var i = 0; i < candidates.length; i++) {
       var el = resolveHomeBoxRoot(candidates[i]);
@@ -3058,12 +3087,14 @@
   /**
    * After hide: pull remaining visible home-box roots into one horizontal grid
    * so cards from separate template rows sit 나란히 (up to 3 cols).
-   * Only when at least one box was hidden this pass.
+   * 0.2.56: run whenever hide tokens are active (shouldReflow), not only when
+   * claimed.length >= 1 this pass — late SPA boards must merge into the host.
    */
-  function reflowVisibleHomeBoxes(hiddenCount) {
-    if (!hiddenCount || hiddenCount < 1) return;
+  function reflowVisibleHomeBoxes(shouldReflow) {
+    if (!shouldReflow) return;
     var root = getMainContentRoot();
     if (!root) return;
+    // Merge: cards already in #chd-home-reflow + any still outside (document order).
     var boxes = collectVisibleHomeBoxRoots(root);
     if (!boxes.length) return;
 
@@ -3094,7 +3125,7 @@
       } catch (eAp) {}
     }
 
-    // Drop stray children that are no longer in the visible set (should not happen)
+    // N = min(3, count) via configureReflowHost — 3 visibles → 3 equal cols full width.
     try {
       configureReflowHost(host, host.children.length);
     } catch (eCfg) {}
@@ -3846,14 +3877,15 @@
         }
       }
 
-      // Cross-row reflow (나란히), then collapse emptied original grids.
-      // Prefer one reflow host over conflicting per-grid compact when boxes
-      // were actually hidden; compact remains as fallback inside collapse pass.
+      // Cross-row reflow (나란히) whenever hide tokens are non-empty — not only
+      // when claimed.length >= 1 this pass (progressive SPA: first pass may
+      // reflow n=1; later boards must still merge). Disable partial compact
+      // while tokens active so per-grid compact cannot fight the reflow host.
       try {
-        reflowVisibleHomeBoxes(claimed.length);
+        reflowVisibleHomeBoxes(tokens.length > 0);
       } catch (eReflow) {}
       try {
-        collapseEmptyHomeLayouts();
+        collapseEmptyHomeLayouts(false);
       } catch (eCollapse) {}
     } finally {
       homeBoxApplyLock = false;

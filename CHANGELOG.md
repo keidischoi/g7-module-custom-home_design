@@ -3,6 +3,21 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.56] - 2026-09-23
+
+### Fixed — SPA 지연 마운트 시 홈 박스 한 행 병합 (reflow merge)
+
+- **원인:** 프로그레시브 SPA 로드로 첫 `ensure` 때 「최근 게시글」만 있으면 `#chd-home-reflow`가 n=1(~1/3 폭)로 생깁니다. 이후 게시판 카드가 마운트되어도 (1) `reflowVisibleHomeBoxes(claimed.length)`가 이번 패스 `hiddenCount < 1`이면 reflow를 건너뛰고, (2) `compactPartialHomeGrid`가 게시판 행을 제자리에서 압축해 **위: 최근 단독 / 아래: 자유|웹진** 두 행이 남았습니다.
+- **Always reflow:** hide 토큰이 비어 있지 않으면(홈 경로) `claimed.length`와 무관하게 reflow. `reflowVisibleHomeBoxes(shouldReflow)`.
+- **Merge:** `collectVisibleHomeBoxRoots`가 `#chd-home-reflow` 안 카드와 아직 밖인 카드를 모두 모아 document order로 호스트에 append.
+- **No partial compact while hiding:** 토큰 활성 중 `collapseEmptyHomeLayouts(false)` — 보이는 자식 0개인 wrapper만 접음. per-grid compact 비활성.
+- **configureReflowHost(host, N):** N=`min(3, children)` — 보이는 카드 3개면 전폭 3열 균등.
+- 0.2.55 `isHomeBoxCardRoot` 순서(마크/카드 우선) 유지. MO/재시도 `ensureHiddenHomeBoxes` 경로 유지.
+
+### Fixed — merge late SPA boards into one reflow row
+
+- Always reflow while hide tokens are non-empty; merge cards already in `#chd-home-reflow` with late-mounted boards; disable in-place partial grid compact so remaining cards (e.g. 최근|자유게시판|웹진) stay one row of up to 3.
+
 ## [0.2.55] - 2026-09-23
 
 ### Fixed — 홈 박스 재배치: flex 카드 루트 인식
