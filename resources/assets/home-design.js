@@ -15,6 +15,9 @@
  *        whole-word match so /board/… hrefs do not hide every board summary card.
  * 0.2.48: short KO needles (웰컴/회원/게시글/댓글/게시판) use Hangul-boundary match
  *        so 게시판 does not match 자유게시판; board cards hide via slug only.
+ * 0.2.49: exclusive home-box classification — each leaf maps to exactly one kind
+ *        (welcome|users|posts|…|board:slug); tokens map 1:1 to kinds (no fuzzy
+ *        multi-token all-or-nothing). 게시판 = stats card only; board cards need slug.
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -2222,29 +2225,6 @@
     }
   }
 
-  /** If outer multi-child .grid matched a token but was skipped, hide matching direct children. */
-  function hideMatchingGridChildren(el, token) {
-    if (!el || !token) return false;
-    var any = false;
-    try {
-      var cls = String(el.className || "");
-      if (!/\bgrid\b/.test(cls) || !el.children || el.children.length < 2) return false;
-      for (var ci = 0; ci < el.children.length; ci++) {
-        var child = el.children[ci];
-        if (!child || isCasAdMount(child)) continue;
-        var childLabel = homeBoxTitleLabel(child);
-        var childHeads = homeBoxExactHeadings(child);
-        if (
-          tokenMatchesExactHeading(token, childHeads) ||
-          (childLabel && tokenMatchesLabel(token, childLabel))
-        ) {
-          if (hideHomeBoxElement(child)) any = true;
-        }
-      }
-    } catch (eChild) {}
-    return any;
-  }
-
   function clearHiddenHomeBoxes() {
     try {
       var nodes = document.querySelectorAll("[data-chd-home-box-hidden='1']");
@@ -2263,7 +2243,81 @@
     } catch (e) {}
   }
 
-  /** Title/id/attr/heading/text only — NO hrefs (avoids /board/... matching alias "board"). */
+  function escapeRegex(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  /** Fixed chrome kinds (exclusive). Dynamic board cards use board:<slug>. */
+  var CHD_FIXED_KINDS = [
+    "welcome",
+    "users",
+    "posts",
+    "comments",
+    "boards",
+    "recent_posts",
+    "popular_boards",
+    "shop",
+    "community_guide"
+  ];
+
+  /** Alias → canonical fixed kind (data-chd-home-box + token normalization). */
+  var CHD_KIND_ALIASES = {
+    welcome: "welcome",
+    welcome_card: "welcome",
+    "웰컴": "welcome",
+    users: "users",
+    members: "users",
+    member: "users",
+    stat_users: "users",
+    "회원": "users",
+    posts: "posts",
+    post: "posts",
+    stat_posts: "posts",
+    "게시글": "posts",
+    comments: "comments",
+    comment: "comments",
+    stat_comments: "comments",
+    "댓글": "comments",
+    boards: "boards",
+    board: "boards",
+    stat_boards: "boards",
+    "게시판": "boards",
+    recent: "recent_posts",
+    recent_posts: "recent_posts",
+    "recent-posts": "recent_posts",
+    "최근 게시글": "recent_posts",
+    popular: "popular_boards",
+    popular_boards: "popular_boards",
+    "popular-boards": "popular_boards",
+    "인기 게시판": "popular_boards",
+    shop: "shop",
+    shopping: "shop",
+    shop_promo: "shop",
+    "쇼핑몰": "shop",
+    community: "community_guide",
+    community_guide: "community_guide",
+    "community-guide": "community_guide",
+    guide: "community_guide",
+    "커뮤니티 가이드": "community_guide",
+    "커뮤니티가이드": "community_guide"
+  };
+
+  function normalizeHomeBoxKind(raw) {
+    if (raw == null) return null;
+    var t = String(raw).toLowerCase().trim();
+    if (!t) return null;
+    if (t.indexOf("board:") === 0) {
+      var slugPart = t.slice(6).replace(/[^a-z0-9_-]/gi, "");
+      return slugPart ? "board:" + slugPart.toLowerCase() : null;
+    }
+    if (CHD_KIND_ALIASES[t]) return CHD_KIND_ALIASES[t];
+    for (var i = 0; i < CHD_FIXED_KINDS.length; i++) {
+      if (CHD_FIXED_KINDS[i] === t) return t;
+    }
+    return null;
+  }
+
+  /** Title/id/attr/heading/text only — NO hrefs. */
   function homeBoxTitleLabel(el) {
     if (!el) return "";
     var parts = [];
@@ -2293,111 +2347,15 @@
     return parts.join(" ").toLowerCase();
   }
 
-  /** Hrefs only — used for exact slug path-segment match, not alias titles. */
-  function homeBoxHrefBlob(el) {
-    if (!el) return "";
-    var parts = [];
-    try {
-      if (el.getAttribute) {
-        var selfHref = el.getAttribute("href") || el.getAttribute("to") || "";
-        if (selfHref) parts.push(String(selfHref));
-      }
-    } catch (eHref0) {}
-    try {
-      var anchors = el.querySelectorAll("a[href],[to]");
-      for (var ai = 0; ai < anchors.length && ai < 12; ai++) {
-        var ah =
-          (anchors[ai].getAttribute &&
-            (anchors[ai].getAttribute("href") || anchors[ai].getAttribute("to") || "")) ||
-          "";
-        if (ah) parts.push(String(ah));
-      }
-    } catch (eHref) {}
-    return parts.join(" ").toLowerCase();
-  }
-
-  /** @deprecated keep name for any external callers — title only (no hrefs). */
-  function homeBoxLabel(el) {
-    return homeBoxTitleLabel(el);
-  }
-
-  /** Short English needles that must not match as substrings inside /board/… or larger words. */
-  var CHD_SHORT_EN_NEEDLES = {
-    board: 1,
-    boards: 1,
-    post: 1,
-    posts: 1,
-    user: 1,
-    users: 1,
-    member: 1,
-    members: 1,
-    comment: 1,
-    comments: 1,
-    shop: 1,
-    guide: 1
-  };
-
-  /** Short Korean needles that must not match as substrings inside longer Hangul compounds (e.g. 게시판 ⊂ 자유게시판). */
-  var CHD_SHORT_KO_NEEDLES = {
-    "웰컴": 1,
-    "회원": 1,
-    "게시글": 1,
-    "댓글": 1,
-    "게시판": 1
-  };
-
-  /** Exact heading texts that strongly identify stat / named home boxes. */
-  var CHD_EXACT_STAT_HEADINGS = {
-    welcome: ["welcome", "웰컴"],
-    "웰컴": ["welcome", "웰컴"],
-    users: ["members", "member", "users", "user", "회원"],
-    members: ["members", "member", "users", "user", "회원"],
-    member: ["members", "member", "users", "user", "회원"],
-    "회원": ["members", "member", "users", "user", "회원"],
-    posts: ["posts", "post", "게시글"],
-    post: ["posts", "post", "게시글"],
-    "게시글": ["posts", "post", "게시글"],
-    comments: ["comments", "comment", "댓글"],
-    comment: ["comments", "comment", "댓글"],
-    "댓글": ["comments", "comment", "댓글"],
-    boards: ["boards", "board", "게시판"],
-    board: ["boards", "board", "게시판"],
-    "게시판": ["boards", "board", "게시판"]
-  };
-
-  function escapeRegex(s) {
-    return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  }
-
-  /** Short EN: whole-word. Short KO: Hangul-boundary. Longer phrases: substring. */
-  function needleInLabel(needle, label) {
-    if (!needle || !label) return false;
-    needle = String(needle).toLowerCase();
-    label = String(label).toLowerCase();
-    if (CHD_SHORT_EN_NEEDLES[needle]) {
-      try {
-        return new RegExp("(^|[^a-z0-9_])" + escapeRegex(needle) + "([^a-z0-9_]|$)", "i").test(label);
-      } catch (eRe) {
-        return false;
-      }
-    }
-    if (CHD_SHORT_KO_NEEDLES[needle]) {
-      try {
-        return new RegExp("(^|[^가-힣])" + escapeRegex(needle) + "([^가-힣]|$)").test(label);
-      } catch (eKo) {
-        return false;
-      }
-    }
-    return label.indexOf(needle) !== -1;
-  }
-
-  /** Exact heading text (trimmed) for strong stat-card matches. */
+  /** Heading / prominent title texts for strict scoring. */
   function homeBoxExactHeadings(el) {
     var out = [];
     if (!el) return out;
     try {
-      var heads = el.querySelectorAll("h1,h2,h3,h4,.text-lg,.font-semibold,.font-bold");
-      for (var i = 0; i < heads.length && i < 6; i++) {
+      var heads = el.querySelectorAll(
+        "h1,h2,h3,h4,.text-lg,.font-semibold,.font-bold,span.text-sm.font-medium,p.text-sm"
+      );
+      for (var i = 0; i < heads.length && i < 8; i++) {
         var t = String(heads[i].textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
         if (t) out.push(t);
       }
@@ -2405,146 +2363,360 @@
     return out;
   }
 
-  function tokenMatchesExactHeading(token, headings) {
-    if (!token || !headings || !headings.length) return false;
-    token = String(token).toLowerCase().trim();
-    var isPostsTok =
-      token === "게시글" || token === "posts" || token === "post" || token === "stat_posts";
-    var isBoardsTok =
-      token === "게시판" || token === "boards" || token === "board" || token === "stat_boards";
-    var list = CHD_EXACT_STAT_HEADINGS[token];
-    if (!list) list = [token];
-    for (var i = 0; i < headings.length; i++) {
-      var h = String(headings[i] || "").toLowerCase().trim();
-      if (!h) continue;
-      // Exact heading must not steal sibling boxes (Recent Posts / Popular Boards)
-      if (
-        isPostsTok &&
-        (h === "최근 게시글" || h === "recent posts" || h === "recent post" || h.indexOf("recent post") === 0)
-      ) {
-        continue;
-      }
-      if (
-        isBoardsTok &&
-        (h === "인기 게시판" || h === "popular boards" || h === "popular board" || h.indexOf("popular board") === 0)
-      ) {
-        continue;
-      }
-      for (var j = 0; j < list.length; j++) {
-        if (h === String(list[j]).toLowerCase()) return true;
-      }
-    }
-    return false;
+  /** @deprecated keep name for any external callers — title only (no hrefs). */
+  function homeBoxLabel(el) {
+    return homeBoxTitleLabel(el);
   }
 
-  function tokenMatchesLabel(token, label) {
-    if (!token || !label) return false;
-    token = String(token).toLowerCase().trim();
-    label = String(label).toLowerCase();
-
-    // Guards: short tokens must not steal longer sibling boxes (KO + EN UI)
-    var isPostsTok =
-      token === "게시글" || token === "posts" || token === "post" || token === "stat_posts";
-    var isBoardsTok =
-      token === "게시판" || token === "boards" || token === "board" || token === "stat_boards";
-    if (isPostsTok && (label.indexOf("최근 게시글") !== -1 || label.indexOf("recent posts") !== -1 || label.indexOf("recent post") !== -1)) {
+  function wholeWordEn(needle, label) {
+    try {
+      return new RegExp("(^|[^a-z0-9_])" + escapeRegex(needle) + "([^a-z0-9_]|$)", "i").test(label);
+    } catch (e) {
       return false;
     }
-    if (isBoardsTok && (label.indexOf("인기 게시판") !== -1 || label.indexOf("popular boards") !== -1 || label.indexOf("popular board") !== -1)) {
-      return false;
-    }
-    if (token === "문의" && label.indexOf("1:1") === -1 && label.indexOf("inquiry") === -1) {
-      /* bare 문의 ignored unless inquiry-like */
-    }
-
-    // data-chd-home-box keys and English/Korean title needles per admin token
-    var aliases = {
-      welcome: ["welcome", "웰컴", "오신 것을 환영", "3d store welcome"],
-      welcome_card: ["welcome", "웰컴", "오신 것을 환영", "3d store welcome"],
-      "웰컴": ["welcome", "웰컴", "오신 것을 환영", "3d store welcome"],
-      users: ["회원", "members", "member", "users", "user"],
-      members: ["회원", "members", "member", "users", "user"],
-      member: ["회원", "members", "member", "users", "user"],
-      stat_users: ["회원", "members", "member", "users", "user"],
-      "회원": ["회원", "members", "member", "users", "user"],
-      posts: ["게시글", "posts", "post"],
-      post: ["게시글", "posts", "post"],
-      stat_posts: ["게시글", "posts", "post"],
-      "게시글": ["게시글", "posts", "post"],
-      comments: ["댓글", "comments", "comment"],
-      comment: ["댓글", "comments", "comment"],
-      stat_comments: ["댓글", "comments", "comment"],
-      "댓글": ["댓글", "comments", "comment"],
-      boards: ["게시판", "boards", "board"],
-      board: ["게시판", "boards", "board"],
-      stat_boards: ["게시판", "boards", "board"],
-      "게시판": ["게시판", "boards", "board"],
-      recent: ["최근 게시글", "recent posts", "recent post", "recent_posts"],
-      recent_posts: ["최근 게시글", "recent posts", "recent post", "recent_posts"],
-      "recent-posts": ["최근 게시글", "recent posts", "recent post", "recent_posts"],
-      "최근 게시글": ["최근 게시글", "recent posts", "recent post", "recent_posts"],
-      popular: ["인기 게시판", "popular boards", "popular board", "popular_boards"],
-      popular_boards: ["인기 게시판", "popular boards", "popular board", "popular_boards"],
-      "popular-boards": ["인기 게시판", "popular boards", "popular board", "popular_boards"],
-      "인기 게시판": ["인기 게시판", "popular boards", "popular board", "popular_boards"],
-      shop: ["쇼핑몰", "shop", "shopping", "browse fresh products"],
-      shopping: ["쇼핑몰", "shop", "shopping", "browse fresh products"],
-      shop_promo: ["쇼핑몰", "shop", "shopping", "browse fresh products"],
-      "쇼핑몰": ["쇼핑몰", "shop", "shopping", "browse fresh products"],
-      community: ["커뮤니티 가이드", "커뮤니티가이드", "community guide", "communityguide", "community_guide"],
-      community_guide: ["커뮤니티 가이드", "커뮤니티가이드", "community guide", "communityguide", "community_guide"],
-      "community-guide": ["커뮤니티 가이드", "커뮤니티가이드", "community guide", "communityguide", "community_guide"],
-      guide: ["커뮤니티 가이드", "커뮤니티가이드", "community guide", "communityguide", "community_guide"],
-      "커뮤니티 가이드": ["커뮤니티 가이드", "커뮤니티가이드", "community guide", "communityguide", "community_guide"],
-      webzine: ["webzine", "웹진"],
-      "웹진": ["webzine", "웹진"],
-      inquiry: ["inquiry", "1:1 문의", "1:1문의"],
-      "1:1 문의": ["inquiry", "1:1 문의", "1:1문의"],
-      "1:1문의": ["inquiry", "1:1 문의", "1:1문의"],
-      qna: ["qna", "q&a"],
-      "q&a": ["qna", "q&a"],
-      "q＆a": ["qna", "q&a"]
-    };
-
-    // Direct match of the admin token itself (after guards) — whole-word EN / Hangul-boundary KO
-    if (needleInLabel(token, label)) {
-      return true;
-    }
-
-    var list = aliases[token];
-    if (!list) return false;
-    for (var i = 0; i < list.length; i++) {
-      var a = String(list[i]).toLowerCase();
-      if (!needleInLabel(a, label)) continue;
-      // Alias-level guards for posts/boards needles
-      if ((a === "게시글" || a === "posts" || a === "post") &&
-          (label.indexOf("최근 게시글") !== -1 || label.indexOf("recent posts") !== -1 || label.indexOf("recent post") !== -1)) {
-        continue;
-      }
-      if ((a === "게시판" || a === "boards" || a === "board") &&
-          (label.indexOf("인기 게시판") !== -1 || label.indexOf("popular boards") !== -1 || label.indexOf("popular board") !== -1)) {
-        continue;
-      }
-      return true;
-    }
-    return false;
   }
 
-  /** Token looks like a board/box slug suitable for /board/{tok} path match. */
+  function hangulBoundary(needle, label) {
+    try {
+      return new RegExp("(^|[^가-힣])" + escapeRegex(needle) + "([^가-힣]|$)").test(label);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function labelHasRecentPosts(label) {
+    return (
+      label.indexOf("최근 게시글") !== -1 ||
+      label.indexOf("recent posts") !== -1 ||
+      label.indexOf("recent post") !== -1
+    );
+  }
+
+  function labelHasPopularBoards(label) {
+    return (
+      label.indexOf("인기 게시판") !== -1 ||
+      label.indexOf("popular boards") !== -1 ||
+      label.indexOf("popular board") !== -1
+    );
+  }
+
+  /**
+   * Strict per-kind score against title/heading label (no hrefs).
+   * Higher = stronger. 0 = no match.
+   */
+  function scoreHomeBoxKind(kind, label, headings) {
+    if (!kind || !label) return 0;
+    var score = 0;
+    var i;
+    var h;
+
+    if (kind === "welcome") {
+      if (label.indexOf("3d store welcome") !== -1 || label.indexOf("3d store에 오신") !== -1) score = 40;
+      else if (label.indexOf("welcome") !== -1 || hangulBoundary("웰컴", label)) score = 30;
+      else if (label.indexOf("오신 것을 환영") !== -1) score = 25;
+      return score;
+    }
+
+    if (kind === "recent_posts") {
+      if (
+        label.indexOf("최근 게시글") !== -1 ||
+        label.indexOf("recent posts") !== -1 ||
+        label.indexOf("recent post") !== -1 ||
+        label.indexOf("recent_posts") !== -1
+      ) {
+        return 50;
+      }
+      return 0;
+    }
+
+    if (kind === "popular_boards") {
+      if (
+        label.indexOf("인기 게시판") !== -1 ||
+        label.indexOf("popular boards") !== -1 ||
+        label.indexOf("popular board") !== -1 ||
+        label.indexOf("popular_boards") !== -1
+      ) {
+        return 50;
+      }
+      return 0;
+    }
+
+    if (kind === "users") {
+      for (i = 0; i < (headings || []).length; i++) {
+        h = headings[i];
+        if (h === "members" || h === "member" || h === "users" || h === "user" || h === "회원") return 45;
+      }
+      if (wholeWordEn("members", label) || wholeWordEn("member", label) || hangulBoundary("회원", label)) {
+        return 30;
+      }
+      if (wholeWordEn("users", label) || wholeWordEn("user", label)) return 20;
+      return 0;
+    }
+
+    if (kind === "posts") {
+      if (labelHasRecentPosts(label)) return 0;
+      for (i = 0; i < (headings || []).length; i++) {
+        h = headings[i];
+        if (h === "posts" || h === "post" || h === "게시글") return 45;
+      }
+      if (wholeWordEn("posts", label) || hangulBoundary("게시글", label)) return 30;
+      if (wholeWordEn("post", label)) return 15;
+      return 0;
+    }
+
+    if (kind === "comments") {
+      for (i = 0; i < (headings || []).length; i++) {
+        h = headings[i];
+        if (h === "comments" || h === "comment" || h === "댓글") return 45;
+      }
+      if (wholeWordEn("comments", label) || hangulBoundary("댓글", label)) return 30;
+      if (wholeWordEn("comment", label)) return 15;
+      return 0;
+    }
+
+    if (kind === "boards") {
+      if (labelHasPopularBoards(label)) return 0;
+      for (i = 0; i < (headings || []).length; i++) {
+        h = headings[i];
+        // Exact heading only — Hangul-boundary so 자유게시판 ≠ 게시판
+        if (h === "boards" || h === "board" || h === "게시판") return 45;
+      }
+      if (wholeWordEn("boards", label) || hangulBoundary("게시판", label)) return 30;
+      if (wholeWordEn("board", label)) return 10;
+      return 0;
+    }
+
+    if (kind === "shop") {
+      if (
+        label.indexOf("쇼핑몰") !== -1 ||
+        label.indexOf("browse fresh products") !== -1 ||
+        label.indexOf("신선한 상품") !== -1
+      ) {
+        return 40;
+      }
+      if (wholeWordEn("shop", label) || wholeWordEn("shopping", label)) return 25;
+      return 0;
+    }
+
+    if (kind === "community_guide") {
+      if (
+        label.indexOf("커뮤니티 가이드") !== -1 ||
+        label.indexOf("커뮤니티가이드") !== -1 ||
+        label.indexOf("community guide") !== -1 ||
+        label.indexOf("community_guide") !== -1
+      ) {
+        return 45;
+      }
+      if (wholeWordEn("guide", label) && label.indexOf("community") !== -1) return 30;
+      return 0;
+    }
+
+    return 0;
+  }
+
+  /** True if title strongly identifies a fixed chrome box (blocks board:slug). */
+  function isFixedChromeByTitle(label, headings) {
+    var best = 0;
+    for (var i = 0; i < CHD_FIXED_KINDS.length; i++) {
+      var s = scoreHomeBoxKind(CHD_FIXED_KINDS[i], label, headings);
+      if (s > best) best = s;
+    }
+    return best >= 25;
+  }
+
   function isSlugLikeToken(tok) {
     return /^[a-z0-9][a-z0-9_-]*$/i.test(String(tok || ""));
   }
 
-  /** True if href blob contains /board/{tok} as a path segment (not bare "board"). */
-  function hrefHasBoardSlug(hrefBlob, tok) {
-    if (!hrefBlob || !tok) return false;
+  /** Board home path /board/{slug} (not /board/{slug}/{postId}). */
+  function extractBoardSlugFromCard(el) {
+    if (!el) return null;
+    var slug = "";
     try {
-      return new RegExp("(^|[^a-z0-9_])/board/" + escapeRegex(String(tok).toLowerCase()) + "([^a-z0-9_]|$)", "i").test(
-        String(hrefBlob).toLowerCase()
-      );
-    } catch (eH) {
-      return false;
+      if (el.getAttribute) {
+        slug = String(el.getAttribute("data-board-slug") || el.getAttribute("data-slug") || "").trim();
+        if (slug && isSlugLikeToken(slug)) return slug.toLowerCase();
+      }
+    } catch (eAttr) {}
+
+    function slugFromHref(href) {
+      if (!href) return "";
+      var m = String(href)
+        .toLowerCase()
+        .match(/(?:^|[^a-z0-9_])\/board\/([a-z0-9][a-z0-9_-]*)\/?(?:[?#]|$)/i);
+      if (m && m[1]) return m[1].toLowerCase();
+      return "";
     }
+
+    try {
+      var selfHref =
+        (el.getAttribute && (el.getAttribute("href") || el.getAttribute("to") || "")) || "";
+      var fromSelf = slugFromHref(selfHref);
+      if (fromSelf) return fromSelf;
+    } catch (eSelf) {}
+
+    // Prefer a single board-index link on the card (ignore /board/slug/123 post links)
+    var found = {};
+    var count = 0;
+    var last = "";
+    try {
+      var anchors = el.querySelectorAll("a[href],[to]");
+      for (var ai = 0; ai < anchors.length && ai < 16; ai++) {
+        var ah =
+          (anchors[ai].getAttribute &&
+            (anchors[ai].getAttribute("href") || anchors[ai].getAttribute("to") || "")) ||
+          "";
+        var s = slugFromHref(ah);
+        if (!s) continue;
+        if (!found[s]) {
+          found[s] = 1;
+          count++;
+          last = s;
+        }
+      }
+    } catch (eA) {}
+    // Only accept when exactly one distinct board-home slug (board summary card).
+    // Recent Posts has many /board/x/N post links → slugFromHref returns "" → count 0.
+    if (count === 1) return last;
+    return null;
+  }
+
+  /**
+   * Exclusive classification: exactly one kind, or null (do not hide).
+   * Never classifies multi-child .grid wrappers.
+   */
+  function classifyHomeBox(el) {
+    if (!el || el.nodeType !== 1) return null;
+    if (isCasAdMount(el)) return null;
+    try {
+      var cls = String(el.className || "");
+      if (/\bgrid\b/.test(cls) && el.children && el.children.length >= 2) return null;
+    } catch (eGrid) {}
+
+    // 1) Explicit data-chd-home-box
+    try {
+      var attr = el.getAttribute && el.getAttribute("data-chd-home-box");
+      if (attr) {
+        var norm = normalizeHomeBoxKind(attr);
+        if (norm) return norm;
+        // Unknown attr value: if board:… shape already handled; else treat as opaque kind key
+        var raw = String(attr).toLowerCase().trim();
+        if (raw) return raw;
+      }
+    } catch (eAttr) {}
+
+    var label = homeBoxTitleLabel(el);
+    var headings = homeBoxExactHeadings(el);
+
+    // 2) Board summary card (not fixed chrome)
+    var boardSlug = extractBoardSlugFromCard(el);
+    if (boardSlug && !isFixedChromeByTitle(label, headings)) {
+      return "board:" + boardSlug;
+    }
+
+    // 3) Score fixed kinds — highest wins; tie or weak → null
+    var bestKind = null;
+    var bestScore = 0;
+    var tie = false;
+    for (var i = 0; i < CHD_FIXED_KINDS.length; i++) {
+      var kind = CHD_FIXED_KINDS[i];
+      var sc = scoreHomeBoxKind(kind, label, headings);
+      if (sc > bestScore) {
+        bestScore = sc;
+        bestKind = kind;
+        tie = false;
+      } else if (sc > 0 && sc === bestScore) {
+        tie = true;
+      }
+    }
+    if (tie || bestScore < 20) return null;
+    return bestKind;
+  }
+
+  /**
+   * Map admin hide tokens → exclusive kind set.
+   * 게시판/boards → boards (stats) only — NOT all board:*.
+   * Slug tokens / 웹진 / 1:1 문의 / Q&A → board:<slug>.
+   */
+  function tokensToHideKinds(tokens) {
+    var set = {};
+    if (!tokens || !tokens.length) return set;
+
+    var tokenKindMap = {
+      welcome: "welcome",
+      welcome_card: "welcome",
+      "웰컴": "welcome",
+      users: "users",
+      members: "users",
+      member: "users",
+      stat_users: "users",
+      "회원": "users",
+      posts: "posts",
+      post: "posts",
+      stat_posts: "posts",
+      "게시글": "posts",
+      comments: "comments",
+      comment: "comments",
+      stat_comments: "comments",
+      "댓글": "comments",
+      boards: "boards",
+      board: "boards",
+      stat_boards: "boards",
+      "게시판": "boards",
+      recent: "recent_posts",
+      recent_posts: "recent_posts",
+      "recent-posts": "recent_posts",
+      "최근 게시글": "recent_posts",
+      popular: "popular_boards",
+      popular_boards: "popular_boards",
+      "popular-boards": "popular_boards",
+      "인기 게시판": "popular_boards",
+      shop: "shop",
+      shopping: "shop",
+      shop_promo: "shop",
+      "쇼핑몰": "shop",
+      community: "community_guide",
+      community_guide: "community_guide",
+      "community-guide": "community_guide",
+      guide: "community_guide",
+      "커뮤니티 가이드": "community_guide",
+      "커뮤니티가이드": "community_guide",
+      // board:* aliases
+      webzine: "board:webzine",
+      "웹진": "board:webzine",
+      inquiry: "board:inquiry",
+      "1:1 문의": "board:inquiry",
+      "1:1문의": "board:inquiry",
+      qna: "board:qna",
+      "q&a": "board:qna",
+      "q＆a": "board:qna"
+    };
+
+    for (var i = 0; i < tokens.length; i++) {
+      var tok = String(tokens[i] == null ? "" : tokens[i]).toLowerCase().trim();
+      if (!tok || tok.length < 1) continue;
+
+      if (tokenKindMap[tok]) {
+        set[tokenKindMap[tok]] = 1;
+        continue;
+      }
+
+      var asKind = normalizeHomeBoxKind(tok);
+      if (asKind) {
+        set[asKind] = 1;
+        continue;
+      }
+
+      // Ascii slug → board:<slug>
+      if (isSlugLikeToken(tok) && tok.length >= 2) {
+        set["board:" + tok.toLowerCase()] = 1;
+        continue;
+      }
+
+      // Opaque token: keep as-is for data-chd-home-box exact match
+      set[tok] = 1;
+    }
+    return set;
   }
 
   function collectHomeBoxCandidates(root) {
@@ -2592,79 +2764,6 @@
     return out;
   }
 
-  function resolveHomeBoxFromLink(link, candidates, root) {
-    if (!link || link.nodeType !== 1) return null;
-    if (isCasAdMount(link)) return null;
-    try {
-      for (var i = 0; i < candidates.length; i++) {
-        var cand = candidates[i];
-        if (!cand || isCasAdMount(cand)) continue;
-        if (cand.contains && cand.contains(link)) return cand;
-      }
-    } catch (eCand) {}
-    try {
-      var el = link;
-      while (el && el !== root) {
-        if (isCasAdMount(el)) return null;
-        var parent = el.parentElement;
-        if (!parent) break;
-        var pcls = String(parent.className || "");
-        if (/\bgrid\b/.test(pcls)) {
-          return isCasAdMount(el) ? null : el;
-        }
-        el = parent;
-      }
-    } catch (eWalk) {}
-    return null;
-  }
-
-  /** Map admin token → canonical data-chd-home-box keys */
-  function tokenToChdHomeBoxKeys(token) {
-    var t = String(token || "").toLowerCase().trim();
-    var map = {
-      welcome: ["welcome"],
-      welcome_card: ["welcome"],
-      "웰컴": ["welcome"],
-      users: ["users"],
-      members: ["users"],
-      member: ["users"],
-      stat_users: ["users"],
-      "회원": ["users"],
-      posts: ["posts"],
-      post: ["posts"],
-      stat_posts: ["posts"],
-      "게시글": ["posts"],
-      comments: ["comments"],
-      comment: ["comments"],
-      stat_comments: ["comments"],
-      "댓글": ["comments"],
-      boards: ["boards"],
-      board: ["boards"],
-      stat_boards: ["boards"],
-      "게시판": ["boards"],
-      recent: ["recent_posts"],
-      recent_posts: ["recent_posts"],
-      "recent-posts": ["recent_posts"],
-      "최근 게시글": ["recent_posts"],
-      popular: ["popular_boards"],
-      popular_boards: ["popular_boards"],
-      "popular-boards": ["popular_boards"],
-      "인기 게시판": ["popular_boards"],
-      shop: ["shop"],
-      shopping: ["shop"],
-      shop_promo: ["shop"],
-      "쇼핑몰": ["shop"],
-      community: ["community_guide"],
-      community_guide: ["community_guide"],
-      "community-guide": ["community_guide"],
-      guide: ["community_guide"],
-      "커뮤니티 가이드": ["community_guide"]
-    };
-    if (map[t]) return map[t];
-    // token already a data-chd-home-box value
-    return [t];
-  }
-
   function ensureHiddenHomeBoxes() {
     clearHiddenHomeBoxes();
     if (!lastSettings) return;
@@ -2677,92 +2776,44 @@
       document.getElementById("main_content_area");
     if (!root) return;
 
+    var hideSet = tokensToHideKinds(tokens);
     var candidates = collectHomeBoxCandidates(root);
+    var claimed = [];
 
-    // Exact id / slug / data-chd-home-box + href /board/{tok}
-    for (var t = 0; t < tokens.length; t++) {
-      var tok = tokens[t];
-      try {
-        var byId = document.getElementById(tok);
-        if (byId && root.contains(byId) && !isCasAdMount(byId)) hideHomeBoxElement(byId);
-      } catch (eId) {}
-      try {
-        var bySlug = root.querySelectorAll(
-          '[data-board-slug="' + tok + '"],[data-slug="' + tok + '"]'
-        );
-        for (var s = 0; s < bySlug.length; s++) {
-          if (isCasAdMount(bySlug[s])) continue;
-          hideHomeBoxElement(bySlug[s]);
-        }
-      } catch (eSlug) {}
-      // data-chd-home-box exact / alias keys (case-insensitive)
-      try {
-        var keys = tokenToChdHomeBoxKeys(tok);
-        var boxes = root.querySelectorAll("[data-chd-home-box]");
-        for (var b = 0; b < boxes.length; b++) {
-          var box = boxes[b];
-          if (isCasAdMount(box)) continue;
-          var val = "";
-          try {
-            val = String(box.getAttribute("data-chd-home-box") || "").toLowerCase().trim();
-          } catch (eAttr) {}
-          if (!val) continue;
-          var hit = false;
-          if (val === tok) hit = true;
-          for (var ki = 0; !hit && ki < keys.length; ki++) {
-            if (val === keys[ki]) hit = true;
-          }
-          // Also allow tokenMatchesLabel against the attr value as key
-          if (!hit && tokenMatchesLabel(tok, val)) hit = true;
-          if (hit) hideHomeBoxElement(box);
-        }
-      } catch (eChd) {}
-      // Exact slug: data-board-slug already handled above; also /board/{tok} path segment
-      try {
-        if (isSlugLikeToken(tok) && tok.length >= 2) {
-          var links = root.querySelectorAll("a[href], [href], [to]");
-          for (var li = 0; li < links.length; li++) {
-            var link = links[li];
-            if (isCasAdMount(link)) continue;
-            var hrefOne = "";
-            try {
-              hrefOne =
-                (link.getAttribute && (link.getAttribute("href") || link.getAttribute("to") || "")) ||
-                "";
-            } catch (eH1) {}
-            if (!hrefHasBoardSlug(hrefOne, tok)) continue;
-            var resolved = resolveHomeBoxFromLink(link, candidates, root);
-            if (resolved && !isCasAdMount(resolved)) hideHomeBoxElement(resolved);
-          }
-        }
-      } catch (eHrefMatch) {}
-    }
-
-    var claimed = {};
     for (var c = 0; c < candidates.length; c++) {
       var el = candidates[c];
-      if (!el || claimed[c]) continue;
-      if (isCasAdMount(el)) continue;
-      // Alias/title matching uses title label only (no hrefs)
-      var label = homeBoxTitleLabel(el);
-      var exactHeads = homeBoxExactHeadings(el);
-      if (!label && !exactHeads.length) continue;
-      for (var k = 0; k < tokens.length; k++) {
-        var token = tokens[k];
-        if (!token || token.length < 2) continue;
-        // Prefer exact heading (stat Boards/게시판) + guarded alias match; never hide board cards via 게시판 alone
-        if (tokenMatchesExactHeading(token, exactHeads) || (label && tokenMatchesLabel(token, label))) {
-          var hid = hideHomeBoxElement(el);
-          if (!hid) {
-            // Multi-child .grid skip is NOT success — try matching direct children.
-            hid = hideMatchingGridChildren(el, token);
-          }
-          // Only claim when hide actually succeeded (skip ≠ success).
-          if (hid) {
-            claimed[c] = true;
-            break;
+      if (!el || isCasAdMount(el)) continue;
+      // Skip if already hidden this pass (duplicate candidate refs)
+      var already = false;
+      for (var ci = 0; ci < claimed.length; ci++) {
+        if (claimed[ci] === el) {
+          already = true;
+          break;
+        }
+      }
+      if (already) continue;
+
+      var kind = classifyHomeBox(el);
+      if (!kind) continue;
+
+      var shouldHide = !!hideSet[kind];
+      // board:slug — also allow bare slug token match
+      if (!shouldHide && kind.indexOf("board:") === 0) {
+        var slugOnly = kind.slice(6);
+        if (slugOnly && hideSet["board:" + slugOnly]) shouldHide = true;
+        else {
+          for (var ti = 0; ti < tokens.length; ti++) {
+            var tok = String(tokens[ti] || "").toLowerCase().trim();
+            if (tok === slugOnly || tok === "board:" + slugOnly) {
+              shouldHide = true;
+              break;
+            }
           }
         }
+      }
+
+      if (shouldHide) {
+        if (hideHomeBoxElement(el)) claimed.push(el);
       }
     }
   }
