@@ -32,6 +32,7 @@ class SettingsController extends PublicBaseController
             }
 
             $payload = $row->toPublicArray(is_array($bi) ? $bi : null);
+            foreach (['hide_desktop_top_nav', 'header_search_icon_mode', 'header_theme_click_toggle', 'business_info_enabled', 'enabled'] as $k) {
                 if (array_key_exists($k, $payload)) {
                     $payload[$k] = (bool) $payload[$k];
                 }

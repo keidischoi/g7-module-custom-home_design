@@ -115,11 +115,12 @@
   }
 
   function homeFillSelector() {
+    // Do NOT force max-width:100% on nested grids or ad Event Hook mounts —
+    // that overrides custom-ad_slots maxWidth (ads blow up full-bleed).
     return (
-      "#main_content > *:not([data-chd-full-bleed])," +
+      "#main_content > *:not([data-chd-full-bleed]):not([data-cas-ad-slot]):not([data-cas-ad-role]):not([data-cas-hero]):not([data-cas-ad-host]):not([id^='cas_']):not([id^='ad_'])," +
       "#main_content .chd-home-fill," +
-      "#main_content [data-chd-home-fill]," +
-      "#main_content .grid"
+      "#main_content [data-chd-home-fill]"
     );
   }
 
@@ -170,9 +171,11 @@
     }
     for (var j = 0; j < fills.length; j++) {
       var fill = fills[j];
+      if (typeof isCasAdMount === "function" && isCasAdMount(fill)) continue;
       var fillId = (fill.id || "").toLowerCase();
       if (fillId === "main_content") continue;
       if (fillId.indexOf("carousel") !== -1 || fillId.indexOf("hero") !== -1) continue;
+      if (fillId.indexOf("cas_") === 0 || fillId.indexOf("ad_") === 0) continue;
       if (hasFormScaleMaxWidth(fill)) continue;
       try {
         fill.style.setProperty("width", "100%", "important");
@@ -204,6 +207,10 @@
       homeFillSelector() +
       "{width:100%!important;max-width:100%!important;box-sizing:border-box!important;" +
       "padding-left:0!important;padding-right:0!important;}" +
+      "#main_content [data-cas-ad-slot],#main_content [data-cas-ad-role],#main_content [data-cas-hero]," +
+      "#main_content [data-cas-ad-host],#main_content [id^='cas_'],#main_content [id^='ad_']," +
+      "#main_content_area [data-cas-ad-slot],#main_content_area [id^='cas_'],#main_content_area [id^='ad_']{" +
+      "max-width:var(--chd-content-max-width,80rem)!important;width:100%!important;margin-inline:auto!important;}" +
       "#main_content,.chd-content-col{" +
       "padding-left:1rem!important;padding-right:1rem!important;}" +
       "@media (min-width:640px){#main_content,.chd-content-col{" +

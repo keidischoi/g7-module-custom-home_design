@@ -3,6 +3,14 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.43] - 2026-09-23
+
+### Fixed — 설정 API 500 · 광고 폭 커짐 · 홈 박스 숨김 미동작
+
+- `SettingsController`의 깨진 `foreach`를 복구해 `/api/modules/custom-home_design/settings`가 다시 200을 반환합니다 (숨김 목록 전달).
+- 홈 fill CSS가 `custom-ad_slots` 마운트 `max-width`를 덮어쓰지 않습니다. 광고는 `--chd-content-max-width`를 유지합니다.
+- 홈 fill에서 nested `.grid` 타깃을 제거합니다.
+
 ## [0.2.42] - 2026-09-23
 
 ### Added — 홈 박스 숨김 (이벤트훅 광고 제외)
