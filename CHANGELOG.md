@@ -3,6 +3,19 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.63] - 2026-09-23
+
+### Fixed — 게시판 홈 박스 「더보기」 라이브 마크업 미매칭
+
+- **원인:** 라이브 테마 `_board_summary`가 `data-board-slug` 없이 navigate Button(href 없음)만 씀. 0.2.62는 slug/href로만 카드를 찾아 자유게시판·웹진 요약을 건너뜀. MutationObserver도 relocate를 재실행하지 않음.
+- **수정:** 하단 `w-full`/`border-t` 「더보기」 CTA + 카드 크롬(rounded-xl/border/shadow) + 고정 크롬(최근 게시글 등) 제외로 구조 감지. MO/재시도에서 relocate 재실행. `data-chd-asset-v`로 `home-design.js?v=`를 모듈 버전에 고정; AssetController 단기 cache + must-revalidate.
+- **미변경:** Ads/CAS, hide-home-box, `#chd-home-reflow`, 커스텀 HTML 간격. 테마 partial 미수정.
+- **캐시:** `home-design.js?v=0.2.63`.
+
+### Fixed — board card View more vs live unmarked markup
+
+- Live board summaries often omit `data-board-slug` and use navigate Buttons without href; 0.2.62 skipped them. Detect via bottom more CTA + card chrome; re-run on MutationObserver. Derive `?v=` from `data-chd-asset-v` / module version; tighten JS cache headers. Ads/CAS/hide/reflow/custom HTML untouched.
+
 ## [0.2.62] - 2026-09-23
 
 ### Fixed — 게시판 홈 박스 「더보기」를 헤더 우측 상단으로

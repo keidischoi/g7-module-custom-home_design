@@ -194,6 +194,52 @@ class HomeDesignLayoutListener implements HookListenerInterface
         }
     }
 
+    /**
+     * Module semver from module.json (fallback composer.json / 0.2.63).
+     * Used as home-design.js ?v= so browsers never stick on an old query.
+     */
+    private function moduleAssetVersion(): string
+    {
+        $fallback = '0.2.63';
+        try {
+            $roots = [
+                dirname(__DIR__, 2),
+                dirname(__DIR__, 3),
+            ];
+            if (function_exists('base_path')) {
+                $roots[] = base_path('modules/custom-home_design');
+                $roots[] = base_path('modules/_bundled/custom-home_design');
+            }
+            foreach ($roots as $root) {
+                if (! is_string($root) || $root === '') {
+                    continue;
+                }
+                foreach (['module.json', 'composer.json'] as $file) {
+                    $path = rtrim($root, '/\\').DIRECTORY_SEPARATOR.$file;
+                    if (! is_file($path)) {
+                        continue;
+                    }
+                    $raw = @file_get_contents($path);
+                    if (! is_string($raw) || $raw === '') {
+                        continue;
+                    }
+                    $data = json_decode($raw, true);
+                    if (! is_array($data)) {
+                        continue;
+                    }
+                    $ver = isset($data['version']) ? trim((string) $data['version']) : '';
+                    if ($ver !== '' && preg_match('/^\d+\.\d+\.\d+/', $ver)) {
+                        return $ver;
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            // fall through
+        }
+
+        return $fallback;
+    }
+
     private function settings(): ?HomeDesignSetting
     {
         if ($this->cacheLoaded) {
@@ -1244,6 +1290,12 @@ class HomeDesignLayoutListener implements HookListenerInterface
             $payload = [];
         }
 
+        // 0.2.63: expose module version for module.iife.js home-design.js?v= cache-bust
+        $assetVersion = $this->moduleAssetVersion();
+        if (is_array($payload) && $assetVersion !== '') {
+            $payload['asset_version'] = $assetVersion;
+        }
+
         $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($json === false) {
             $json = '{}';
@@ -1259,6 +1311,7 @@ class HomeDesignLayoutListener implements HookListenerInterface
                 'aria-hidden' => 'true',
                 'data-chd-role' => 'home-design-config',
                 'data-chd-settings' => $json,
+                'data-chd-asset-v' => $assetVersion,
                 'style' => [
                     'display' => 'none',
                 ],

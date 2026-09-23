@@ -84,6 +84,10 @@
  *        theme markup untouched. Empty boards keep CTA, top-right not
  *        bottom-center. Ads/CAS, hide-home-box, reflow, custom HTML spacing
  *        unchanged. Cache-bust ?v=0.2.62.
+ * 0.2.63: Live board summaries often lack data-board-slug / href (navigate
+ *        Buttons only). Detect via bottom w-full/border-t more CTA + card
+ *        chrome; skip 최근 게시글. Re-run relocate on MutationObserver.
+ *        Cache-bust ?v=0.2.63 (data-chd-asset-v).
  *
 */
 (function () {
@@ -4765,6 +4769,25 @@
     return false;
   }
 
+  /** Theme board-summary bottom CTA: direct-child w-full / border-t more. */
+  function hasBoardSummaryBottomMore(card) {
+    if (!card || !card.children) return false;
+    try {
+      var kids = card.children;
+      for (var i = 0; i < kids.length; i++) {
+        var ch = kids[i];
+        if (!ch || (ch.tagName !== "BUTTON" && ch.tagName !== "A")) continue;
+        var text = String(ch.textContent || "").replace(/\s+/g, " ").trim();
+        if (!isBoardMoreLinkText(text)) continue;
+        var cls = String(ch.className || "");
+        if (/\bw-full\b/.test(cls) || /\bborder-t\b/.test(cls) || /\btext-center\b/.test(cls)) {
+          return true;
+        }
+      }
+    } catch (eKids) {}
+    return false;
+  }
+
   function isBoardSummaryHomeCard(el) {
     if (!el || el.nodeType !== 1) return false;
     if (isCasAdMount(el) || isInsideHomeCustomHtml(el)) return false;
@@ -4775,23 +4798,51 @@
         if (nk && nk.indexOf("board:") !== 0) return false;
       }
     } catch (eBox) {}
+
+    var label = "";
+    var heads = [];
+    try {
+      label = homeBoxTitleLabel(el);
+      heads = homeBoxExactHeadings(el);
+    } catch (eLab) {}
+    var labelLc = String(label || "").toLowerCase();
+    try {
+      if (isFixedChromeByTitle(label, heads)) return false;
+      if (labelHasRecentPosts(labelLc)) return false;
+      if (labelHasPopularBoards(labelLc)) return false;
+    } catch (eFix) {}
+
     try {
       if (el.getAttribute("data-board-slug") || el.getAttribute("data-slug")) {
-        var labelA = homeBoxTitleLabel(el);
-        var headsA = homeBoxExactHeadings(el);
-        if (!isFixedChromeByTitle(labelA, headsA)) return true;
+        return true;
       }
     } catch (eAttr) {}
+
     try {
       var slug = extractBoardSlugFromCard(el);
-      if (!slug) return false;
-      var label = homeBoxTitleLabel(el);
-      var heads = homeBoxExactHeadings(el);
-      if (isFixedChromeByTitle(label, heads)) return false;
-      if (labelHasRecentPosts(String(label || "").toLowerCase())) return false;
-      if (labelHasPopularBoards(String(label || "").toLowerCase())) return false;
-      return true;
+      if (slug) return true;
     } catch (eSlug) {}
+
+    // 0.2.63: live unmarked board summaries (no data-board-slug, navigate Button
+    // without href). Match card chrome + bottom more CTA like theme partial.
+    try {
+      var cls = String(el.className || "");
+      var cardish =
+        looksLikeHomeCard(el) ||
+        (/\brounded-xl\b/.test(cls) && /\bborder\b/.test(cls)) ||
+        (/\brounded-xl\b/.test(cls) && /\bpt-4\b/.test(cls) && /\bshadow/.test(cls));
+      if (!cardish) return false;
+      if (hasBoardSummaryBottomMore(el)) return true;
+      // Already relocated earlier this session
+      if (el.getAttribute("data-chd-board-more-relocated") === "1") return true;
+      // Bottom-ish more not yet a direct child (wrapped) — score via finder
+      var more = findBoardBottomMoreControl(el);
+      if (!more) return false;
+      var header = findBoardCardHeaderRow(el);
+      if (header && header.contains(more)) return false;
+      var mcls = String(more.className || "");
+      return /\bw-full\b/.test(mcls) || /\bborder-t\b/.test(mcls) || /\btext-center\b/.test(mcls);
+    } catch (eStruct) {}
     return false;
   }
 
@@ -4919,7 +4970,29 @@
       }
     } catch (eHost) {}
 
-    // Unmarked board cards (live templates)
+    // 0.2.63: climb from theme bottom more CTAs (unmarked live partials)
+    try {
+      var ctas = root.querySelectorAll("button, a");
+      for (var ti = 0; ti < ctas.length && ti < 120; ti++) {
+        var cta = ctas[ti];
+        if (!cta) continue;
+        var ctext = String(cta.textContent || "").replace(/\s+/g, " ").trim();
+        if (!isBoardMoreLinkText(ctext)) continue;
+        var ccls = String(cta.className || "");
+        if (!(/\bw-full\b/.test(ccls) || /\bborder-t\b/.test(ccls))) continue;
+        var climb = cta.parentElement;
+        for (var up = 0; climb && up < 6; up++) {
+          if (looksLikeHomeCard(climb) || climb.getAttribute("data-board-slug")) {
+            pushCard(climb);
+            break;
+          }
+          climb = climb.parentElement;
+        }
+        if (!climb && cta.parentElement) pushCard(cta.parentElement);
+      }
+    } catch (eCta) {}
+
+    // Unmarked board cards (live templates) — structural OR board: kind
     try {
       var candidates = collectHomeBoxCandidates(root);
       for (var ci = 0; ci < candidates.length; ci++) {
@@ -4933,6 +5006,7 @@
           kind = classifyHomeBox(c);
         } catch (eK) {}
         if (kind && String(kind).indexOf("board:") === 0) pushCard(c);
+        else pushCard(c); // isBoardSummaryHomeCard gate inside pushCard
       }
     } catch (eCand) {}
 
@@ -5164,6 +5238,9 @@
         try {
           ensureHiddenHomeBoxes();
         } catch (eMo) {}
+        try {
+          ensureBoardCardMoreLinks();
+        } catch (eMoMore) {}
         try {
           ensureHomeCustomHtml();
         } catch (eMoHtml) {}
