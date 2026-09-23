@@ -1,6 +1,7 @@
 /*! custom-home_design module.iife — loaded ONLY while module is active (ModuleAssetLoader).
- * 0.2.62: asset cache-bust (?v=0.2.62); boot must NOT hide the original search form — home-design.js
- * hides it only after the search icon toggle is mounted (avoids blank header if JS is slow/fails).
+ * 0.2.63: resolve home-design.js ?v= from #chd_home_design_cfg[data-chd-asset-v]
+ * (module version); fallback 0.2.63. Boot must NOT hide the original search form —
+ * home-design.js hides it only after the search icon toggle is mounted.
  */
 (function () {
   if (window.__chdHomeDesignIife) return;
@@ -26,6 +27,25 @@
       }
     }
   } catch (e2) {}
+
+  /** Prefer layout-injected module version so ?v= never sticks on an old release. */
+  function resolveAssetVersion() {
+    try {
+      var cfg = document.getElementById("chd_home_design_cfg");
+      var v =
+        (cfg && (cfg.getAttribute("data-chd-asset-v") || cfg.getAttribute("data-chd-js-v"))) ||
+        "";
+      v = String(v || "").trim();
+      if (/^\d+\.\d+\.\d+/.test(v)) return v;
+    } catch (eV) {}
+    try {
+      var s = window.__CHD_HOME_DESIGN__ || {};
+      var av = s.asset_version || s.js_version || "";
+      av = String(av || "").trim();
+      if (/^\d+\.\d+\.\d+/.test(av)) return av;
+    } catch (eS) {}
+    return "0.2.63";
+  }
 
   try {
     var s = window.__CHD_HOME_DESIGN__ || {};
@@ -58,7 +78,7 @@
           "}"
       );
     }
-    // 0.2.62: never hide header search form here
+    // 0.2.63: never hide header search form here
     var st = document.getElementById("chd-home-design-boot-style");
     if (!st) {
       st = document.createElement("style");
@@ -75,9 +95,10 @@
     var existing = document.querySelector('script[src*="custom-home_design/assets/home-design"]');
     if (existing) return;
     window.__chdHomeDesignJsLoading = true;
+    var ver = resolveAssetVersion();
     var urls = [
-      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.62",
-      "/api/modules/custom-home_design/assets/home-design?v=0.2.62",
+      "/api/modules/custom-home_design/assets/home-design.js?v=" + encodeURIComponent(ver),
+      "/api/modules/custom-home_design/assets/home-design?v=" + encodeURIComponent(ver),
     ];
     var idx = 0;
     function tryNext() {

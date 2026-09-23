@@ -277,10 +277,17 @@ JS;
 
     private function jsResponse(string $js, bool $noStore): Response
     {
-        return response($js, 200, [
+        // 0.2.63: was max-age=604800 which kept stale bodies under sticky ?v=.
+        // Short TTL + must-revalidate; ETag so clients refresh when file changes.
+        $headers = [
             'Content-Type' => 'application/javascript; charset=UTF-8',
-            'Cache-Control' => $noStore ? 'no-store' : 'public, max-age=604800',
-        ]);
+            'Cache-Control' => $noStore ? 'no-store' : 'public, max-age=120, must-revalidate',
+        ];
+        if (! $noStore) {
+            $headers['ETag'] = '"'.sha1($js).'"';
+        }
+
+        return response($js, 200, $headers);
     }
 
     private function resolveAssetPath(string $file): ?string
