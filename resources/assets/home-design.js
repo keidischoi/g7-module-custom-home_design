@@ -33,6 +33,11 @@
  *        data-chd-home-grid-compact + --chd-home-visible-cols/orig-cols/gap so
  *        the row shrinks to N/orig width (NOT full-bleed). Also collapse bare
  *        iteration wrappers around hidden cards so empty grid tracks vanish.
+ * 0.2.54: cross-row home-box reflow — when hide list hides some boxes and 1+
+ *        remain, move remaining visible card roots into one #chd-home-reflow
+ *        grid (N=min(3,count); 1 card ~1/3 width, not full-bleed). Restore
+ *        original parents when hide list clears. Prefer reflow over per-grid
+ *        compact for cross-row 나란히 (e.g. recent|popular|webzine).
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -63,6 +68,11 @@
   var homeBoxMoRoot = null;
   /** @type {number|null} */
   var homeBoxMoDebounce = null;
+  /** Restore info for nodes moved into #chd-home-reflow (parent + nextSibling). */
+  var homeReflowRestore =
+    typeof WeakMap !== "undefined" ? new WeakMap() : null;
+  /** Re-entrancy guard — reflow moves trigger childList MO; skip nested ensures. */
+  var homeBoxApplyLock = false;
 
   /** @type {object|null} */
   var lastSettings = null;
@@ -252,7 +262,7 @@
       "padding-left:1.5rem!important;padding-right:1.5rem!important;}}" +
       "@media (min-width:1024px){#main_content,.chd-content-col{" +
       "padding-left:2rem!important;padding-right:2rem!important;}}" +
-      "[data-chd-hide-powered-by='1']{display:none!important;}" +"[data-chd-home-box-hidden='1'],[data-chd-home-layout-collapsed='1']{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;border:0!important;}" +"#main_content .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1'])))," +"#main_content_area .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1']))){" +"display:none!important;min-height:0!important;height:0!important;margin:0!important;padding:0!important;gap:0!important;border:0!important;}" +"#main_content .grid[data-chd-home-grid-compact='1']," +"#main_content_area .grid[data-chd-home-grid-compact='1']{" +"grid-template-columns:repeat(var(--chd-home-visible-cols,1),minmax(0,1fr))!important;" +"width:calc((100% - (var(--chd-home-orig-cols,3) - 1) * var(--chd-home-gap,1rem)) * var(--chd-home-visible-cols,1) / var(--chd-home-orig-cols,3) + (var(--chd-home-visible-cols,1) - 1) * var(--chd-home-gap,1rem))!important;" +"max-width:100%!important;justify-self:start;" +"}" +
+      "[data-chd-hide-powered-by='1']{display:none!important;}" +"[data-chd-home-box-hidden='1'],[data-chd-home-layout-collapsed='1']{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;border:0!important;}" +"#main_content .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1'])))," +"#main_content_area .grid:has(> [data-chd-home-box-hidden='1']):not(:has(> :not([data-chd-home-box-hidden='1']):not([hidden]):not([data-chd-home-layout-collapsed='1']))){" +"display:none!important;min-height:0!important;height:0!important;margin:0!important;padding:0!important;gap:0!important;border:0!important;}" +"#main_content .grid[data-chd-home-grid-compact='1']," +"#main_content_area .grid[data-chd-home-grid-compact='1']{" +"grid-template-columns:repeat(var(--chd-home-visible-cols,1),minmax(0,1fr))!important;" +"width:calc((100% - (var(--chd-home-orig-cols,3) - 1) * var(--chd-home-gap,1rem)) * var(--chd-home-visible-cols,1) / var(--chd-home-orig-cols,3) + (var(--chd-home-visible-cols,1) - 1) * var(--chd-home-gap,1rem))!important;" +"max-width:100%!important;justify-self:start;" +"}" +"#chd-home-reflow[data-chd-home-reflow='1']," +"[data-chd-home-reflow='1']#chd-home-reflow{" +"display:grid!important;" +"grid-template-columns:repeat(var(--chd-home-reflow-cols,1),minmax(0,1fr))!important;" +"gap:var(--chd-home-reflow-gap,1rem)!important;" +"width:100%!important;max-width:100%!important;" +"box-sizing:border-box!important;align-items:stretch;" +"margin:0 0 1rem 0!important;}" +"#chd-home-reflow[data-chd-home-reflow='1'][data-chd-home-reflow-n='1']{" +"width:calc((100% - (var(--chd-home-reflow-orig-cols,3) - 1) * var(--chd-home-reflow-gap,1rem)) / var(--chd-home-reflow-orig-cols,3))!important;" +"max-width:100%!important;justify-self:start;}" +"@media (max-width:767px){" +"#chd-home-reflow[data-chd-home-reflow='1']," +"#chd-home-reflow[data-chd-home-reflow='1'][data-chd-home-reflow-n='1']{" +"grid-template-columns:minmax(0,1fr)!important;width:100%!important;}}" +
       /* Keep full-bleed carousel/hero full width */
       "[data-chd-full-bleed='1']," +
       "#main_content_area [id*='carousel']," +
@@ -2305,7 +2315,11 @@
     try {
       var id = String(el.id || "");
       if (id === "main_content" || id === "main_content_area") return true;
+      if (id === "chd-home-reflow") return true;
     } catch (eId) {}
+    try {
+      if (el.getAttribute("data-chd-home-reflow") === "1") return true;
+    } catch (eRf) {}
     if (el === document.body || el === document.documentElement) return true;
     if (isCasAdMount(el)) return true;
     return false;
@@ -2713,7 +2727,375 @@
     } catch (eUp) {}
   }
 
+
+  function findHomeReflowRegion(root) {
+    if (!root) return null;
+    try {
+      var preferred = root.querySelector(".py-6.chd-home-fill, .py-6.w-full");
+      if (preferred) return preferred;
+      var pys = root.querySelectorAll(".py-6");
+      for (var i = 0; i < pys.length; i++) {
+        try {
+          if (pys[i].querySelector(".grid")) return pys[i];
+        } catch (eQ) {}
+      }
+    } catch (e) {}
+    return root;
+  }
+
+  /** True for an actual card leaf — not .grid/.flex/.chd-home-fill layout chrome. */
+  function isHomeBoxCardRoot(el) {
+    if (!el || el.nodeType !== 1) return false;
+    if (isProtectedLayoutRoot(el) || isCasAdMount(el)) return false;
+    try {
+      if (el.id === "chd-home-reflow" || el.getAttribute("data-chd-home-reflow") === "1") {
+        return false;
+      }
+    } catch (eHost) {}
+    var cls = "";
+    try {
+      cls = String(el.className || "");
+    } catch (eCls) {}
+    // Never reflow layout stacks or the py-6 / chd-home-fill content chrome.
+    if (isLayoutStackClass(cls)) return false;
+    if (/\bcontents\b/.test(cls)) return false;
+    try {
+      if (
+        el.getAttribute("data-chd-home-box") ||
+        el.getAttribute("data-board-slug") ||
+        el.getAttribute("data-slug")
+      ) {
+        return true;
+      }
+    } catch (eMark) {}
+    if (looksLikeHomeCard(el)) return true;
+    return false;
+  }
+
+  function collectVisibleHomeBoxRoots(root) {
+    var out = [];
+    if (!root) return out;
+    var candidates = collectHomeBoxCandidates(root);
+    var seen = [];
+    for (var i = 0; i < candidates.length; i++) {
+      var el = resolveHomeBoxRoot(candidates[i]);
+      if (!el || el.nodeType !== 1) continue;
+      if (isCasAdMount(el)) continue;
+      if (!isHomeBoxCardRoot(el)) continue;
+      if (isEffectivelyHiddenHomeChild(el)) continue;
+      // Skip carousel/hero chrome by id/class even if not CAS-marked
+      try {
+        var id = String(el.id || "").toLowerCase();
+        if (id.indexOf("carousel") !== -1 || id.indexOf("hero") !== -1) continue;
+        var cls = String(el.className || "").toLowerCase();
+        if (/\bcarousel\b/.test(cls) || /\bhero\b/.test(cls)) continue;
+      } catch (eId) {}
+      var dup = false;
+      for (var s = 0; s < seen.length; s++) {
+        if (seen[s] === el) {
+          dup = true;
+          break;
+        }
+      }
+      if (dup) continue;
+      seen.push(el);
+      out.push(el);
+    }
+    // Document order
+    try {
+      out.sort(function (a, b) {
+        if (a === b) return 0;
+        var pos = a.compareDocumentPosition(b);
+        if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+        if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+        return 0;
+      });
+    } catch (eSort) {}
+    // Drop nodes nested inside another collected root
+    var filtered = [];
+    for (var j = 0; j < out.length; j++) {
+      var node = out[j];
+      var nested = false;
+      for (var k = 0; k < filtered.length; k++) {
+        try {
+          if (filtered[k] !== node && filtered[k].contains(node)) {
+            nested = true;
+            break;
+          }
+        } catch (eNest) {}
+      }
+      if (nested) continue;
+      // Remove prior entries that this node contains
+      var nextFiltered = [];
+      for (var m = 0; m < filtered.length; m++) {
+        try {
+          if (node.contains(filtered[m]) && filtered[m] !== node) continue;
+        } catch (eC) {}
+        nextFiltered.push(filtered[m]);
+      }
+      nextFiltered.push(node);
+      filtered = nextFiltered;
+    }
+    return filtered;
+  }
+
+  function findReflowAnchorChild(region, boxes) {
+    if (!region || !boxes || !boxes.length) return null;
+    var best = null;
+    for (var i = 0; i < boxes.length; i++) {
+      var el = boxes[i];
+      if (!el) continue;
+      // Already inside host — skip for anchor
+      try {
+        if (el.closest && el.closest("#chd-home-reflow,[data-chd-home-reflow='1']")) {
+          continue;
+        }
+      } catch (eCl) {}
+      var child = el;
+      while (child && child.parentElement && child.parentElement !== region) {
+        child = child.parentElement;
+      }
+      if (!child || child.parentElement !== region) continue;
+      // Never anchor on the reflow host itself
+      try {
+        if (child.id === "chd-home-reflow" || child.getAttribute("data-chd-home-reflow") === "1") {
+          continue;
+        }
+      } catch (eH) {}
+      if (!best) {
+        best = child;
+        continue;
+      }
+      try {
+        var pos = best.compareDocumentPosition(child);
+        if (pos & Node.DOCUMENT_POSITION_PRECEDING) best = child;
+      } catch (ePos) {}
+    }
+    return best;
+  }
+
+  function rememberReflowOrigin(el) {
+    if (!el || el.nodeType !== 1) return;
+    try {
+      if (el.getAttribute("data-chd-home-reflowed") === "1") return;
+    } catch (eAttr) {}
+    var parent = el.parentElement;
+    if (!parent) return;
+    // Do not treat host as origin
+    try {
+      if (parent.id === "chd-home-reflow" || parent.getAttribute("data-chd-home-reflow") === "1") {
+        return;
+      }
+    } catch (eP) {}
+    var info = { parent: parent, nextSibling: el.nextSibling };
+    try {
+      if (homeReflowRestore) homeReflowRestore.set(el, info);
+    } catch (eWm) {}
+    try {
+      el.setAttribute("data-chd-home-reflowed", "1");
+      el.setAttribute("data-chd-home-reflow-from", "1");
+    } catch (eMark) {}
+  }
+
+  function getOrCreateReflowHost(region, anchor) {
+    var host = null;
+    try {
+      host = document.getElementById("chd-home-reflow");
+    } catch (eId) {}
+    if (!host) {
+      try {
+        host = region.querySelector("[data-chd-home-reflow='1']");
+      } catch (eQ) {}
+    }
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "chd-home-reflow";
+      host.setAttribute("data-chd-home-reflow", "1");
+      host.className = "w-full chd-home-fill";
+      try {
+        if (anchor && anchor.parentElement === region) {
+          region.insertBefore(host, anchor);
+        } else if (region.firstChild) {
+          region.insertBefore(host, region.firstChild);
+        } else {
+          region.appendChild(host);
+        }
+      } catch (eIns) {
+        try {
+          region.appendChild(host);
+        } catch (eAp) {
+          return null;
+        }
+      }
+    } else {
+      // Ensure host lives under region; move if needed (no duplicate)
+      try {
+        if (host.parentElement !== region) {
+          if (anchor && anchor.parentElement === region) region.insertBefore(host, anchor);
+          else if (region.firstChild) region.insertBefore(host, region.firstChild);
+          else region.appendChild(host);
+        } else if (anchor && anchor.parentElement === region && host !== anchor) {
+          // Keep host just before anchor when anchor is still a sibling ahead
+          var pos = host.compareDocumentPosition(anchor);
+          if (pos & Node.DOCUMENT_POSITION_PRECEDING) {
+            // anchor is before host — move host before anchor
+            region.insertBefore(host, anchor);
+          } else if (host.nextSibling !== anchor && (pos & Node.DOCUMENT_POSITION_FOLLOWING)) {
+            region.insertBefore(host, anchor);
+          }
+        }
+      } catch (eMove) {}
+      try {
+        host.setAttribute("data-chd-home-reflow", "1");
+        if (!host.id) host.id = "chd-home-reflow";
+      } catch (eAttr2) {}
+    }
+    return host;
+  }
+
+  function configureReflowHost(host, visibleCount) {
+    if (!host) return;
+    var n = visibleCount < 1 ? 1 : visibleCount;
+    if (n > 3) n = 3;
+    try {
+      host.setAttribute("data-chd-home-reflow", "1");
+      host.setAttribute("data-chd-home-reflow-n", String(n));
+      host.style.setProperty("--chd-home-reflow-cols", String(n));
+      host.style.setProperty("--chd-home-reflow-orig-cols", "3");
+      host.style.setProperty("--chd-home-reflow-gap", "1rem");
+    } catch (e) {}
+  }
+
+  function restoreHomeBoxReflow() {
+    var host = null;
+    try {
+      host = document.getElementById("chd-home-reflow");
+    } catch (eId) {}
+    if (!host) {
+      try {
+        host = document.querySelector("[data-chd-home-reflow='1']");
+      } catch (eQ) {}
+    }
+    var nodes = [];
+    if (host) {
+      try {
+        for (var i = 0; i < host.children.length; i++) {
+          nodes.push(host.children[i]);
+        }
+      } catch (eCh) {}
+    }
+    // Also pick up marked nodes that somehow left the host
+    try {
+      var marked = document.querySelectorAll("[data-chd-home-reflowed='1']");
+      for (var mi = 0; mi < marked.length; mi++) {
+        var already = false;
+        for (var ai = 0; ai < nodes.length; ai++) {
+          if (nodes[ai] === marked[mi]) {
+            already = true;
+            break;
+          }
+        }
+        if (!already) nodes.push(marked[mi]);
+      }
+    } catch (eM) {}
+
+    // Restore reverse order so nextSibling refs stay valid
+    for (var j = nodes.length - 1; j >= 0; j--) {
+      var el = nodes[j];
+      if (!el) continue;
+      var info = null;
+      try {
+        if (homeReflowRestore) info = homeReflowRestore.get(el);
+      } catch (eGet) {}
+      try {
+        if (info && info.parent && info.parent.nodeType === 1) {
+          var next = info.nextSibling;
+          if (next && next.parentNode === info.parent) {
+            info.parent.insertBefore(el, next);
+          } else {
+            info.parent.appendChild(el);
+          }
+        }
+      } catch (eRest) {}
+      try {
+        if (homeReflowRestore) homeReflowRestore.delete(el);
+      } catch (eDel) {}
+      try {
+        el.removeAttribute("data-chd-home-reflowed");
+        el.removeAttribute("data-chd-home-reflow-from");
+      } catch (eRm) {}
+    }
+
+    // Any remaining host children (missing WeakMap entry) — unwrap before removing host.
+    if (host) {
+      try {
+        var region = host.parentElement;
+        while (host.firstChild) {
+          var orphan = host.firstChild;
+          if (region) region.insertBefore(orphan, host);
+          else break;
+        }
+      } catch (eOrphan) {}
+      try {
+        if (host.parentElement) host.parentElement.removeChild(host);
+        else host.remove();
+      } catch (eRem) {
+        try {
+          host.remove();
+        } catch (eRem2) {}
+      }
+    }
+  }
+
+  /**
+   * After hide: pull remaining visible home-box roots into one horizontal grid
+   * so cards from separate template rows sit 나란히 (up to 3 cols).
+   * Only when at least one box was hidden this pass.
+   */
+  function reflowVisibleHomeBoxes(hiddenCount) {
+    if (!hiddenCount || hiddenCount < 1) return;
+    var root = getMainContentRoot();
+    if (!root) return;
+    var boxes = collectVisibleHomeBoxRoots(root);
+    if (!boxes.length) return;
+
+    var region = findHomeReflowRegion(root);
+    if (!region) return;
+
+    var anchor = findReflowAnchorChild(region, boxes);
+    var host = getOrCreateReflowHost(region, anchor);
+    if (!host) return;
+
+    configureReflowHost(host, boxes.length);
+
+    for (var i = 0; i < boxes.length; i++) {
+      var el = boxes[i];
+      if (!el || isCasAdMount(el)) continue;
+      try {
+        if (el.parentElement !== host) {
+          rememberReflowOrigin(el);
+        }
+      } catch (ePar) {
+        rememberReflowOrigin(el);
+      }
+      try {
+        // Never move an ancestor of the host (would break the tree).
+        if (el === host || (el.contains && el.contains(host))) continue;
+        // appendChild moves or reorders into stable document order
+        host.appendChild(el);
+      } catch (eAp) {}
+    }
+
+    // Drop stray children that are no longer in the visible set (should not happen)
+    try {
+      configureReflowHost(host, host.children.length);
+    } catch (eCfg) {}
+  }
+
   function clearHiddenHomeBoxes() {
+    try {
+      restoreHomeBoxReflow();
+    } catch (eReflow) {}
     clearCollapsedHomeLayouts();
     try {
       var nodes = document.querySelectorAll("[data-chd-home-box-hidden='1']");
@@ -3362,91 +3744,112 @@
   }
 
   function ensureHiddenHomeBoxes() {
-    clearHiddenHomeBoxes();
-    if (!lastSettings) return;
-    if (!isHomePath()) return;
-    var tokens = homeBoxTokens(lastSettings);
-    if (!tokens.length) return;
+    if (homeBoxApplyLock) return;
+    homeBoxApplyLock = true;
+    // Reflow appendChild fires childList MO — pause observer for this apply pass.
+    var moPaused = homeBoxMo;
+    try {
+      if (moPaused) moPaused.disconnect();
+    } catch (eDisc) {}
+    try {
+      clearHiddenHomeBoxes();
+      if (!lastSettings) return;
+      if (!isHomePath()) return;
+      var tokens = homeBoxTokens(lastSettings);
+      if (!tokens.length) return;
 
-    var root = getMainContentRoot();
-    if (!root) return;
+      var root = getMainContentRoot();
+      if (!root) return;
 
-    var hideSet = tokensToHideKinds(tokens);
-    var candidates = collectHomeBoxCandidates(root);
-    var claimed = [];
+      var hideSet = tokensToHideKinds(tokens);
+      var candidates = collectHomeBoxCandidates(root);
+      var claimed = [];
 
-    for (var c = 0; c < candidates.length; c++) {
-      var el = candidates[c];
-      if (!el || isCasAdMount(el)) continue;
-      // Always operate on outermost card root (nested marked nodes → parent card)
-      el = resolveHomeBoxRoot(el);
-      if (!el || isCasAdMount(el)) continue;
+      for (var c = 0; c < candidates.length; c++) {
+        var el = candidates[c];
+        if (!el || isCasAdMount(el)) continue;
+        // Always operate on outermost card root (nested marked nodes → parent card)
+        el = resolveHomeBoxRoot(el);
+        if (!el || isCasAdMount(el)) continue;
 
-      // Skip if already hidden this pass (duplicate candidate refs)
-      var already = false;
-      for (var ci = 0; ci < claimed.length; ci++) {
-        if (claimed[ci] === el) {
-          already = true;
-          break;
+        // Skip if already hidden this pass (duplicate candidate refs)
+        var already = false;
+        for (var ci = 0; ci < claimed.length; ci++) {
+          if (claimed[ci] === el) {
+            already = true;
+            break;
+          }
         }
-      }
-      if (already) continue;
+        if (already) continue;
 
-      var kind = classifyHomeBox(el);
-      var boardSlug = extractBoardSlugFromCard(el);
-      var boardTitle = extractBoardTitleFromCard(el);
-      var boardTitleNorm = boardTitle ? normalizeBoardName(boardTitle) : "";
+        var kind = classifyHomeBox(el);
+        var boardSlug = extractBoardSlugFromCard(el);
+        var boardTitle = extractBoardTitleFromCard(el);
+        var boardTitleNorm = boardTitle ? normalizeBoardName(boardTitle) : "";
 
-      // Prefer board:slug when known; title still used for boardname: match
-      if (!kind && boardSlug) {
-        var label0 = homeBoxTitleLabel(el);
-        var heads0 = homeBoxExactHeadings(el);
-        if (!isFixedChromeByTitle(label0, heads0)) kind = "board:" + boardSlug;
-      }
+        // Prefer board:slug when known; title still used for boardname: match
+        if (!kind && boardSlug) {
+          var label0 = homeBoxTitleLabel(el);
+          var heads0 = homeBoxExactHeadings(el);
+          if (!isFixedChromeByTitle(label0, heads0)) kind = "board:" + boardSlug;
+        }
 
-      var shouldHide = !!(kind && hideSet[kind]);
+        var shouldHide = !!(kind && hideSet[kind]);
 
-      // board:slug — also allow bare slug token match
-      if (!shouldHide && kind && kind.indexOf("board:") === 0) {
-        var slugOnly = kind.slice(6);
-        if (slugOnly && hideSet["board:" + slugOnly]) shouldHide = true;
-        else {
-          for (var ti = 0; ti < tokens.length; ti++) {
-            var tok = String(tokens[ti] || "").toLowerCase().trim();
-            if (tok === slugOnly || tok === "board:" + slugOnly) {
-              shouldHide = true;
-              break;
+        // board:slug — also allow bare slug token match
+        if (!shouldHide && kind && kind.indexOf("board:") === 0) {
+          var slugOnly = kind.slice(6);
+          if (slugOnly && hideSet["board:" + slugOnly]) shouldHide = true;
+          else {
+            for (var ti = 0; ti < tokens.length; ti++) {
+              var tok = String(tokens[ti] || "").toLowerCase().trim();
+              if (tok === slugOnly || tok === "board:" + slugOnly) {
+                shouldHide = true;
+                break;
+              }
             }
           }
         }
-      }
 
-      // Board display-name match (공지사항 / 자유게시판 / 웹진, etc.)
-      if (!shouldHide && boardTitleNorm) {
-        if (hideSet["boardname:" + boardTitleNorm]) shouldHide = true;
-        else {
-          for (var tj = 0; tj < tokens.length; tj++) {
-            var tok2 = normalizeBoardName(tokens[tj]);
-            if (tok2 && tok2 === boardTitleNorm) {
-              shouldHide = true;
-              break;
+        // Board display-name match (공지사항 / 자유게시판 / 웹진, etc.)
+        if (!shouldHide && boardTitleNorm) {
+          if (hideSet["boardname:" + boardTitleNorm]) shouldHide = true;
+          else {
+            for (var tj = 0; tj < tokens.length; tj++) {
+              var tok2 = normalizeBoardName(tokens[tj]);
+              if (tok2 && tok2 === boardTitleNorm) {
+                shouldHide = true;
+                break;
+              }
             }
           }
         }
+
+        // Slug present but kind null / not in set yet
+        if (!shouldHide && boardSlug && hideSet["board:" + boardSlug]) shouldHide = true;
+
+        if (shouldHide) {
+          if (hideHomeBoxElement(el)) claimed.push(el);
+        }
       }
 
-      // Slug present but kind null / not in set yet
-      if (!shouldHide && boardSlug && hideSet["board:" + boardSlug]) shouldHide = true;
-
-      if (shouldHide) {
-        if (hideHomeBoxElement(el)) claimed.push(el);
+      // Cross-row reflow (나란히), then collapse emptied original grids.
+      // Prefer one reflow host over conflicting per-grid compact when boxes
+      // were actually hidden; compact remains as fallback inside collapse pass.
+      try {
+        reflowVisibleHomeBoxes(claimed.length);
+      } catch (eReflow) {}
+      try {
+        collapseEmptyHomeLayouts();
+      } catch (eCollapse) {}
+    } finally {
+      homeBoxApplyLock = false;
+      if (moPaused && homeBoxMoRoot) {
+        try {
+          moPaused.observe(homeBoxMoRoot, { childList: true, subtree: true });
+        } catch (eRe) {}
       }
     }
-
-    // Collapse empty stacks; compact partial multi-col grids (no full-bleed).
-    try {
-      collapseEmptyHomeLayouts();
-    } catch (eCollapse) {}
   }
 
   function clearHomeHideRetries() {

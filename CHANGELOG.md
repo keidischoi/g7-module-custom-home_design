@@ -3,6 +3,20 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.54] - 2026-09-23
+
+### Fixed — 홈 박스 교차 행 재배치 (나란히 reflow)
+
+- **원인:** 홈 템플릿은 Row B(`최근|인기|쇼핑몰+가이드`)와 Row C(게시판 요약)를 **별도** `grid-cols-3`로 둡니다. 0.2.53 compact는 **같은 그리드 안** 빈 1fr 트랙만 줄이므로, 「최근 게시글」「인기 게시판」이 한 행에 있고 「웹진」만 아래 행에 남는 교차 행 공백은 해결되지 않습니다.
+- **Reflow:** `ensureHiddenHomeBoxes`가 박스를 숨긴 뒤, 남은 보이는 카드 루트(`data-chd-home-box` / `data-board-slug` / 분류된 루트)를 `#chd-home-reflow` 호스트로 모아 **하나의 가로 그리드**에 배치합니다. 열 수 `N = min(3, visibleCount)`. 카드 1개 → 폭 ~1/3 (전폭 금지). 2개 → 2열, 3개+ → 3열(초과분은 줄바꿈). 좁은 뷰포트(≤767px)는 1열.
+- **복원:** `clearHiddenHomeBoxes`가 WeakMap/마커로 원래 부모·nextSibling에 되돌리고 호스트를 제거합니다. hide 목록이 비면 템플릿 DOM 순서가 복구됩니다.
+- **Collapse:** 비워진 원래 `.grid`/`.flex`/bare wrapper는 기존처럼 접습니다. carousel·CAS·`#main_content`·reflow 호스트는 건드리지 않습니다.
+- SPA/MO 재시도에도 호스트를 중복 생성하지 않고, clear→hide→reflow 경로로 안전하게 재적용합니다.
+
+### Fixed — cross-row home-box reflow (side-by-side)
+
+- When some home boxes are hidden, remaining visible cards from separate template rows reflow into one horizontal grid (max 3 columns) instead of leaving a lone board card on the next row with empty space beside it.
+
 ## [0.2.53] - 2026-09-23
 
 ### Fixed — 부분 숨김 그리드 빈 트랙 압축 (CSS compact, 전폭 아님)
