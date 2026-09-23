@@ -13,6 +13,8 @@
  *        home cards appear after first paint.
  * 0.2.47: title/href split for hide matching; short EN needles (board/post/…) use
  *        whole-word match so /board/… hrefs do not hide every board summary card.
+ * 0.2.48: short KO needles (웰컴/회원/게시글/댓글/게시판) use Hangul-boundary match
+ *        so 게시판 does not match 자유게시판; board cards hide via slug only.
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -2231,7 +2233,11 @@
         var child = el.children[ci];
         if (!child || isCasAdMount(child)) continue;
         var childLabel = homeBoxTitleLabel(child);
-        if (childLabel && tokenMatchesLabel(token, childLabel)) {
+        var childHeads = homeBoxExactHeadings(child);
+        if (
+          tokenMatchesExactHeading(token, childHeads) ||
+          (childLabel && tokenMatchesLabel(token, childLabel))
+        ) {
           if (hideHomeBoxElement(child)) any = true;
         }
       }
@@ -2331,11 +2337,39 @@
     guide: 1
   };
 
+  /** Short Korean needles that must not match as substrings inside longer Hangul compounds (e.g. 게시판 ⊂ 자유게시판). */
+  var CHD_SHORT_KO_NEEDLES = {
+    "웰컴": 1,
+    "회원": 1,
+    "게시글": 1,
+    "댓글": 1,
+    "게시판": 1
+  };
+
+  /** Exact heading texts that strongly identify stat / named home boxes. */
+  var CHD_EXACT_STAT_HEADINGS = {
+    welcome: ["welcome", "웰컴"],
+    "웰컴": ["welcome", "웰컴"],
+    users: ["members", "member", "users", "user", "회원"],
+    members: ["members", "member", "users", "user", "회원"],
+    member: ["members", "member", "users", "user", "회원"],
+    "회원": ["members", "member", "users", "user", "회원"],
+    posts: ["posts", "post", "게시글"],
+    post: ["posts", "post", "게시글"],
+    "게시글": ["posts", "post", "게시글"],
+    comments: ["comments", "comment", "댓글"],
+    comment: ["comments", "comment", "댓글"],
+    "댓글": ["comments", "comment", "댓글"],
+    boards: ["boards", "board", "게시판"],
+    board: ["boards", "board", "게시판"],
+    "게시판": ["boards", "board", "게시판"]
+  };
+
   function escapeRegex(s) {
     return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
-  /** Korean / long phrases: substring. Short EN list: whole-word on label. */
+  /** Short EN: whole-word. Short KO: Hangul-boundary. Longer phrases: substring. */
   function needleInLabel(needle, label) {
     if (!needle || !label) return false;
     needle = String(needle).toLowerCase();
@@ -2347,7 +2381,60 @@
         return false;
       }
     }
+    if (CHD_SHORT_KO_NEEDLES[needle]) {
+      try {
+        return new RegExp("(^|[^가-힣])" + escapeRegex(needle) + "([^가-힣]|$)").test(label);
+      } catch (eKo) {
+        return false;
+      }
+    }
     return label.indexOf(needle) !== -1;
+  }
+
+  /** Exact heading text (trimmed) for strong stat-card matches. */
+  function homeBoxExactHeadings(el) {
+    var out = [];
+    if (!el) return out;
+    try {
+      var heads = el.querySelectorAll("h1,h2,h3,h4,.text-lg,.font-semibold,.font-bold");
+      for (var i = 0; i < heads.length && i < 6; i++) {
+        var t = String(heads[i].textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+        if (t) out.push(t);
+      }
+    } catch (eH) {}
+    return out;
+  }
+
+  function tokenMatchesExactHeading(token, headings) {
+    if (!token || !headings || !headings.length) return false;
+    token = String(token).toLowerCase().trim();
+    var isPostsTok =
+      token === "게시글" || token === "posts" || token === "post" || token === "stat_posts";
+    var isBoardsTok =
+      token === "게시판" || token === "boards" || token === "board" || token === "stat_boards";
+    var list = CHD_EXACT_STAT_HEADINGS[token];
+    if (!list) list = [token];
+    for (var i = 0; i < headings.length; i++) {
+      var h = String(headings[i] || "").toLowerCase().trim();
+      if (!h) continue;
+      // Exact heading must not steal sibling boxes (Recent Posts / Popular Boards)
+      if (
+        isPostsTok &&
+        (h === "최근 게시글" || h === "recent posts" || h === "recent post" || h.indexOf("recent post") === 0)
+      ) {
+        continue;
+      }
+      if (
+        isBoardsTok &&
+        (h === "인기 게시판" || h === "popular boards" || h === "popular board" || h.indexOf("popular board") === 0)
+      ) {
+        continue;
+      }
+      for (var j = 0; j < list.length; j++) {
+        if (h === String(list[j]).toLowerCase()) return true;
+      }
+    }
+    return false;
   }
 
   function tokenMatchesLabel(token, label) {
@@ -2419,7 +2506,7 @@
       "q＆a": ["qna", "q&a"]
     };
 
-    // Direct match of the admin token itself (after guards) — whole-word for short EN
+    // Direct match of the admin token itself (after guards) — whole-word EN / Hangul-boundary KO
     if (needleInLabel(token, label)) {
       return true;
     }
@@ -2658,11 +2745,13 @@
       if (isCasAdMount(el)) continue;
       // Alias/title matching uses title label only (no hrefs)
       var label = homeBoxTitleLabel(el);
-      if (!label) continue;
+      var exactHeads = homeBoxExactHeadings(el);
+      if (!label && !exactHeads.length) continue;
       for (var k = 0; k < tokens.length; k++) {
         var token = tokens[k];
         if (!token || token.length < 2) continue;
-        if (tokenMatchesLabel(token, label)) {
+        // Prefer exact heading (stat Boards/게시판) + guarded alias match; never hide board cards via 게시판 alone
+        if (tokenMatchesExactHeading(token, exactHeads) || (label && tokenMatchesLabel(token, label))) {
           var hid = hideHomeBoxElement(el);
           if (!hid) {
             // Multi-child .grid skip is NOT success — try matching direct children.
