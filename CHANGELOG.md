@@ -3,6 +3,20 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.45] - 2026-09-23
+
+### Fixed — 숨길 홈 박스: 영문 UI 라벨 매칭 + 컬럼 누락 시 실패 노출
+
+- 관리자에 한글 토큰(웰컴, 회원, 게시글…)을 넣어도 라이브 영문 제목(Members, Posts, Recent Posts, Community Guide 등)과 매칭됩니다.
+- `data-chd-home-box` / `data-board-slug` / `/board/{slug}` href 매칭을 추가합니다. CAS 광고 마운트는 숨기지 않습니다.
+- `게시글`/`posts`는 Recent Posts를, `게시판`/`boards`는 Popular Boards를 훔치지 않습니다.
+- DB에 `hide_home_box_ids` 컬럼이 없으면 저장 시 RuntimeException으로 migrate를 안내합니다 (조용히 필드가 버려지지 않음).
+
+### Fixed — hide home boxes: Korean tokens ↔ English titles + fail-loud migrate
+
+- Korean admin tokens match English rendered titles; `data-chd-home-box` supported.
+- Missing `hide_home_box_ids` column throws (run `php82 artisan migrate`).
+
 ## [0.2.44] - 2026-09-23
 
 ### Fixed — 「숨길 홈 박스」 저장이 항상 비던 문제
