@@ -3,6 +3,21 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.47] - 2026-09-23
+
+### Fixed — 숨길 홈 박스: 과도한 매칭(`/board/…`) 축소
+
+- `homeBoxTitleLabel`(id·`data-chd-home-box`·slug·제목·텍스트)과 `homeBoxHrefBlob`(href만)을 분리합니다. 별칭/제목 매칭은 title만 사용합니다.
+- 짧은 영문 needle(`board`/`boards`/`post`/`posts`/`user`/`users`/`member`/`members`/`comment`/`comments`/`shop`/`guide`)은 **whole-word** 매칭만 허용합니다. `/board/notice` 같은 경로에 `board` 부분문자열이 걸려 모든 게시판 요약 카드가 숨겨지던 문제를 고칩니다.
+- slug 토큰(`/^[a-z0-9][a-z0-9_-]*$/i`)만 `data-board-slug` 또는 `/board/{tok}` 경로 세그먼트로 정확 매칭합니다.
+- `게시글`/`posts` → Recent Posts, `게시판`/`boards` → Popular Boards 가드와 0.2.46 재시도·MO·CAS 스킵은 유지합니다.
+- 홈이 비어 보이면 「숨길 홈 박스」를 **비우고 저장**하세요. 저장된 목록이 거의 모든 박스를 숨기도록 되어 있을 수 있습니다.
+
+### Fixed — hide home boxes: narrower matching (no /board/… alias bleed)
+
+- Title vs href split; short English needles are whole-word only.
+- Exact slug path match for slug-like tokens; clear the hide field + save if home looks empty.
+
 ## [0.2.46] - 2026-09-23
 
 ### Fixed — 홈 박스 숨김: SPA 지연 로드 재적용 + multi-child grid

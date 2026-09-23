@@ -11,6 +11,8 @@
  * 0.2.46: home-only hide retries + debounced MutationObserver (ensureHiddenHomeBoxes
  *        ONLY — not full header UX; avoids 0.2.1 remount loop). Progressive SPA
  *        home cards appear after first paint.
+ * 0.2.47: title/href split for hide matching; short EN needles (board/post/…) use
+ *        whole-word match so /board/… hrefs do not hide every board summary card.
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -2228,7 +2230,7 @@
       for (var ci = 0; ci < el.children.length; ci++) {
         var child = el.children[ci];
         if (!child || isCasAdMount(child)) continue;
-        var childLabel = homeBoxLabel(child);
+        var childLabel = homeBoxTitleLabel(child);
         if (childLabel && tokenMatchesLabel(token, childLabel)) {
           if (hideHomeBoxElement(child)) any = true;
         }
@@ -2255,26 +2257,40 @@
     } catch (e) {}
   }
 
-  function homeBoxLabel(el) {
+  /** Title/id/attr/heading/text only — NO hrefs (avoids /board/... matching alias "board"). */
+  function homeBoxTitleLabel(el) {
     if (!el) return "";
     var parts = [];
     try {
       parts.push(String(el.id || ""));
     } catch (e) {}
     try {
-      parts.push(
-        String(
-          (el.getAttribute &&
-            (el.getAttribute("data-board-slug") ||
-              el.getAttribute("data-slug") ||
-              el.getAttribute("data-board") ||
-              el.getAttribute("data-chd-home-box") ||
-              "")) ||
-            ""
-        )
-      );
+      if (el.getAttribute) {
+        parts.push(String(el.getAttribute("data-chd-home-box") || ""));
+        parts.push(String(el.getAttribute("data-board-slug") || ""));
+        parts.push(String(el.getAttribute("data-slug") || ""));
+        parts.push(String(el.getAttribute("data-board") || ""));
+      }
     } catch (e2) {}
-    // Collect href/to so English board slugs (e.g. webzine) match via /board/webzine
+    try {
+      var heads = el.querySelectorAll("h1,h2,h3,h4,.text-lg,.font-semibold,.font-bold");
+      for (var i = 0; i < heads.length && i < 6; i++) {
+        parts.push(String(heads[i].textContent || "").replace(/\s+/g, " ").trim());
+      }
+    } catch (e3) {}
+    // Short plain text snapshot (welcome / stat labels) without swallowing whole page
+    try {
+      var raw = String(el.textContent || "").replace(/\s+/g, " ").trim();
+      if (raw.length > 180) raw = raw.slice(0, 180);
+      parts.push(raw);
+    } catch (e4) {}
+    return parts.join(" ").toLowerCase();
+  }
+
+  /** Hrefs only — used for exact slug path-segment match, not alias titles. */
+  function homeBoxHrefBlob(el) {
+    if (!el) return "";
+    var parts = [];
     try {
       if (el.getAttribute) {
         var selfHref = el.getAttribute("href") || el.getAttribute("to") || "";
@@ -2291,19 +2307,47 @@
         if (ah) parts.push(String(ah));
       }
     } catch (eHref) {}
-    try {
-      var heads = el.querySelectorAll("h1,h2,h3,h4,.text-lg,.font-semibold,.font-bold");
-      for (var i = 0; i < heads.length && i < 6; i++) {
-        parts.push(String(heads[i].textContent || "").replace(/\s+/g, " ").trim());
-      }
-    } catch (e3) {}
-    // Short plain text snapshot (welcome / stat labels) without swallowing whole page
-    try {
-      var raw = String(el.textContent || "").replace(/\s+/g, " ").trim();
-      if (raw.length > 180) raw = raw.slice(0, 180);
-      parts.push(raw);
-    } catch (e4) {}
     return parts.join(" ").toLowerCase();
+  }
+
+  /** @deprecated keep name for any external callers — title only (no hrefs). */
+  function homeBoxLabel(el) {
+    return homeBoxTitleLabel(el);
+  }
+
+  /** Short English needles that must not match as substrings inside /board/… or larger words. */
+  var CHD_SHORT_EN_NEEDLES = {
+    board: 1,
+    boards: 1,
+    post: 1,
+    posts: 1,
+    user: 1,
+    users: 1,
+    member: 1,
+    members: 1,
+    comment: 1,
+    comments: 1,
+    shop: 1,
+    guide: 1
+  };
+
+  function escapeRegex(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  /** Korean / long phrases: substring. Short EN list: whole-word on label. */
+  function needleInLabel(needle, label) {
+    if (!needle || !label) return false;
+    needle = String(needle).toLowerCase();
+    label = String(label).toLowerCase();
+    if (CHD_SHORT_EN_NEEDLES[needle]) {
+      try {
+        return new RegExp("(^|[^a-z0-9_])" + escapeRegex(needle) + "([^a-z0-9_]|$)", "i").test(label);
+      } catch (eRe) {
+        return false;
+      }
+    }
+    return label.indexOf(needle) !== -1;
   }
 
   function tokenMatchesLabel(token, label) {
@@ -2375,8 +2419,8 @@
       "q＆a": ["qna", "q&a"]
     };
 
-    // Direct substring of the admin token itself (after guards)
-    if (label.indexOf(token) !== -1) {
+    // Direct match of the admin token itself (after guards) — whole-word for short EN
+    if (needleInLabel(token, label)) {
       return true;
     }
 
@@ -2384,7 +2428,7 @@
     if (!list) return false;
     for (var i = 0; i < list.length; i++) {
       var a = String(list[i]).toLowerCase();
-      if (label.indexOf(a) === -1) continue;
+      if (!needleInLabel(a, label)) continue;
       // Alias-level guards for posts/boards needles
       if ((a === "게시글" || a === "posts" || a === "post") &&
           (label.indexOf("최근 게시글") !== -1 || label.indexOf("recent posts") !== -1 || label.indexOf("recent post") !== -1)) {
@@ -2397,6 +2441,23 @@
       return true;
     }
     return false;
+  }
+
+  /** Token looks like a board/box slug suitable for /board/{tok} path match. */
+  function isSlugLikeToken(tok) {
+    return /^[a-z0-9][a-z0-9_-]*$/i.test(String(tok || ""));
+  }
+
+  /** True if href blob contains /board/{tok} as a path segment (not bare "board"). */
+  function hrefHasBoardSlug(hrefBlob, tok) {
+    if (!hrefBlob || !tok) return false;
+    try {
+      return new RegExp("(^|[^a-z0-9_])/board/" + escapeRegex(String(tok).toLowerCase()) + "([^a-z0-9_]|$)", "i").test(
+        String(hrefBlob).toLowerCase()
+      );
+    } catch (eH) {
+      return false;
+    }
   }
 
   function collectHomeBoxCandidates(root) {
@@ -2569,12 +2630,20 @@
           if (hit) hideHomeBoxElement(box);
         }
       } catch (eChd) {}
+      // Exact slug: data-board-slug already handled above; also /board/{tok} path segment
       try {
-        if (tok.length >= 2) {
-          var links = root.querySelectorAll('[href*="/board/' + tok + '"]');
+        if (isSlugLikeToken(tok) && tok.length >= 2) {
+          var links = root.querySelectorAll("a[href], [href], [to]");
           for (var li = 0; li < links.length; li++) {
             var link = links[li];
             if (isCasAdMount(link)) continue;
+            var hrefOne = "";
+            try {
+              hrefOne =
+                (link.getAttribute && (link.getAttribute("href") || link.getAttribute("to") || "")) ||
+                "";
+            } catch (eH1) {}
+            if (!hrefHasBoardSlug(hrefOne, tok)) continue;
             var resolved = resolveHomeBoxFromLink(link, candidates, root);
             if (resolved && !isCasAdMount(resolved)) hideHomeBoxElement(resolved);
           }
@@ -2587,7 +2656,8 @@
       var el = candidates[c];
       if (!el || claimed[c]) continue;
       if (isCasAdMount(el)) continue;
-      var label = homeBoxLabel(el);
+      // Alias/title matching uses title label only (no hrefs)
+      var label = homeBoxTitleLabel(el);
       if (!label) continue;
       for (var k = 0; k < tokens.length; k++) {
         var token = tokens[k];
