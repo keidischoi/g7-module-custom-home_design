@@ -3,6 +3,12 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.44] - 2026-09-23
+
+### Fixed — 「숨길 홈 박스」 저장이 항상 비던 문제
+
+- `hide_home_box_ids_text`를 파싱하기 **전에** `unset`하던 순서를 바로잡았습니다. 관리자 저장 시 쉼표 목록이 `hide_home_box_ids` JSON으로 정상 반영됩니다.
+
 ## [0.2.43] - 2026-09-23
 
 ### Fixed — 설정 API 500 · 광고 폭 커짐 · 홈 박스 숨김 미동작

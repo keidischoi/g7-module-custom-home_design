@@ -112,6 +112,31 @@ class HomeDesignSettingService
             $data['footer_link_groups'] = $trim === '' ? null : $this->decodeJsonValue($trim);
         }
 
+        // Home boxes to hide — MUST run before unset(*_text), same as board slugs
+        if (array_key_exists('hide_home_box_ids', $data) && is_array($data['hide_home_box_ids'])) {
+            $data['hide_home_box_ids'] = array_values($data['hide_home_box_ids']);
+        } elseif (array_key_exists('hide_home_box_ids_text', $data)) {
+            $data['hide_home_box_ids'] = $this->parseCommaSeparatedSlugs($data['hide_home_box_ids_text'] ?? '');
+        } elseif (array_key_exists('hide_home_box_ids', $data)) {
+            $raw = $data['hide_home_box_ids'];
+            if (is_string($raw)) {
+                $trim = trim($raw);
+                $data['hide_home_box_ids'] = ($trim !== '' && ($trim[0] ?? '') !== '[')
+                    ? $this->parseCommaSeparatedSlugs($trim)
+                    : $this->decodeJsonArray($trim);
+            } else {
+                $data['hide_home_box_ids'] = [];
+            }
+        }
+        if (isset($data['hide_home_box_ids']) && is_array($data['hide_home_box_ids'])) {
+            $data['hide_home_box_ids'] = array_values(array_filter(array_map(
+                static fn ($s) => is_string($s) || is_numeric($s) ? trim((string) $s) : '',
+                $data['hide_home_box_ids']
+            ), static fn ($s) => $s !== ''));
+        } elseif (! array_key_exists('hide_home_box_ids', $data)) {
+            $data['hide_home_box_ids'] = [];
+        }
+
         unset(
             $data['hide_header_board_slugs_json'],
             $data['hide_header_board_slugs_text'],
@@ -174,32 +199,6 @@ class HomeDesignSettingService
         if (! array_key_exists('hide_header_board_slugs', $data)) {
             $data['hide_header_board_slugs'] = [];
         }
-
-        // Home boxes to hide (ids / name keywords) — same CSV/JSON shape as board slugs
-        if (array_key_exists('hide_home_box_ids', $data) && is_array($data['hide_home_box_ids'])) {
-            $data['hide_home_box_ids'] = array_values($data['hide_home_box_ids']);
-        } elseif (array_key_exists('hide_home_box_ids_text', $data)) {
-            $data['hide_home_box_ids'] = $this->parseCommaSeparatedSlugs($data['hide_home_box_ids_text'] ?? '');
-        } elseif (array_key_exists('hide_home_box_ids', $data)) {
-            $raw = $data['hide_home_box_ids'];
-            if (is_string($raw)) {
-                $trim = trim($raw);
-                $data['hide_home_box_ids'] = ($trim !== '' && ($trim[0] ?? '') !== '[')
-                    ? $this->parseCommaSeparatedSlugs($trim)
-                    : $this->decodeJsonArray($trim);
-            } else {
-                $data['hide_home_box_ids'] = [];
-            }
-        }
-        if (isset($data['hide_home_box_ids']) && is_array($data['hide_home_box_ids'])) {
-            $data['hide_home_box_ids'] = array_values(array_filter(array_map(
-                static fn ($s) => is_string($s) || is_numeric($s) ? trim((string) $s) : '',
-                $data['hide_home_box_ids']
-            )));
-        } elseif (! array_key_exists('hide_home_box_ids', $data)) {
-            $data['hide_home_box_ids'] = [];
-        }
-
 
         if (is_array($data['footer_link_groups'] ?? null)) {
             $data['footer_link_groups'] = self::prependFooterLinkEmojis(self::enrichFooterLinkGroupIcons($data['footer_link_groups']));
