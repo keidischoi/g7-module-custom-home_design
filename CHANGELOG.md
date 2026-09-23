@@ -3,6 +3,21 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.59] - 2026-09-23
+
+### Fixed — 홈 커스텀 HTML이 캐러셀 아래에서 안 보이던 문제
+
+- **확인된 원인:** `#chd-home-custom-html`은 주입됐지만 (1) 실제 CAS 캐러셀/히어로가 `#main_content_area` 안·`#main_content` **밖** full-bleed(`#ad_global_top_wrap`)에 있어 `findHomeCarousel(getMainContentRoot())`가 놓치거나 잘못된 위치에 두고, (2) 마운트가 `.py-6` / mid-ad 형제로 들어가 부모 `visibility:hidden` / hide·collapse에 가려짐.
+- **탐색:** `#main_content_area` + `#main_content` (+ document). home grid / `#chd-home-reflow` / 커스텀 마운트를 품은 래퍼 후보 제외. 보이는 `carousel`·`.cas-ad-carousel`을 빈/숨김 `hero`보다 우선; `data-cas-hero*`는 유지.
+- **배치:** 캐러셀이 `#main_content` 이전 형제이면 `#main_content` **첫 자식**(히어로 아래·박스 위). 숨김/접힌 부모면 탈출. mid-ad / `.py-6` 체인 회피.
+- **가시성:** CSS + 인라인 `visibility:visible!important; display:block!important; …`. `hidden` / `data-chd-home-box-hidden` / `data-chd-home-layout-collapsed` 제거. hide·collapse·reflow가 마운트·자손·포함 래퍼를 건드리지 않음.
+- **SPA:** `ensureHiddenHomeBoxes` 성공 경로 끝(토큰 활성·빈 목록 모두)에서 `ensureHomeCustomHtml()` 재보장. hide 목록이 비었다고 마운트를 지우지 않음. 연결된 마운트에 설정 HTML이 있으면 항상 `innerHTML` 기록(설정 지연/간헐 500 대비).
+- **캐시:** `home-design.js?v=0.2.59`. 0.2.57 reflow 경로 유지.
+
+### Fixed — home custom HTML invisible under carousel
+
+- Search carousel in `#main_content_area` as well as `#main_content`; place as first child of `#main_content` when the hero is full-bleed above it; force mount visibility; exclude from hide/collapse/reflow; re-ensure after hide passes; cache-bust `?v=0.2.59`.
+
 ## [0.2.58] - 2026-09-23
 
 ### Added — 홈 커스텀 HTML (캐러셀 아래 · 박스 위)
