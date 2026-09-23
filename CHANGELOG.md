@@ -3,6 +3,18 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.55] - 2026-09-23
+
+### Fixed — 홈 박스 재배치: flex 카드 루트 인식
+
+- **원인:** `isHomeBoxCardRoot`가 `isLayoutStackClass`(ANY `\\bflex\\b`)를 `data-chd-home-box` / `looksLikeHomeCard`보다 **먼저** 검사해, 실제 카드(`h-full flex flex-col` + rounded-xl/border/shadow)를 전부 레이아웃 스택으로 거절 → `collectVisibleHomeBoxRoots`가 비어 `reflowVisibleHomeBoxes`가 카드를 옮기지 못함.
+- **순서 수정:** 보호 루트/CAS/reflow 호스트 제외 후 → 마크(`data-chd-home-box` / `data-board-slug` / `data-slug`) → `looksLikeHomeCard` → 그다음에야 layout stack / `contents` 거절.
+- **Hardening:** `#chd-home-reflow` 호스트는 `w-full`만 (더 이상 `chd-home-fill` 없음). `homeFillSelector`·`collectHomeBoxCandidates`의 `.chd-home-fill` 매칭에서 reflow 호스트 제외.
+
+### Fixed — reflow card roots: recognize flex home cards
+
+- Prefer marked / card-like roots over flex layout-stack rejection so remaining cards (최근 게시글, 인기 게시판, 웹진, …) actually move into `#chd-home-reflow` side-by-side.
+
 ## [0.2.54] - 2026-09-23
 
 ### Fixed — 홈 박스 교차 행 재배치 (나란히 reflow)
