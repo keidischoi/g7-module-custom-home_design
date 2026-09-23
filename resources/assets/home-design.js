@@ -6,9 +6,9 @@
  *        read #chd_home_design_cfg data-chd-settings for boot.
  * 0.2.11: search panel form; business sibling (superseded); boards restore when empty.
  * MutationObserver intentionally not used (0.2.1 infinite remount loop).
- * 0.2.37: when header_search_icon_mode is OFF, restore always-visible search
- *        (original form if present; otherwise inject inline form). Keep 0.2.36
- *        product-detail list-runtime stop.
+ * 0.2.37: when header_search_icon_mode is OFF, restore always-visible search.
+ * 0.2.38: icon mode ON — mount toggle first, then hide original form; force-show
+ *        #chd_header_search_toggle so boot CSS cannot leave a blank header.
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -249,17 +249,25 @@
     }
 
     if (searchIcon) {
-      // Hide ONLY original center search (h-16 row > form). NEVER hide #chd_header_search_panel form
-      // — blanket "header.chd-desktop-header form" made the slide INPUT invisible (0.2.10 bug).
+      // 0.2.38: do NOT hide original forms in CSS until toggles are mounted
+      // (hideOriginalSearchFormsAfterIconMount). Always force-show our icon buttons.
       css +=
-        "#desktop_header .flex.items-center.justify-between.h-16 > form," +
-        "#desktop_header .flex.items-center.justify-between.h-16 > form.flex.flex-1.max-w-lg," +
-        "#desktop_header .flex.items-center.justify-between.h-16 > form.max-w-lg," +
-        "header.sticky .flex.items-center.justify-between.h-16 > form," +
-        "header.sticky .flex.items-center.justify-between.h-16 > form.flex.flex-1.max-w-lg," +
-        "header.sticky .flex.items-center.justify-between.h-16 > form.max-w-lg," +
-        "header.chd-desktop-header .flex.items-center.justify-between.h-16 > form," +
-        "header.sticky form.flex.flex-1.max-w-lg.mx-8{" +
+        "#" +
+        DESKTOP_TOGGLE_ID +
+        ",#" +
+        MOBILE_TOGGLE_ID +
+        "{display:inline-flex!important;visibility:visible!important;opacity:1!important;" +
+        "pointer-events:auto!important;}" +
+        "html.chd-search-icon-ready #desktop_header .flex.items-center.justify-between.h-16 > form," +
+        "html.chd-search-icon-ready #desktop_header .flex.items-center.justify-between.h-16 > form.flex.flex-1.max-w-lg," +
+        "html.chd-search-icon-ready #desktop_header .flex.items-center.justify-between.h-16 > form.max-w-lg," +
+        "html.chd-search-icon-ready header.sticky .flex.items-center.justify-between.h-16 > form," +
+        "html.chd-search-icon-ready header.sticky .flex.items-center.justify-between.h-16 > form.flex.flex-1.max-w-lg," +
+        "html.chd-search-icon-ready header.sticky .flex.items-center.justify-between.h-16 > form.max-w-lg," +
+        "html.chd-search-icon-ready header.chd-desktop-header .flex.items-center.justify-between.h-16 > form," +
+        "html.chd-search-icon-ready header.sticky form.flex.flex-1.max-w-lg.mx-8," +
+        "html.chd-search-icon-ready #chd_header_search_always," +
+        "html.chd-search-icon-ready #chd_mobile_search_always{" +
         "display:none!important;}" +
         "#" +
         PANEL_ID +
@@ -1628,11 +1636,47 @@
     }
   }
 
+
+  function setSearchIconReady(ready) {
+    try {
+      document.documentElement.classList.toggle("chd-search-icon-ready", !!ready);
+    } catch (e) {}
+    try {
+      document.body && document.body.classList.toggle("chd-search-icon-ready", !!ready);
+    } catch (e2) {}
+  }
+
+  function hideOriginalSearchFormsAfterIconMount() {
+    if (!settingOn(lastSettings, "header_search_icon_mode", true)) {
+      setSearchIconReady(false);
+      return;
+    }
+    var desk = document.getElementById(DESKTOP_TOGGLE_ID);
+    var mob = document.getElementById(MOBILE_TOGGLE_ID);
+    var mounted = (desk && document.body.contains(desk)) || (mob && document.body.contains(mob));
+    setSearchIconReady(!!mounted);
+    if (!mounted) return;
+    [desk, mob].forEach(function (btn) {
+      if (!btn) return;
+      try {
+        btn.style.setProperty("display", "inline-flex", "important");
+        btn.style.setProperty("visibility", "visible", "important");
+        btn.style.setProperty("opacity", "1", "important");
+      } catch (e) {}
+    });
+  }
+
   function ensureDesktopSearchToggle() {
     if (!settingOn(lastSettings, "header_search_icon_mode", true)) return;
     var cluster = findDesktopRightCluster();
     if (!cluster) return;
     var existing = document.getElementById(DESKTOP_TOGGLE_ID);
+    if (existing && !cluster.contains(existing) && !(existing.parentNode && document.body.contains(existing))) {
+      try {
+        existing.parentNode && existing.parentNode.removeChild(existing);
+      } catch (eDet) {}
+      existing = null;
+    }
     if (existing) {
       // Reposition if theme is currently before search (swap to search-first)
       var themeHost = findThemeHost(cluster);
@@ -1643,6 +1687,10 @@
           themeHost.parentNode.insertBefore(existing, themeHost);
         }
       }
+      try {
+        existing.style.setProperty("display", "inline-flex", "important");
+        existing.style.setProperty("visibility", "visible", "important");
+      } catch (eVis) {}
       return;
     }
     insertSearchBeforeTheme(cluster, buildSearchButton(DESKTOP_TOGGLE_ID));
@@ -2098,13 +2146,15 @@
     } catch (eShop) {}
     if (!lastSettings) return;
     if (settingOn(lastSettings, "header_search_icon_mode", true)) {
-      // Icon mode: drop any always-visible fallback, then mount icon+panel
+      // Icon mode: drop always-visible fallback, mount icon+panel, then hide original form
       ensureAlwaysVisibleSearch();
       ensureDesktopSearchToggle();
       ensureMobileSearchToggle();
       ensureSearchPanel();
+      hideOriginalSearchFormsAfterIconMount();
       if (searchOpen) setSearchOpen(true);
     } else {
+      setSearchIconReady(false);
       ensureAlwaysVisibleSearch();
     }
     try {
