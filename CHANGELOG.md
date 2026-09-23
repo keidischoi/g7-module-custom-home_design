@@ -3,6 +3,14 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.38] - 2026-09-23
+
+### Fixed — 검색 아이콘 모드 ON인데 아이콘 미표시
+
+- boot CSS가 원본 검색 form을 먼저 숨기지 않습니다. 아이콘 버튼이 DOM에 붙은 뒤에만 원본 form을 숨깁니다.
+- 아이콘 모드 ON일 때 `#chd_header_search_toggle`를 `display:inline-flex`로 강제 표시합니다.
+- 아이콘이 안 붙으면 원본 검색 입력란이 그대로 남아 헤더가 비지 않습니다.
+
 ## [0.2.37] - 2026-09-23
 
 ### Fixed — 검색 아이콘 모드 OFF 시 입력란 미표시

@@ -1,8 +1,6 @@
 /*! custom-home_design module.iife — loaded ONLY while module is active (ModuleAssetLoader).
- * Does NOT use layout scripts[] ids (avoids G7 AssetFailureNotice toast when disabled).
- * 1) Read inline settings from #chd_home_design_cfg[data-chd-settings]
- * 2) Dynamically inject home-design.js via DOM (not layout script loader)
- * 0.2.37: rewrite boot CSS each load; when search icon mode OFF do not hide forms.
+ * 0.2.38: boot must NOT hide the original search form — home-design.js hides it only
+ * after the search icon toggle is mounted (avoids blank header if JS is slow/fails).
  */
 (function () {
   if (window.__chdHomeDesignIife) return;
@@ -45,11 +43,6 @@
         } catch (e4) {}
       }
     }
-    var searchIcon =
-      s.header_search_icon_mode !== false &&
-      s.header_search_icon_mode !== 0 &&
-      s.header_search_icon_mode !== "0" &&
-      s.header_search_icon_mode !== "false";
     var cssParts = [];
     if (hide) {
       cssParts.push(
@@ -65,21 +58,7 @@
           "}"
       );
     }
-    if (searchIcon) {
-      cssParts.push(
-        "header.sticky .flex.items-center.justify-between.h-16 > form," +
-          "header.chd-desktop-header .flex.items-center.justify-between.h-16 > form{" +
-          "display:none!important;}"
-      );
-    } else {
-      // Explicitly restore original center search when icon mode is off
-      cssParts.push(
-        "header.sticky .flex.items-center.justify-between.h-16 > form," +
-          "header.chd-desktop-header .flex.items-center.justify-between.h-16 > form," +
-          "#desktop_header .flex.items-center.justify-between.h-16 > form{" +
-          "display:flex!important;visibility:visible!important;opacity:1!important;}"
-      );
-    }
+    // 0.2.38: never hide header search form here
     var st = document.getElementById("chd-home-design-boot-style");
     if (!st) {
       st = document.createElement("style");
@@ -97,14 +76,14 @@
     if (existing) return;
     window.__chdHomeDesignJsLoading = true;
     var urls = [
-      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.37",
-      "/api/modules/custom-home_design/assets/home-design?v=0.2.37",
+      "/api/modules/custom-home_design/assets/home-design.js?v=0.2.38",
+      "/api/modules/custom-home_design/assets/home-design?v=0.2.38",
     ];
     var idx = 0;
     function tryNext() {
       if (idx >= urls.length) {
         try {
-          console.warn("[custom-home_design] home-design.js failed to load — footer/board JS inactive. Run: php82 artisan module:update custom-home_design --source=bundled --force && php82 artisan hooks:clear && php82 artisan cache:clear && php82 artisan route:clear");
+          console.warn("[custom-home_design] home-design.js failed to load");
         } catch (eW) {}
         window.__chdHomeDesignJsLoading = false;
         return;

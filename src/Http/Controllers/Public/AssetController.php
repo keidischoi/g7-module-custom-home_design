@@ -111,23 +111,8 @@ class AssetController extends Controller
                     .'display:none!important;visibility:hidden!important;height:0!important;max-height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;border:0!important;}'
                     .'}';
             }
-            if ($searchIcon) {
-                // Hide ONLY the original center search form — never #chd_header_search_panel form
-                $cssParts[] = '#desktop_header .flex.items-center.justify-between.h-16 > form.flex.flex-1.max-w-lg,'
-                    .'#desktop_header .flex.items-center.justify-between.h-16 > form.max-w-lg,'
-                    .'#desktop_header .flex.items-center.justify-between.h-16 > form,'
-                    .'header.sticky .flex.items-center.justify-between.h-16 > form.flex.flex-1.max-w-lg,'
-                    .'header.sticky .flex.items-center.justify-between.h-16 > form.max-w-lg,'
-                    .'header.sticky .flex.items-center.justify-between.h-16 > form,'
-                    .'header.chd-desktop-header .flex.items-center.justify-between.h-16 > form,'
-                    .'header.sticky form.flex.flex-1.max-w-lg.mx-8{'
-                    .'display:none!important;}'
-                    .'#chd_header_search_panel form,'
-                    .'#chd_header_search_panel input,'
-                    .'#chd_header_search_panel .chd-search-form{'
-                    .'display:block!important;visibility:visible!important;opacity:1!important;'
-                    .'pointer-events:auto!important;max-height:none!important;height:auto!important;}';
-            }
+            // 0.2.38: do not hide original search in boot CSS — home-design.js
+            // hides it only after #chd_header_search_toggle is mounted.
             if ($themeClick) {
                 // Scope to user-site headers only. Never match G7 admin ThemeToggle
                 // (same aria-label + .w-48 dropdown).
