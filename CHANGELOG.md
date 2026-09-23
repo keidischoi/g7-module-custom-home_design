@@ -3,6 +3,21 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.46] - 2026-09-23
+
+### Fixed — 홈 박스 숨김: SPA 지연 로드 재적용 + multi-child grid
+
+- 홈(/)에서 `ensureHiddenHomeBoxes`를 0·300·800·1500·3000·5000·8000ms에 재시도합니다 (이전 타이머 클리어).
+- `#main_content` / `#main_content_area`에 debounced MutationObserver(200ms, childList+subtree)를 연결해 **숨김만** 재적용합니다 (검색 리마운트·헤더 UX 전체 경로는 호출하지 않음 — 0.2.1 루프 방지). 홈을 떠나면 disconnect.
+- `hideHomeBoxElement`가 성공 시 `true` / 스킵 시 `false`를 반환합니다. multi-child `.grid` 스킵은 성공으로 치지 않으며, `claimed`는 실제 hide 성공 시에만 설정합니다.
+- 토큰이 그리드 래퍼에 매칭되면 동일 토큰이 맞는 **직접 자식**을 숨기도록 폴백합니다.
+- 0.2.45의 한/영 별칭·CAS 광고 마운트 스킵을 유지합니다.
+
+### Fixed — home box hide: progressive SPA retries + MutationObserver
+
+- Staggered re-apply + home-only MO calling `ensureHiddenHomeBoxes` only.
+- Grid skip is not success; optional per-child hide for multi-card grids.
+
 ## [0.2.45] - 2026-09-23
 
 ### Fixed — 숨길 홈 박스: 영문 UI 라벨 매칭 + 컬럼 누락 시 실패 노출
