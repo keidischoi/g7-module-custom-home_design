@@ -48,6 +48,14 @@
  *        with late-mounted boards outside. Disable compactPartialHomeGrid
  *        while tokens active (only collapse zero-visible wrappers) so
  *        per-grid compact cannot fight cross-row reflow / leave n=1 + row2.
+ * 0.2.57: While hide tokens active, do NOT restoreHomeBoxReflow on every
+ *        ensure (that destroyed #chd-home-reflow and fought SPA remounts →
+ *        n=1 host + board row). Only clear hide/collapse attrs; merge any
+ *        visible card roots still outside the host; full restore only when
+ *        hide list empty or leaving home. Harden collect for bare iteration
+ *        wrappers + unmarked looksLikeHomeCard (live templates often lack
+ *        data-chd-home-box / data-board-slug). Suppress duplicate SPA remounts
+ *        outside host when same board slug/title already inside. iife ?v=
  */
 (function () {
   if (window.__chdHomeDesignInstalled) return;
@@ -2766,6 +2774,84 @@
     return root;
   }
 
+  /**
+   * Descend into bare iteration wrappers to find a card root (marked or looksLikeHomeCard).
+   * Live templates often wrap board cards in plain Divs with no data-* markers.
+   */
+  function findCardRootInside(el) {
+    if (!el || el.nodeType !== 1) return null;
+    if (isHomeBoxCardRoot(el)) return el;
+    try {
+      var stack = [];
+      for (var i = 0; i < el.children.length; i++) stack.push(el.children[i]);
+      var found = null;
+      while (stack.length) {
+        var cur = stack.shift();
+        if (!cur || cur.nodeType !== 1) continue;
+        if (isCasAdMount(cur) || isProtectedLayoutRoot(cur)) continue;
+        try {
+          if (cur.id === "chd-home-reflow" || cur.getAttribute("data-chd-home-reflow") === "1") {
+            continue;
+          }
+        } catch (eHost) {}
+        if (isHomeBoxCardRoot(cur)) {
+          // Prefer outermost: keep first DFS that is not nested in a prior found sibling path
+          if (!found) found = cur;
+          continue; // do not descend into card
+        }
+        // Descend into bare wrappers / contents; skip layout stacks unless they only wrap one card
+        var cls = "";
+        try {
+          cls = String(cur.className || "");
+        } catch (eCls) {}
+        if (/\bcontents\b/.test(cls) || isBareHomeWrapper(cur)) {
+          for (var c = 0; c < cur.children.length; c++) stack.unshift(cur.children[c]);
+        } else if (isLayoutStackClass(cls) && cur.children && cur.children.length === 1) {
+          stack.unshift(cur.children[0]);
+        } else if (isBareHomeWrapper(cur) === false && cur.children && cur.children.length) {
+          // Still scan one level for nested card chrome
+          for (var d = 0; d < cur.children.length; d++) {
+            var ch = cur.children[d];
+            if (ch && isHomeBoxCardRoot(ch)) {
+              if (!found) found = ch;
+            }
+          }
+        }
+      }
+      return found;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** Stable identity for SPA duplicate detection (slug > kind > title). */
+  function homeCardDedupeKey(el) {
+    if (!el) return "";
+    try {
+      var slug = extractBoardSlugFromCard(el);
+      if (slug) return "slug:" + String(slug).toLowerCase();
+    } catch (eS) {}
+    try {
+      var kind = el.getAttribute && el.getAttribute("data-chd-home-box");
+      if (kind) return "kind:" + String(kind).toLowerCase();
+    } catch (eK) {}
+    try {
+      var title = extractBoardTitleFromCard(el);
+      if (title) {
+        var nt = normalizeBoardName(title);
+        if (nt) return "title:" + nt;
+      }
+    } catch (eT) {}
+    try {
+      var heads = homeBoxExactHeadings(el);
+      if (heads && heads.length) {
+        var h = normalizeBoardName(heads[0]);
+        if (h) return "title:" + h;
+      }
+    } catch (eH) {}
+    return "";
+  }
+
   /** True for an actual card leaf — not .grid/.flex/.chd-home-fill layout chrome.
    *  Cards often use h-full flex flex-col; marked/card-like wins over layout-stack. */
   function isHomeBoxCardRoot(el) {
@@ -2818,7 +2904,15 @@
       var el = resolveHomeBoxRoot(candidates[i]);
       if (!el || el.nodeType !== 1) continue;
       if (isCasAdMount(el)) continue;
-      if (!isHomeBoxCardRoot(el)) continue;
+      // Bare iteration wrappers: descend to marked / looksLikeHomeCard leaf
+      if (!isHomeBoxCardRoot(el)) {
+        var inner = null;
+        try {
+          inner = findCardRootInside(el);
+        } catch (eInner) {}
+        if (inner) el = resolveHomeBoxRoot(inner);
+      }
+      if (!el || !isHomeBoxCardRoot(el)) continue;
       if (isEffectivelyHiddenHomeChild(el)) continue;
       // Skip carousel/hero chrome by id/class even if not CAS-marked
       try {
@@ -3101,6 +3195,61 @@
     var region = findHomeReflowRegion(root);
     if (!region) return;
 
+    var hostExisting = null;
+    try {
+      hostExisting =
+        document.getElementById("chd-home-reflow") ||
+        (region && region.querySelector && region.querySelector("[data-chd-home-reflow='1']"));
+    } catch (eHx) {}
+
+    // SPA remounts: if host already has a card with same slug/title and an
+    // outside remount appears, prefer host copy — hide the outside duplicate.
+    // If host lost its node (detached), keep the remount and let merge move it in.
+    if (hostExisting) {
+      var hostKeys = {};
+      try {
+        for (var hk = 0; hk < hostExisting.children.length; hk++) {
+          var hc = hostExisting.children[hk];
+          if (!hc || isEffectivelyHiddenHomeChild(hc)) continue;
+          var keyH = homeCardDedupeKey(hc);
+          if (keyH) hostKeys[keyH] = hc;
+        }
+      } catch (eKeys) {}
+      var filteredBoxes = [];
+      for (var bi = 0; bi < boxes.length; bi++) {
+        var bx = boxes[bi];
+        if (!bx) continue;
+        var inHost = false;
+        try {
+          inHost = !!(bx.parentElement === hostExisting || (hostExisting.contains && hostExisting.contains(bx)));
+        } catch (eIn) {}
+        if (inHost) {
+          filteredBoxes.push(bx);
+          continue;
+        }
+        var keyB = homeCardDedupeKey(bx);
+        if (keyB && hostKeys[keyB]) {
+          var hostCopy = hostKeys[keyB];
+          var hostAlive = false;
+          try {
+            hostAlive = !!(hostCopy && hostCopy.isConnected !== false && hostExisting.contains(hostCopy));
+          } catch (eAlive) {
+            hostAlive = !!hostCopy;
+          }
+          if (hostAlive) {
+            try {
+              hideHomeBoxElement(bx);
+            } catch (eDup) {}
+            continue;
+          }
+          // Host lost the node — take the remount into host instead
+        }
+        filteredBoxes.push(bx);
+      }
+      boxes = filteredBoxes;
+    }
+    if (!boxes.length) return;
+
     var anchor = findReflowAnchorChild(region, boxes);
     var host = getOrCreateReflowHost(region, anchor);
     if (!host) return;
@@ -3125,16 +3274,37 @@
       } catch (eAp) {}
     }
 
-    // N = min(3, count) via configureReflowHost — 3 visibles → 3 equal cols full width.
+    // Prune effectively-hidden children so they do not inflate column count.
     try {
-      configureReflowHost(host, host.children.length);
+      for (var pi = host.children.length - 1; pi >= 0; pi--) {
+        var pch = host.children[pi];
+        if (!pch || !isEffectivelyHiddenHomeChild(pch)) continue;
+        var info = null;
+        try {
+          if (homeReflowRestore) info = homeReflowRestore.get(pch);
+        } catch (eGet) {}
+        try {
+          if (info && info.parent && info.parent.nodeType === 1) {
+            var next = info.nextSibling;
+            if (next && next.parentNode === info.parent) info.parent.insertBefore(pch, next);
+            else info.parent.appendChild(pch);
+          }
+        } catch (eRest) {}
+      }
+    } catch (ePrune) {}
+
+    // N = min(3, visible children) — display:none items must not create empty tracks.
+    try {
+      var visCount = 0;
+      for (var vi = 0; vi < host.children.length; vi++) {
+        if (!isEffectivelyHiddenHomeChild(host.children[vi])) visCount++;
+      }
+      configureReflowHost(host, visCount);
     } catch (eCfg) {}
   }
 
-  function clearHiddenHomeBoxes() {
-    try {
-      restoreHomeBoxReflow();
-    } catch (eReflow) {}
+  /** Clear hide/collapse attrs only — leave #chd-home-reflow host intact. */
+  function clearHiddenHomeBoxAttrs() {
     clearCollapsedHomeLayouts();
     try {
       var nodes = document.querySelectorAll("[data-chd-home-box-hidden='1']");
@@ -3154,6 +3324,14 @@
         } catch (e2) {}
       }
     } catch (e) {}
+  }
+
+  /** Full undo: restore cards to original parents, destroy reflow host, clear attrs. */
+  function clearHiddenHomeBoxes() {
+    try {
+      restoreHomeBoxReflow();
+    } catch (eReflow) {}
+    clearHiddenHomeBoxAttrs();
   }
 
   function escapeRegex(s) {
@@ -3736,15 +3914,51 @@
           var kcls = String(kid.className || "");
           if (/\bcontents\b/.test(kcls)) {
             pushLeaf(kid);
+          } else if (isBareHomeWrapper(kid)) {
+            // Bare iteration Div: descend to marked / looksLikeHomeCard leaf
+            var cardInside = findCardRootInside(kid);
+            if (cardInside) pushLeaf(cardInside);
+            else pushLeaf(kid);
           } else if (/\bflex\b/.test(kcls) && kid.children && kid.children.length) {
-            // shop + community guide stack
-            for (var c = 0; c < kid.children.length; c++) pushLeaf(kid.children[c]);
+            // shop + community guide stack OR flex card root
+            if (isHomeBoxCardRoot(kid) || looksLikeHomeCard(kid)) {
+              pushLeaf(kid);
+            } else {
+              for (var c = 0; c < kid.children.length; c++) {
+                var flexChild = kid.children[c];
+                if (isBareHomeWrapper(flexChild)) {
+                  var fc = findCardRootInside(flexChild);
+                  pushLeaf(fc || flexChild);
+                } else {
+                  pushLeaf(flexChild);
+                }
+              }
+            }
           } else {
             pushLeaf(kid);
           }
         }
       }
     } catch (e) {}
+    // Unmarked live cards (no data-chd-home-box / data-board-slug): pick up
+    // rounded-xl+border+shadow chrome so reflow works without template markers.
+    try {
+      var allEls = root.querySelectorAll("*");
+      for (var ai = 0; ai < allEls.length; ai++) {
+        var ae = allEls[ai];
+        if (!ae || isCasAdMount(ae)) continue;
+        try {
+          if (ae.id === "chd-home-reflow" || ae.getAttribute("data-chd-home-reflow") === "1") {
+            continue;
+          }
+        } catch (eRf0) {}
+        if (!looksLikeHomeCard(ae)) continue;
+        // Prefer outermost card root
+        var cardRoot = resolveHomeBoxRoot(ae);
+        if (cardRoot && isHomeBoxCardRoot(cardRoot)) pushLeaf(cardRoot);
+        else pushLeaf(ae);
+      }
+    } catch (eLook) {}
     try {
       var marked = root.querySelectorAll(
         "[data-chd-home-box],[data-board-slug],[data-slug],.chd-home-fill:not(#chd-home-reflow):not([data-chd-home-reflow='1']),[data-chd-home-fill='1']:not(#chd-home-reflow):not([data-chd-home-reflow='1'])"
@@ -3796,11 +4010,20 @@
       if (moPaused) moPaused.disconnect();
     } catch (eDisc) {}
     try {
-      clearHiddenHomeBoxes();
-      if (!lastSettings) return;
-      if (!isHomePath()) return;
+      if (!lastSettings || !isHomePath()) {
+        // Off home / no settings: full restore (destroy reflow host).
+        clearHiddenHomeBoxes();
+        return;
+      }
       var tokens = homeBoxTokens(lastSettings);
-      if (!tokens.length) return;
+      if (!tokens.length) {
+        // Hide list empty: restore original DOM order.
+        clearHiddenHomeBoxes();
+        return;
+      }
+      // 0.2.57: tokens still active — do NOT destroy #chd-home-reflow.
+      // Only clear hide/collapse attrs for re-apply; merge outside cards into host.
+      clearHiddenHomeBoxAttrs();
 
       var root = getMainContentRoot();
       if (!root) return;
@@ -3877,10 +4100,8 @@
         }
       }
 
-      // Cross-row reflow (나란히) whenever hide tokens are non-empty — not only
-      // when claimed.length >= 1 this pass (progressive SPA: first pass may
-      // reflow n=1; later boards must still merge). Disable partial compact
-      // while tokens active so per-grid compact cannot fight the reflow host.
+      // Cross-row reflow (나란히): keep existing host; merge late SPA boards.
+      // Disable partial compact while tokens active (collapse emptied grids only).
       try {
         reflowVisibleHomeBoxes(tokens.length > 0);
       } catch (eReflow) {}
