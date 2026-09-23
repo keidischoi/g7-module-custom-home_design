@@ -3,6 +3,23 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.58] - 2026-09-23
+
+### Added — 홈 커스텀 HTML (캐러셀 아래 · 박스 위)
+
+- **설정:** `home_custom_html` (longText). 관리자 Settings 텍스트에어리어로 저장. 공개 settings / boot cfg / `toPublicArray`에 노출.
+- **배치:** 홈(`/`)에서만 `#chd-home-custom-html`을 캐러셀·히어로 **다음**, 홈 박스 그리드 / `#chd-home-reflow` **앞**에 삽입.
+  - 캐러셀 탐색: `data-cas-hero*` → id/class에 `carousel`·`hero` (기존 home-design 휴리스틱). 없으면 메인 콘텐츠 상단·첫 홈 박스 그리드 앞.
+  - custom-ad_slots Event Hook 광고 마운트는 수정·숨김하지 않음.
+- **빈 값:** 마운트 제거(빈 여백 없음). 홈 이탈 시 제거.
+- **SPA:** `ensureHeaderUx` / home MO / hide retries에서 재보장. 단일 id, 내용 불변 시 innerHTML 재기록 안 함. 관리자 `<script>`는 재삽입으로 실행.
+- **회귀 방지:** hide/reflow(0.2.57) 경로 유지. fill selector·`isProtectedLayoutRoot`에서 커스텀 HTML 마운트 제외.
+- **캐시:** `home-design.js?v=0.2.58`. migration `2026_09_23_000004_add_home_custom_html...` 필요.
+
+### Added — home custom HTML under carousel / above home boxes
+
+- Persist `home_custom_html`; inject `#chd-home-custom-html` after carousel/hero heuristics and before home box grids / reflow host. Empty clears the mount. SPA-safe; ads untouched; hide/reflow unchanged.
+
 ## [0.2.57] - 2026-09-23
 
 ### Fixed — SPA remount과 reflow 호스트 파괴 경쟁 제거 + 무마크 카드 수집

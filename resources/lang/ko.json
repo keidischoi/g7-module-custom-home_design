@@ -11,7 +11,8 @@
                 "general": "레이아웃",
                 "footer": "푸터 링크",
                 "business": "사업자 고지",
-                "home_boxes": "홈 박스"
+                "home_boxes": "홈 박스",
+                "home_html": "홈 커스텀 HTML"
             },
             "fields": {
                 "enabled": "모듈 사용",
@@ -39,7 +40,10 @@
                 "hide_header_board_slugs_note": "입력한 slug는 모든 페이지 헤더(데스크톱·모바일·더보기)에서 숨깁니다. 저장하면 관련 레이아웃 캐시가 자동 갱신됩니다.",
                 "hide_home_box_ids": "숨길 홈 박스 (이름 / slug)",
                 "hide_home_box_ids_hint": "토큰은 박스 kind에 1:1로 매핑됩니다. 예: welcome, shop, webzine 또는 웰컴, 쇼핑몰, 웹진. 게시판 요약은 slug(webzine) 또는 한글 이름(공지사항, 자유게시판, 웹진)도 됩니다. 부분 숨김 예: welcome, shop, 공지사항. 숨김 후 남은 카드는 `#chd-home-reflow` 한 행(최대 3열)으로 안정적으로 병합됩니다(예: 「최근 게시글」|「자유게시판」|「웹진」). 토큰이 있는 동안 reflow 호스트를 매 ensure마다 파괴하지 않아 SPA 재마운트와 싸우지 않습니다. 마크가 없는 카드도 카드 chrome으로 수집합니다. 비어 버린 원래 그리드만 접습니다. 홈이 비어 보이면 이 칸을 비우고 저장하세요.",
-                "hide_home_box_ids_note": "홈(/)에만 적용됩니다. 각 토큰은 하나의 박스 kind에만 1:1 매핑됩니다(배타 분류). 「게시판」/boards = Boards 통계 카드만. 게시판 요약 카드는 slug 또는 표시 이름으로 지정하세요. custom-ad_slots 광고 마운트는 숨기지 않습니다. hide 목록이 비어 있지 않으면 남은 카드는 SPA 지연 로드 후에도 한 행으로 재배치되며, 목록을 비우거나 홈을 떠나면 원래 레이아웃으로 복원됩니다."
+                "hide_home_box_ids_note": "홈(/)에만 적용됩니다. 각 토큰은 하나의 박스 kind에만 1:1 매핑됩니다(배타 분류). 「게시판」/boards = Boards 통계 카드만. 게시판 요약 카드는 slug 또는 표시 이름으로 지정하세요. custom-ad_slots 광고 마운트는 숨기지 않습니다. hide 목록이 비어 있지 않으면 남은 카드는 SPA 지연 로드 후에도 한 행으로 재배치되며, 목록을 비우거나 홈을 떠나면 원래 레이아웃으로 복원됩니다.",
+                "home_custom_html": "홈 커스텀 HTML",
+                "home_custom_html_hint": "캐러셀(히어로) 아래 · 홈 박스 위에 삽입됩니다. 관리자만 저장하는 HTML이므로 기본 레이아웃 마크업·인라인 CSS·script를 그대로 넣을 수 있습니다. 비우면 삽입하지 않습니다(빈 여백 없음).",
+                "home_custom_html_note": "홈(/)에만 적용됩니다. custom-ad_slots 광고(캐러셀/히어로 Event Hook)는 건드리지 않습니다. SPA 재마운트 시에도 중복 마운트 없이 다시 보장됩니다."
             }
         }
     }

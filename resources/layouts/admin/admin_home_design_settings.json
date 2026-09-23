@@ -33,7 +33,8 @@
           "enabled": true,
           "hide_header_board_slugs_text": "",
           "hide_home_box_ids": [],
-          "hide_home_box_ids_text": ""
+          "hide_home_box_ids_text": "",
+          "home_custom_html": ""
         }
       }
     }
@@ -466,6 +467,89 @@
                 "props": {
                   "className": "text-lg font-semibold mb-4"
                 },
+                "text": "$t:custom-home_design.admin.settings.sections.home_html"
+              },
+              {
+                "id": "field_home_custom_html",
+                "type": "basic",
+                "name": "Div",
+                "props": {
+                  "className": "form-group w-full"
+                },
+                "children": [
+                  {
+                    "type": "basic",
+                    "name": "Label",
+                    "props": {
+                      "className": "form-label"
+                    },
+                    "children": [
+                      {
+                        "type": "basic",
+                        "name": "Span",
+                        "text": "$t:custom-home_design.admin.settings.fields.home_custom_html"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "Textarea",
+                    "props": {
+                      "name": "home_custom_html",
+                      "className": "input w-full font-mono text-sm min-h-[14rem] h-56 resize-y",
+                      "rows": 14,
+                      "placeholder": "<!-- 캐러셀 아래 · 박스 위 -->",
+                      "value": "{{_local.form?.home_custom_html ?? ''}}",
+                      "autoBinding": false,
+                      "style": {
+                        "minHeight": "14rem",
+                        "height": "14rem"
+                      }
+                    },
+                    "actions": [
+                      {
+                        "type": "change",
+                        "handler": "setState",
+                        "params": {
+                          "target": "local",
+                          "form.home_custom_html": "{{$event.target.value}}"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "text-xs text-gray-500 mt-1"
+                    },
+                    "text": "$t:custom-home_design.admin.settings.fields.home_custom_html_hint"
+                  },
+                  {
+                    "type": "basic",
+                    "name": "P",
+                    "props": {
+                      "className": "text-xs text-gray-500 mt-2"
+                    },
+                    "text": "$t:custom-home_design.admin.settings.fields.home_custom_html_note"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "basic",
+            "name": "Div",
+            "props": {
+              "className": "mb-8 p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+            },
+            "children": [
+              {
+                "type": "basic",
+                "name": "H2",
+                "props": {
+                  "className": "text-lg font-semibold mb-4"
+                },
                 "text": "$t:custom-home_design.admin.settings.sections.footer"
               },
               {
@@ -660,7 +744,8 @@
                             "header_theme_click_toggle": "{{_local.form?.header_theme_click_toggle === false || _local.form?.header_theme_click_toggle === 0 || _local.form?.header_theme_click_toggle === '0' || _local.form?.header_theme_click_toggle === 'false' ? 0 : 1}}",
                             "footer_link_groups_json": "{{typeof _local.form?.footer_link_groups_json === 'object' && _local.form?.footer_link_groups_json !== null ? JSON.stringify(_local.form.footer_link_groups_json) : String(_local.form?.footer_link_groups_json ?? '')}}",
                             "hide_header_board_slugs_text": "{{String(_local.form?.hide_header_board_slugs_text ?? '')}}",
-                            "hide_home_box_ids_text": "{{String(_local.form?.hide_home_box_ids_text ?? '')}}"
+                            "hide_home_box_ids_text": "{{String(_local.form?.hide_home_box_ids_text ?? '')}}",
+                            "home_custom_html": "{{String(_local.form?.home_custom_html ?? '')}}"
                           }
                         },
                         "onSuccess": [
@@ -681,7 +766,8 @@
                               "form.enabled": true,
                               "form.hide_header_board_slugs_text": "{{Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs) ? ($response.data?.data ?? $response.data ?? $response).hide_header_board_slugs.join(', ') : (($response.data?.data ?? $response.data ?? $response)?.hide_header_board_slugs_text ?? _local.form?.hide_header_board_slugs_text ?? '')}}",
                               "form.hide_home_box_ids": "{{Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_home_box_ids) ? (($response.data?.data ?? $response.data ?? $response).hide_home_box_ids) : (_local.form?.hide_home_box_ids ?? [])}}",
-                              "form.hide_home_box_ids_text": "{{Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_home_box_ids) ? ($response.data?.data ?? $response.data ?? $response).hide_home_box_ids.join(', ') : (($response.data?.data ?? $response.data ?? $response)?.hide_home_box_ids_text ?? _local.form?.hide_home_box_ids_text ?? '')}}"
+                              "form.hide_home_box_ids_text": "{{Array.isArray(($response.data?.data ?? $response.data ?? $response)?.hide_home_box_ids) ? ($response.data?.data ?? $response.data ?? $response).hide_home_box_ids.join(', ') : (($response.data?.data ?? $response.data ?? $response)?.hide_home_box_ids_text ?? _local.form?.hide_home_box_ids_text ?? '')}}",
+                              "form.home_custom_html": "{{(($response.data?.data ?? $response.data ?? $response))?.home_custom_html ?? _local.form?.home_custom_html ?? ''}}"
                             }
                           },
                           {

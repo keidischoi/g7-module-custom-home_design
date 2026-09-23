@@ -11,7 +11,8 @@
                 "general": "Layout",
                 "footer": "Footer links",
                 "business": "Business notice",
-                "home_boxes": "Home boxes"
+                "home_boxes": "Home boxes",
+                "home_html": "Home custom HTML"
             },
             "fields": {
                 "enabled": "Enable module",
@@ -39,7 +40,10 @@
                 "hide_header_board_slugs_note": "The entered slugs are hidden from every page header (desktop, mobile, and more menu). Related layout caches refresh automatically when saved.",
                 "hide_home_box_ids": "Home boxes to hide (name / slug)",
                 "hide_home_box_ids_hint": "Tokens map 1:1 to box kinds (e.g. welcome, shop, webzine, or Korean names). Board summary cards accept slug or display name. After hide, remaining cards merge into one `#chd-home-reflow` row (max 3 cols), e.g. Recent | Free board | Webzine. While tokens are active the reflow host is kept across ensures (no destroy/restore fight with SPA remounts). Unmarked cards are collected via card chrome. Empty original grids collapse. Clear this field and save if the home looks empty.",
-                "hide_home_box_ids_note": "Home (/) only. Each token maps to exactly one box kind. Boards stats card = boards/게시판; board summary cards need slug or display name. custom-ad_slots mounts are never hidden. While the hide list is non-empty, remaining cards stay one row after SPA late mounts; clearing the list or leaving home restores the template layout."
+                "hide_home_box_ids_note": "Home (/) only. Each token maps to exactly one box kind. Boards stats card = boards/게시판; board summary cards need slug or display name. custom-ad_slots mounts are never hidden. While the hide list is non-empty, remaining cards stay one row after SPA late mounts; clearing the list or leaving home restores the template layout.",
+                "home_custom_html": "Home custom HTML",
+                "home_custom_html_hint": "Inserted under the carousel/hero and above home boxes. Admin-only HTML — paste layout markup, inline CSS, and scripts as needed. Leave empty to inject nothing (no empty gap).",
+                "home_custom_html_note": "Home (/) only. Does not touch custom-ad_slots carousel/hero Event Hook mounts. Re-ensured on SPA remounts without duplicate mounts."
             }
         }
     }

@@ -56,7 +56,12 @@
  *        wrappers + unmarked looksLikeHomeCard (live templates often lack
  *        data-chd-home-box / data-board-slug). Suppress duplicate SPA remounts
  *        outside host when same board slug/title already inside. iife ?v=
- */
+  * 0.2.58: Admin home_custom_html — inject #chd-home-custom-html under
+ *        carousel/hero (id/class carousel|hero, data-cas-hero*) and above
+ *        home box grids / #chd-home-reflow. Empty → remove mount. SPA/MO
+ *        re-ensure without duplicate mounts. CAS ads untouched.
+ *
+*/
 (function () {
   if (window.__chdHomeDesignInstalled) return;
   window.__chdHomeDesignInstalled = true;
@@ -67,6 +72,9 @@
   var INLINE_BUSINESS_ID = "chd_business_info_inline";
   var MOUNT_ID = "chd_business_info_mount";
   var CFG_ID = "chd_home_design_cfg";
+  var HOME_CUSTOM_HTML_ID = "chd-home-custom-html";
+  /** @type {string} */
+  var lastHomeCustomHtmlSig = "";
   var DESKTOP_TOGGLE_ID = "chd_header_search_toggle";
   var MOBILE_TOGGLE_ID = "chd_mobile_search_toggle";
   var PANEL_ID = "chd_header_search_panel";
@@ -182,9 +190,9 @@
     // that overrides custom-ad_slots maxWidth (ads blow up full-bleed).
     // Exclude #chd-home-reflow so the reflow host is not treated as fill chrome.
     return (
-      "#main_content > *:not([data-chd-full-bleed]):not([data-cas-ad-slot]):not([data-cas-ad-role]):not([data-cas-hero]):not([data-cas-ad-host]):not([id^='cas_']):not([id^='ad_']):not(#chd-home-reflow):not([data-chd-home-reflow='1'])," +
-      "#main_content .chd-home-fill:not(#chd-home-reflow):not([data-chd-home-reflow='1'])," +
-      "#main_content [data-chd-home-fill]:not(#chd-home-reflow):not([data-chd-home-reflow='1'])"
+      "#main_content > *:not([data-chd-full-bleed]):not([data-cas-ad-slot]):not([data-cas-ad-role]):not([data-cas-hero]):not([data-cas-ad-host]):not([id^='cas_']):not([id^='ad_']):not(#chd-home-reflow):not([data-chd-home-reflow='1']):not(#chd-home-custom-html):not([data-chd-home-custom-html='1']):not(#chd-home-custom-html):not([data-chd-home-custom-html='1'])," +
+      "#main_content .chd-home-fill:not(#chd-home-reflow):not([data-chd-home-reflow='1']):not(#chd-home-custom-html):not([data-chd-home-custom-html='1']):not(#chd-home-custom-html):not([data-chd-home-custom-html='1'])," +
+      "#main_content [data-chd-home-fill]:not(#chd-home-reflow):not([data-chd-home-reflow='1']):not(#chd-home-custom-html):not([data-chd-home-custom-html='1'])"
     );
   }
 
@@ -2335,10 +2343,14 @@
       var id = String(el.id || "");
       if (id === "main_content" || id === "main_content_area") return true;
       if (id === "chd-home-reflow") return true;
+      if (id === "chd-home-custom-html" || id === HOME_CUSTOM_HTML_ID) return true;
     } catch (eId) {}
     try {
       if (el.getAttribute("data-chd-home-reflow") === "1") return true;
     } catch (eRf) {}
+    try {
+      if (el.getAttribute("data-chd-home-custom-html") === "1") return true;
+    } catch (eCh) {}
     if (el === document.body || el === document.documentElement) return true;
     if (isCasAdMount(el)) return true;
     return false;
@@ -3961,7 +3973,7 @@
     } catch (eLook) {}
     try {
       var marked = root.querySelectorAll(
-        "[data-chd-home-box],[data-board-slug],[data-slug],.chd-home-fill:not(#chd-home-reflow):not([data-chd-home-reflow='1']),[data-chd-home-fill='1']:not(#chd-home-reflow):not([data-chd-home-reflow='1'])"
+        "[data-chd-home-box],[data-board-slug],[data-slug],.chd-home-fill:not(#chd-home-reflow):not([data-chd-home-reflow='1']):not(#chd-home-custom-html):not([data-chd-home-custom-html='1']):not(#chd-home-custom-html):not([data-chd-home-custom-html='1']),[data-chd-home-fill='1']:not(#chd-home-reflow):not([data-chd-home-reflow='1']):not(#chd-home-custom-html):not([data-chd-home-custom-html='1'])"
       );
       for (var m = 0; m < marked.length; m++) {
         var node = marked[m];
@@ -4001,6 +4013,269 @@
     return out;
   }
 
+
+  /**
+   * Find home carousel / hero for custom HTML placement.
+   * Prefer CAS hero markers, then id/class containing carousel|hero.
+   * Never return our own mount. Prefer outermost top-level candidate under root.
+   */
+  function findHomeCarousel(root) {
+    if (!root || !root.querySelectorAll) return null;
+    var best = null;
+    var bestDepth = 1e9;
+    function depthOf(el) {
+      var d = 0;
+      var cur = el;
+      while (cur && cur !== root) {
+        d++;
+        cur = cur.parentElement;
+        if (d > 40) break;
+      }
+      return d;
+    }
+    function consider(el) {
+      if (!el || el.nodeType !== 1) return;
+      try {
+        if (el.id === HOME_CUSTOM_HTML_ID || el.getAttribute("data-chd-home-custom-html") === "1") return;
+      } catch (eSkip) {}
+      // Prefer the outermost mount (shallowest under root) — e.g. ad_global_top_hero wrap
+      var d = depthOf(el);
+      if (!best || d < bestDepth) {
+        best = el;
+        bestDepth = d;
+      }
+    }
+    try {
+      var cas = root.querySelectorAll(
+        "[data-cas-hero],[data-cas-hero-host],[data-cas-hero-slot]"
+      );
+      for (var i = 0; i < cas.length; i++) consider(cas[i]);
+    } catch (eCas) {}
+    try {
+      var all = root.querySelectorAll("[id],[class], [data-cas-hero], [data-cas-hero-host], [data-cas-hero-slot]");
+      for (var j = 0; j < all.length; j++) {
+        var el = all[j];
+        if (!el || el.nodeType !== 1) continue;
+        var id = "";
+        var cls = "";
+        try {
+          id = String(el.id || "").toLowerCase();
+        } catch (eId) {}
+        try {
+          cls = String(el.className || "").toLowerCase();
+        } catch (eCls) {}
+        var casHero = false;
+        try {
+          casHero = !!(
+            el.getAttribute("data-cas-hero") != null ||
+            el.getAttribute("data-cas-hero-host") != null ||
+            el.getAttribute("data-cas-hero-slot") != null
+          );
+        } catch (eH) {}
+        if (
+          casHero ||
+          id.indexOf("carousel") !== -1 ||
+          id.indexOf("hero") !== -1 ||
+          /\bcarousel\b/.test(cls) ||
+          /\bhero\b/.test(cls)
+        ) {
+          consider(el);
+        }
+      }
+    } catch (eAll) {}
+    return best;
+  }
+
+  /** First home-box grid / reflow host under main — insertion fallback anchor. */
+  function findFirstHomeBoxAnchor(root) {
+    if (!root) return null;
+    try {
+      var reflow =
+        document.getElementById("chd-home-reflow") ||
+        root.querySelector("[data-chd-home-reflow='1']");
+      if (reflow) return reflow;
+    } catch (eR) {}
+    try {
+      var grids = root.querySelectorAll(".grid.chd-home-fill, .grid[class*='grid-cols'], .chd-home-fill.grid");
+      for (var i = 0; i < grids.length; i++) {
+        var g = grids[i];
+        if (!g || isCasAdMount(g)) continue;
+        try {
+          if (g.id === HOME_CUSTOM_HTML_ID) continue;
+        } catch (eSkip) {}
+        return g;
+      }
+    } catch (eG) {}
+    try {
+      var region = findHomeReflowRegion(root);
+      if (region && region !== root && region.firstElementChild) {
+        return region.firstElementChild;
+      }
+    } catch (eReg) {}
+    return root.firstElementChild || null;
+  }
+
+  function homeCustomHtmlSignature(html) {
+    return String(html == null ? "" : html);
+  }
+
+  function clearHomeCustomHtml() {
+    lastHomeCustomHtmlSig = "";
+    var existing = null;
+    try {
+      existing = document.getElementById(HOME_CUSTOM_HTML_ID);
+    } catch (eId) {}
+    if (!existing) {
+      try {
+        existing = document.querySelector("[data-chd-home-custom-html='1']");
+      } catch (eQ) {}
+    }
+    if (existing && existing.parentNode) {
+      try {
+        existing.parentNode.removeChild(existing);
+      } catch (eRm) {
+        try {
+          existing.remove();
+        } catch (eRm2) {}
+      }
+    }
+  }
+
+  /**
+   * Admin HTML may include <script> — innerHTML does not execute them.
+   * Re-insert script nodes so site-owner widgets (gauges, embeds) still run.
+   */
+  function activateScriptsIn(container) {
+    if (!container || !container.querySelectorAll) return;
+    var scripts;
+    try {
+      scripts = container.querySelectorAll("script");
+    } catch (e) {
+      return;
+    }
+    for (var i = 0; i < scripts.length; i++) {
+      var old = scripts[i];
+      if (!old || !old.parentNode) continue;
+      try {
+        var neu = document.createElement("script");
+        for (var a = 0; a < old.attributes.length; a++) {
+          var attr = old.attributes[a];
+          try {
+            neu.setAttribute(attr.name, attr.value);
+          } catch (eA) {}
+        }
+        neu.text = old.textContent || "";
+        old.parentNode.replaceChild(neu, old);
+      } catch (eRep) {}
+    }
+  }
+
+  /**
+   * Ensure #chd-home-custom-html sits under carousel/hero, above home boxes.
+   * Empty setting → remove. Off-home → remove. No duplicate mounts.
+   */
+  function ensureHomeCustomHtml() {
+    if (!isHomePath()) {
+      clearHomeCustomHtml();
+      return;
+    }
+    var html = "";
+    try {
+      html = String((lastSettings && lastSettings.home_custom_html) || "");
+    } catch (eS) {
+      html = "";
+    }
+    // Treat whitespace-only as empty (no empty gap)
+    if (!html || !String(html).replace(/\s+/g, "")) {
+      clearHomeCustomHtml();
+      return;
+    }
+    var root = getMainContentRoot();
+    if (!root) return;
+
+    var sig = homeCustomHtmlSignature(html);
+    var mount = null;
+    var freshMount = false;
+    try {
+      mount = document.getElementById(HOME_CUSTOM_HTML_ID);
+    } catch (eId) {}
+    if (!mount) {
+      try {
+        mount = document.createElement("div");
+        mount.id = HOME_CUSTOM_HTML_ID;
+        mount.setAttribute("data-chd-home-custom-html", "1");
+        mount.setAttribute("data-chd-role", "home-custom-html");
+        mount.className = "chd-home-custom-html w-full chd-home-fill";
+        freshMount = true;
+      } catch (eC) {
+        return;
+      }
+    } else {
+      try {
+        mount.setAttribute("data-chd-home-custom-html", "1");
+        mount.setAttribute("data-chd-role", "home-custom-html");
+      } catch (eAttr) {}
+      // Detached leftover — treat as fresh so content is re-applied
+      try {
+        if (!mount.isConnected) freshMount = true;
+      } catch (eConn) {}
+    }
+
+    // Place: after carousel/hero; else before first home-box grid / reflow / top of region
+    var carousel = findHomeCarousel(root);
+    var placed = false;
+    try {
+      if (carousel && carousel.parentNode) {
+        // Insert immediately after carousel (sibling)
+        if (mount.parentNode !== carousel.parentNode || mount.previousSibling !== carousel) {
+          if (carousel.nextSibling) {
+            carousel.parentNode.insertBefore(mount, carousel.nextSibling);
+          } else {
+            carousel.parentNode.appendChild(mount);
+          }
+        }
+        placed = true;
+      }
+    } catch (ePlace) {}
+    if (!placed) {
+      try {
+        var anchor = findFirstHomeBoxAnchor(root);
+        var region = findHomeReflowRegion(root) || root;
+        if (anchor && anchor.parentNode) {
+          if (mount.parentNode !== anchor.parentNode || mount.nextSibling !== anchor) {
+            anchor.parentNode.insertBefore(mount, anchor);
+          }
+          placed = true;
+        } else if (region) {
+          if (region.firstChild) {
+            region.insertBefore(mount, region.firstChild);
+          } else {
+            region.appendChild(mount);
+          }
+          placed = true;
+        }
+      } catch (eFb) {}
+    }
+    if (!placed) return;
+
+    // Update content when HTML changed or mount is new/empty (SPA remount).
+    // Skip rewrite when unchanged to avoid re-running admin scripts every ensure.
+    var empty = false;
+    try {
+      empty = !mount.childNodes || mount.childNodes.length === 0;
+    } catch (eEmpty) {
+      empty = true;
+    }
+    if (freshMount || empty || lastHomeCustomHtmlSig !== sig) {
+      try {
+        mount.innerHTML = html;
+        activateScriptsIn(mount);
+        mount.setAttribute("data-chd-sig", String(sig.length));
+        lastHomeCustomHtmlSig = sig;
+      } catch (eHtml) {}
+    }
+  }
+
   function ensureHiddenHomeBoxes() {
     if (homeBoxApplyLock) return;
     homeBoxApplyLock = true;
@@ -4013,6 +4288,9 @@
       if (!lastSettings || !isHomePath()) {
         // Off home / no settings: full restore (destroy reflow host).
         clearHiddenHomeBoxes();
+        try {
+          clearHomeCustomHtml();
+        } catch (eClrHtml) {}
         return;
       }
       var tokens = homeBoxTokens(lastSettings);
@@ -4166,6 +4444,9 @@
         try {
           ensureHiddenHomeBoxes();
         } catch (eMo) {}
+        try {
+          ensureHomeCustomHtml();
+        } catch (eMoHtml) {}
       }, HOME_BOX_MO_DEBOUNCE_MS);
     });
     homeBoxMoRoot = root;
@@ -4195,6 +4476,9 @@
           try {
             ensureHiddenHomeBoxes();
           } catch (eRetry) {}
+          try {
+            ensureHomeCustomHtml();
+          } catch (eRetryHtml) {}
           // Root may appear after first paint — reconnect if needed.
           if (!homeBoxMo) connectHomeBoxObserver();
         }, delay);
@@ -4217,6 +4501,9 @@
     try {
       ensureHiddenHomeBoxes();
     } catch (eHomeBox) {}
+    try {
+      ensureHomeCustomHtml();
+    } catch (eHomeHtml) {}
     if (settingOn(lastSettings, "header_search_icon_mode", true)) {
       // Icon mode: drop always-visible fallback, mount icon+panel, then hide original form
       ensureAlwaysVisibleSearch();
