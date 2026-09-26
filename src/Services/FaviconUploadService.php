@@ -2,6 +2,7 @@
 
 namespace Modules\Custom\HomeDesign\Services;
 
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -52,12 +53,32 @@ class FaviconUploadService
         ];
     }
 
-    public function persistSettingUrl(string $url): void
+    public function ensureColumn(): bool
     {
         try {
-            if (! Schema::hasTable('home_design_settings') || ! Schema::hasColumn('home_design_settings', 'favicon_url')) {
-                return;
+            if (! Schema::hasTable('home_design_settings')) {
+                return false;
             }
+            if (Schema::hasColumn('home_design_settings', 'favicon_url')) {
+                return true;
+            }
+            Schema::table('home_design_settings', function (Blueprint $table) {
+                $table->string('favicon_url', 1024)->nullable();
+            });
+
+            return Schema::hasColumn('home_design_settings', 'favicon_url');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    public function persistSettingUrl(string $url): void
+    {
+        if (! $this->ensureColumn()) {
+            return;
+        }
+
+        try {
             $exists = DB::table('home_design_settings')
                 ->where('id', HomeDesignSetting::SINGLETON_ID)
                 ->exists();
