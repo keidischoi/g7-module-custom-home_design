@@ -5,12 +5,14 @@ namespace Modules\Custom\HomeDesign\Http\Controllers\Admin;
 use App\Http\Controllers\Api\Base\AdminBaseController;
 use Illuminate\Http\JsonResponse;
 use Modules\Custom\HomeDesign\Http\Requests\Admin\UpdateHomeDesignSettingRequest;
+use Modules\Custom\HomeDesign\Services\FaviconUploadService;
 use Modules\Custom\HomeDesign\Services\HomeDesignSettingService;
 
 class HomeDesignSettingController extends AdminBaseController
 {
     public function __construct(
         private HomeDesignSettingService $service,
+        private FaviconUploadService $faviconUpload,
     ) {
         parent::__construct();
     }
@@ -33,6 +35,11 @@ class HomeDesignSettingController extends AdminBaseController
     {
         try {
             $row = $this->service->update($request->settingsPayload());
+
+            if ($request->exists('favicon_url')) {
+                $this->faviconUpload->persistSettingUrl(trim((string) $request->input('favicon_url', '')));
+                $row = $this->service->get();
+            }
 
             return $this->success(
                 'custom-home_design::messages.settings.update_success',

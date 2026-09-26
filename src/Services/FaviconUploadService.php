@@ -24,17 +24,21 @@ class FaviconUploadService
         $hash = (string) Str::uuid();
         $relative = self::DIR.'/'.$hash.'.'.$ext;
 
-        $contents = file_get_contents($file->getRealPath());
+        $real = $file->getRealPath();
+        if (! is_string($real) || $real === '' || ! is_file($real)) {
+            throw new \RuntimeException('Uploaded file has no temp path.');
+        }
+        $contents = file_get_contents($real);
         if ($contents === false) {
             throw new \RuntimeException('Failed to read uploaded file.');
         }
 
         $url = $this->putAndUrl($relative, $contents);
+        $this->persistSettingUrl($url);
+
         $size = (int) $file->getSize();
         $mime = (string) ($file->getMimeType() ?: 'image/png');
         $original = (string) $file->getClientOriginalName();
-
-        $persisted = $this->persistSettingUrl($url);
 
         return [
             'id' => self::encodeId($relative),
@@ -51,57 +55,60 @@ class FaviconUploadService
             'is_image' => true,
             'uploaded' => true,
             'path' => $relative,
-            'persisted' => $persisted,
+            'persisted' => true,
+            'favicon_url' => $url,
         ];
     }
 
     public function ensureColumn(): bool
     {
-        try {
-            if (! Schema::hasTable('home_design_settings')) {
-                return false;
-            }
-            if (Schema::hasColumn('home_design_settings', 'favicon_url')) {
-                return true;
-            }
-            Schema::table('home_design_settings', function (Blueprint $table) {
-                $table->string('favicon_url', 1024)->nullable();
-            });
-
-            return Schema::hasColumn('home_design_settings', 'favicon_url');
-        } catch (\Throwable) {
-            return false;
+        if (! Schema::hasTable('home_design_settings')) {
+            throw new \RuntimeException('home_design_settings table missing');
         }
+        if (Schema::hasColumn('home_design_settings', 'favicon_url')) {
+            return true;
+        }
+        Schema::table('home_design_settings', function (Blueprint $table) {
+            $table->string('favicon_url', 1024)->nullable();
+        });
+        if (! Schema::hasColumn('home_design_settings', 'favicon_url')) {
+            throw new \RuntimeException('failed to add favicon_url column');
+        }
+
+        return true;
     }
 
     public function persistSettingUrl(string $url): bool
     {
-        if (! $this->ensureColumn()) {
-            return false;
+        $this->ensureColumn();
+
+        $affected = HomeDesignSetting::query()->update(['favicon_url' => $url]);
+        if ($affected > 0) {
+            return true;
         }
 
-        try {
-            $row = DB::table('home_design_settings')->orderBy('id')->first();
-            $now = now();
-            if ($row) {
-                return DB::table('home_design_settings')
-                    ->where('id', $row->id)
-                    ->update(['favicon_url' => $url, 'updated_at' => $now]) >= 0;
-            }
+        if (HomeDesignSetting::query()->exists()) {
+            return true;
+        }
 
-            DB::table('home_design_settings')->insert([
-                'id' => HomeDesignSetting::SINGLETON_ID,
+        $now = now();
+        DB::table('home_design_settings')->updateOrInsert(
+            ['id' => HomeDesignSetting::SINGLETON_ID],
+            [
                 'enabled' => 1,
                 'content_max_width_px' => HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX,
                 'favicon_url' => $url,
-                'created_at' => $now,
                 'updated_at' => $now,
-            ]);
+                'created_at' => $now,
+            ]
+        );
 
-            return true;
-        } catch (\Throwable) {
-            return false;
+        $check = (string) (DB::table('home_design_settings')->orderBy('id')->value('favicon_url') ?? '');
+        if ($check !== $url) {
+            throw new \RuntimeException('favicon_url write failed');
         }
+
+        return true;
     }
 
     public function deleteByUploadId(int|string $uploadId): array
@@ -114,17 +121,15 @@ class FaviconUploadService
         }
 
         $path = self::decodeId($raw);
-        if ($path === null || ! str_starts_with($path, self::DIR.'/')) {
-            return ['id' => $raw, 'deleted' => false, 'path' => null];
-        }
-
         $deleted = false;
-        try {
-            if (Storage::disk('public')->exists($path)) {
-                $deleted = Storage::disk('public')->delete($path);
+        if (is_string($path) && str_starts_with($path, self::DIR.'/')) {
+            try {
+                if (Storage::disk('public')->exists($path)) {
+                    $deleted = Storage::disk('public')->delete($path);
+                }
+            } catch (\Throwable) {
+                $deleted = false;
             }
-        } catch (\Throwable) {
-            $deleted = false;
         }
 
         $this->persistSettingUrl('');
@@ -137,16 +142,12 @@ class FaviconUploadService
         if (! is_string($url) || trim($url) === '') {
             return [];
         }
-
         $url = trim($url);
         $path = null;
         if (preg_match('#(custom-home_design/favicon/[A-Za-z0-9._-]+)#', $url, $m)) {
             $path = $m[1];
         }
-
-        $id = $path !== null
-            ? self::encodeId($path)
-            : ('ext-'.substr(hash('sha256', $url), 0, 16));
+        $id = $path !== null ? self::encodeId($path) : ('ext-'.substr(hash('sha256', $url), 0, 16));
         $name = $path !== null ? basename($path) : 'favicon';
 
         return [[
@@ -179,17 +180,13 @@ class FaviconUploadService
             $uploadId .= str_repeat('=', 4 - $pad);
         }
         $decoded = base64_decode(strtr($uploadId, '-_', '+/'), true);
-        if (! is_string($decoded) || $decoded === '') {
-            return null;
-        }
 
-        return $decoded;
+        return is_string($decoded) && $decoded !== '' ? $decoded : null;
     }
 
     private function putAndUrl(string $relative, string $contents): string
     {
         Storage::disk('public')->put($relative, $contents);
-
         try {
             $url = Storage::disk('public')->url($relative);
             if (is_string($url) && $url !== '') {
