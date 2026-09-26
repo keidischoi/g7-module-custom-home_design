@@ -3,6 +3,19 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르며,
 [Semantic Versioning](https://semver.org/lang/ko/)를 준수합니다.
 
+## [0.2.66] - 2026-09-26
+
+### Fixed — 관리자 설정에서 파비콘 업로드가 안 되던 문제
+
+- **원인:** `FileUploader` 컴포지트를 `autoUpload` + `onFilesChange` emit + 수동 버튼으로 중복 트리거했고, `maxFiles: 1` 상태에서 기존 항목이 있으면 새 파일이 슬롯 초과로 거부되는 등 업로드가 불안정했음.
+- **수정:** `FileUploader`를 제거하고 네이티브 `<input type="file">` + 코어 `apiCall`(`contentType: multipart/form-data`)로 `POST /admin/uploads`를 직접 호출. 업로드 즉시 DB에 저장되고 미리보기가 갱신됨. 삭제 버튼 추가.
+- **서버:** 이미지 확장자(ico/png/jpg/gif/webp/svg)와 2MB 제한을 검증해 422로 안내.
+
+### Changed — 관리자 설정 화면 디자인 정리
+
+- 페이지 헤더(제목·설명·저장), 섹션 카드(사이트 아이콘 / 레이아웃 / 헤더 / 홈 화면 / 푸터), 체크박스 → 토글, 하단 고정 저장 바.
+- 누락된 파비콘 번역 키와 섹션 설명 추가.
+
 ## [0.2.63] - 2026-09-23
 
 ### Fixed — 게시판 홈 박스 「더보기」 라이브 마크업 미매칭

@@ -31,6 +31,9 @@ class FaviconUploadController extends AdminBaseController
             if (! $file instanceof UploadedFile) {
                 return $this->error('custom-home_design::messages.upload.file_required', 422);
             }
+            if (! $this->uploadService->isAllowedImage($file)) {
+                return $this->error('custom-home_design::messages.upload.invalid_file', 422);
+            }
 
             $payload = $this->uploadService->storeImage($file);
 

@@ -67,7 +67,7 @@
   } catch (eFetch) {}
 
   function resolveAssetVersion() {
-    return "0.2.65";
+    return "0.2.66";
   }
 
   function injectHomeDesignJs() {
