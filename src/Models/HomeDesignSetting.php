@@ -3,44 +3,20 @@
 namespace Modules\Custom\HomeDesign\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Custom\HomeDesign\Services\FaviconUploadService;
 
-/**
- * 홈 디자인 설정 (싱글톤 id=1)
- *
- * @property int $id
- * @property bool $enabled
- * @property int $content_max_width_px
- * @property bool $hide_desktop_top_nav
- * @property bool $header_search_icon_mode
- * @property bool $header_theme_click_toggle
- * @property array|null $hide_header_board_slugs
- * @property array|null $hide_home_box_ids
- * @property string|null $home_custom_html
- * @property array|null $footer_link_groups
- * @property bool $business_info_enabled
- * @property string|null $business_company_name Legacy unused (0.2.2+: ecommerce basic_info)
- * @property string|null $business_representative Legacy unused
- * @property string|null $business_number Legacy unused
- * @property string|null $business_mail_order_number Legacy unused
- * @property string|null $business_address Legacy unused
- * @property string|null $business_phone Legacy unused
- * @property string|null $business_email Legacy unused
- */
 class HomeDesignSetting extends Model
 {
     public const SINGLETON_ID = 1;
 
     public const DEFAULT_CONTENT_MAX_WIDTH_PX = 1240;
 
-    /** @var list<string> 기본은 숨기지 않음 — 관리자가 명시한 slug만 필터 */
     public const DEFAULT_HIDE_BOARD_SLUGS = [];
 
     protected $table = 'home_design_settings';
 
-    /** @var list<string> Empty guarded — rely on $fillable only. */
     protected $guarded = [];
 
-    /** business_* string columns kept in DB but no longer fillable (0.2.2+) */
     protected $fillable = [
         'enabled',
         'content_max_width_px',
@@ -50,6 +26,7 @@ class HomeDesignSetting extends Model
         'hide_header_board_slugs',
         'hide_home_box_ids',
         'home_custom_html',
+        'favicon_url',
         'footer_link_groups',
         'business_info_enabled',
     ];
@@ -66,10 +43,6 @@ class HomeDesignSetting extends Model
         'business_info_enabled' => 'boolean',
     ];
 
-    /**
-     * @param  array<string, string>|null  $ecommerceBusinessInfo  from HomeDesignSettingService::getEcommerceBusinessInfo()
-     * @return array<string, mixed>
-     */
     public function toPublicArray(?array $ecommerceBusinessInfo = null): array
     {
         $empty = [
@@ -84,7 +57,7 @@ class HomeDesignSetting extends Model
         $bi = $ecommerceBusinessInfo ?? $empty;
 
         return [
-            'enabled' => true, // module activation is the gate; settings toggle removed in 0.2.4
+            'enabled' => true,
             'content_max_width_px' => (int) ($this->content_max_width_px ?: self::DEFAULT_CONTENT_MAX_WIDTH_PX),
             'hide_desktop_top_nav' => (bool) $this->hide_desktop_top_nav,
             'header_search_icon_mode' => $this->header_search_icon_mode !== null
@@ -96,6 +69,7 @@ class HomeDesignSetting extends Model
             'hide_header_board_slugs' => array_values($this->hide_header_board_slugs ?? []),
             'hide_home_box_ids' => array_values($this->hide_home_box_ids ?? []),
             'home_custom_html' => (string) ($this->home_custom_html ?? ''),
+            'favicon_url' => (string) ($this->favicon_url ?? ''),
             'footer_link_groups' => $this->footer_link_groups,
             'business_info_enabled' => (bool) $this->business_info_enabled,
             'business_info' => [
@@ -110,19 +84,14 @@ class HomeDesignSetting extends Model
         ];
     }
 
-    /**
-     * Admin form-friendly payload (JSON fields as pretty strings for Textarea).
-     *
-     * @return array<string, mixed>
-     */
     public function toAdminArray(): array
     {
         $slugs = array_values($this->hide_header_board_slugs ?? []);
         $homeBoxes = array_values($this->hide_home_box_ids ?? []);
         $groups = $this->footer_link_groups;
+        $favicon = (string) ($this->favicon_url ?? '');
 
         return [
-            // Keep key for older clients; always true — use G7 module enable/disable.
             'enabled' => true,
             'content_max_width_px' => (int) ($this->content_max_width_px ?: self::DEFAULT_CONTENT_MAX_WIDTH_PX),
             'hide_desktop_top_nav' => (bool) $this->hide_desktop_top_nav,
@@ -133,18 +102,15 @@ class HomeDesignSetting extends Model
                 ? (bool) $this->header_theme_click_toggle
                 : true,
             'hide_header_board_slugs' => $slugs,
-            // Admin UI uses comma text; keep the array / JSON forms for public and older clients.
-            'hide_header_board_slugs_text' => $slugs === []
-                ? ''
-                : implode(', ', $slugs),
+            'hide_header_board_slugs_text' => $slugs === [] ? '' : implode(', ', $slugs),
             'hide_header_board_slugs_json' => $slugs === []
                 ? '[]'
                 : json_encode($slugs, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
             'hide_home_box_ids' => $homeBoxes,
-            'hide_home_box_ids_text' => $homeBoxes === []
-                ? ''
-                : implode(', ', $homeBoxes),
+            'hide_home_box_ids_text' => $homeBoxes === [] ? '' : implode(', ', $homeBoxes),
             'home_custom_html' => (string) ($this->home_custom_html ?? ''),
+            'favicon_url' => $favicon,
+            'uploader_favicon_url' => array_slice(FaviconUploadService::uploaderFilesFromUrl($favicon), 0, 1),
             'footer_link_groups' => $groups,
             'footer_link_groups_json' => $groups === null
                 ? ''
