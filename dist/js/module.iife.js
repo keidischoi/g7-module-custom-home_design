@@ -1,8 +1,4 @@
-/*! custom-home_design module.iife — loaded ONLY while module is active (ModuleAssetLoader).
- * 0.2.63: resolve home-design.js ?v= from #chd_home_design_cfg[data-chd-asset-v]
- * (module version); fallback 0.2.63. Boot must NOT hide the original search form —
- * home-design.js hides it only after the search icon toggle is mounted.
- */
+/*! custom-home_design module.iife — user site only */
 (function () {
   if (window.__chdHomeDesignIife) return;
   try {
@@ -28,65 +24,51 @@
     }
   } catch (e2) {}
 
-  /** Prefer layout-injected module version so ?v= never sticks on an old release. */
-  function resolveAssetVersion() {
+  function applyUserFavicon(url) {
     try {
-      var cfg = document.getElementById("chd_home_design_cfg");
-      var v =
-        (cfg && (cfg.getAttribute("data-chd-asset-v") || cfg.getAttribute("data-chd-js-v"))) ||
-        "";
-      v = String(v || "").trim();
-      if (/^\d+\.\d+\.\d+/.test(v)) return v;
-    } catch (eV) {}
-    try {
-      var s = window.__CHD_HOME_DESIGN__ || {};
-      var av = s.asset_version || s.js_version || "";
-      av = String(av || "").trim();
-      if (/^\d+\.\d+\.\d+/.test(av)) return av;
-    } catch (eS) {}
-    return "0.2.63";
+      url = String(url || "").trim();
+      if (!url) return;
+      var id = "chd-home-favicon";
+      var link = document.getElementById(id);
+      if (!link) {
+        link = document.createElement("link");
+        link.id = id;
+        link.rel = "icon";
+        (document.head || document.documentElement).appendChild(link);
+      }
+      link.setAttribute("href", url);
+      var nodes = document.querySelectorAll('link[rel="icon"],link[rel="shortcut icon"]');
+      for (var i = 0; i < nodes.length; i++) {
+        nodes[i].setAttribute("href", url);
+      }
+    } catch (eF) {}
+  }
+
+  function favFromSettings(s) {
+    s = s || {};
+    return String(s.favicon_url || s.favicon || "").trim();
   }
 
   try {
-    var s = window.__CHD_HOME_DESIGN__ || {};
-    var hide =
-      s.hide_desktop_top_nav === true ||
-      s.hide_desktop_top_nav === 1 ||
-      s.hide_desktop_top_nav === "1";
-    if (hide) {
-      try {
-        document.documentElement.classList.add("chd-hide-desktop-top-nav");
-      } catch (e3) {}
-      if (document.body) {
-        try {
-          document.body.classList.add("chd-hide-desktop-top-nav");
-        } catch (e4) {}
-      }
-    }
-    var cssParts = [];
-    if (hide) {
-      cssParts.push(
-        "@media (min-width:1024px){" +
-          "html.chd-hide-desktop-top-nav #desktop_header nav," +
-          "body.chd-hide-desktop-top-nav #desktop_header nav," +
-          "html.chd-hide-desktop-top-nav header.sticky nav," +
-          "body.chd-hide-desktop-top-nav header.sticky nav," +
-          "#desktop_header nav,header.sticky nav," +
-          "header[data-chd-hide-top-nav='1'] nav,header.chd-hide-top-nav nav," +
-          "[data-chd-hide-top-nav='1'] nav{" +
-          "display:none!important;visibility:hidden!important;height:0!important;overflow:hidden!important;}" +
-          "}"
-      );
-    }
-    // 0.2.63: never hide header search form here
-    var st = document.getElementById("chd-home-design-boot-style");
-    if (!st) {
-      st = document.createElement("style");
-      st.id = "chd-home-design-boot-style";
-      (document.head || document.documentElement).appendChild(st);
-    }
-    st.textContent = cssParts.join("");
-  } catch (e5) {}
+    applyUserFavicon(favFromSettings(window.__CHD_HOME_DESIGN__ || {}));
+  } catch (eFav0) {}
+
+  try {
+    fetch("/api/modules/custom-home_design/settings", { credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        var data = (j && j.data && j.data.data) || (j && j.data) || j || {};
+        if (data && typeof data === "object") {
+          window.__CHD_HOME_DESIGN__ = Object.assign({}, window.__CHD_HOME_DESIGN__ || {}, data);
+          applyUserFavicon(favFromSettings(data));
+        }
+      })
+      .catch(function () {});
+  } catch (eFetch) {}
+
+  function resolveAssetVersion() {
+    return "0.2.65";
+  }
 
   function injectHomeDesignJs() {
     var sid = "chd-hd-js-dom";
@@ -103,9 +85,6 @@
     var idx = 0;
     function tryNext() {
       if (idx >= urls.length) {
-        try {
-          console.warn("[custom-home_design] home-design.js failed to load");
-        } catch (eW) {}
         window.__chdHomeDesignJsLoading = false;
         return;
       }
@@ -117,9 +96,7 @@
         window.__chdHomeDesignJsLoading = false;
       };
       scr.onerror = function () {
-        try {
-          scr.remove();
-        } catch (e) {}
+        try { scr.remove(); } catch (e) {}
         tryNext();
       };
       (document.head || document.documentElement).appendChild(scr);
