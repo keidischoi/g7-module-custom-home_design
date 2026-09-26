@@ -8,4 +8,11 @@ return [
         'update_failed' => 'Failed to save home design settings.',
         'invalid_json' => 'Invalid JSON.',
     ],
+
+    'upload' => [
+        'success' => 'Favicon uploaded.',
+        'failed' => 'Favicon upload failed.',
+        'file_required' => 'Please choose a file.',
+        'delete_success' => 'Favicon removed.',
+    ],
 ];

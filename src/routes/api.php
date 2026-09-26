@@ -1,21 +1,15 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Custom\HomeDesign\Http\Controllers\Admin\FaviconUploadController;
 use Modules\Custom\HomeDesign\Http\Controllers\Admin\HomeDesignSettingController;
 use Modules\Custom\HomeDesign\Http\Controllers\Public\AssetController;
 use Modules\Custom\HomeDesign\Http\Controllers\Public\SettingsController;
-
-/*
-| ModuleRouteServiceProvider prefix: api/modules/custom-home_design
-| Requires module INSTALLED+activated so this file is loaded (see README).
-*/
 
 Route::get('settings', [SettingsController::class, 'show'])
     ->middleware(['throttle:600,1'])
     ->name('settings.show');
 
-// Match custom-ad_slots pattern (assets/*.js). Also expose extension-less aliases
-// in case a static .js location intercepts (G7 layoutScripts tests note this).
 Route::get('assets/boot.js', [AssetController::class, 'bootJs'])
     ->middleware(['throttle:600,1'])
     ->name('assets.boot');
@@ -45,4 +39,16 @@ Route::prefix('admin/settings')
         Route::post('/', [HomeDesignSettingController::class, 'update'])
             ->middleware('permission:admin,custom-home_design.design.update')
             ->name('update.post');
+    });
+
+Route::prefix('admin/uploads')
+    ->middleware(['auth:sanctum', 'throttle:60,1'])
+    ->name('admin.uploads.')
+    ->group(function () {
+        Route::post('/', [FaviconUploadController::class, 'store'])
+            ->middleware('permission:admin,custom-home_design.design.update')
+            ->name('store');
+        Route::delete('{uploadId}', [FaviconUploadController::class, 'destroy'])
+            ->middleware('permission:admin,custom-home_design.design.update')
+            ->name('destroy');
     });
