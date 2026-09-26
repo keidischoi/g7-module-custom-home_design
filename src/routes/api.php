@@ -41,6 +41,10 @@ Route::prefix('admin/settings')
             ->name('update.post');
     });
 
+Route::get('admin/form-defaults', [FaviconUploadController::class, 'formDefaults'])
+    ->middleware(['auth:sanctum', 'throttle:60,1'])
+    ->name('admin.form-defaults');
+
 Route::post('admin/uploads', [FaviconUploadController::class, 'store'])
     ->middleware(['auth:sanctum', 'throttle:180,1'])
     ->name('admin.uploads.store');
