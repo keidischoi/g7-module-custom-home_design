@@ -2,7 +2,7 @@
     "admin": {
         "settings": {
             "title": "Home Design",
-            "description": "Configure content width, desktop top nav, and footer business notice for official sirsoft-basic.",
+            "description": "Manage favicon, content width, header, home, and footer display in one place.",
             "save": "Save",
             "validation_error": "Please check your input.",
             "update_success": "Home design settings saved.",
@@ -12,7 +12,14 @@
                 "footer": "Footer links",
                 "business": "Business notice",
                 "home_boxes": "Home boxes",
-                "home_html": "Home custom HTML"
+                "home_html": "Home custom HTML",
+                "favicon": "Site icon (favicon)",
+                "general_desc": "Maximum width of the main site content.",
+                "header": "Header",
+                "header_desc": "Search, dark mode, and menu behavior in the top header.",
+                "home": "Home page",
+                "home_desc": "These settings apply to the home page (/) only.",
+                "footer_desc": "Footer links and business notice."
             },
             "fields": {
                 "enabled": "Enable module",
@@ -43,8 +50,20 @@
                 "hide_home_box_ids_note": "Home (/) only. Each token maps to exactly one box kind. Boards stats card = boards/게시판; board summary cards need slug or display name. custom-ad_slots mounts are never hidden. While the hide list is non-empty, remaining cards stay one row after SPA late mounts; clearing the list or leaving home restores the template layout.",
                 "home_custom_html": "Home custom HTML",
                 "home_custom_html_hint": "Inserted under the carousel/hero and above home boxes. Admin-only HTML — paste layout markup, inline CSS, and scripts as needed. Leave empty to inject nothing (no empty gap).",
-                "home_custom_html_note": "Home (/) only. Placed under the real carousel/hero (including full-bleed mounts outside #main_content) and above home boxes. Forced visible; not affected by home-box hide/collapse. Re-ensured on SPA remounts without duplicate mounts."
-            }
+                "home_custom_html_note": "Home (/) only. Placed under the real carousel/hero (including full-bleed mounts outside #main_content) and above home boxes. Forced visible; not affected by home-box hide/collapse. Re-ensured on SPA remounts without duplicate mounts.",
+                "favicon_url": "Icon URL (manual)",
+                "favicon_url_hint": "Shown in browser tabs and bookmarks. Applies to the whole user site (not admin).",
+                "favicon_url_manual_hint": "To use an external image, paste its URL here and save.",
+                "favicon_formats": "ICO, PNG, SVG, WebP · square image (32×32 or larger) · max 2MB",
+                "favicon_empty": "None",
+                "favicon_remove": "Remove",
+                "favicon_removed": "Favicon removed.",
+                "favicon_upload_success": "Favicon uploaded.",
+                "favicon_upload_error": "Failed to upload favicon.",
+                "hide_home_box_ids_short_hint": "Comma-separated box names or board slugs to hide (e.g. welcome, shop, notice). Leave empty to show all.",
+                "home_custom_html_short_hint": "Inserted below the carousel and above home boxes. HTML, CSS, and scripts are allowed; leave empty to insert nothing."
+            },
+            "save_hint": "Save to apply changes to the site. The favicon applies as soon as it is uploaded."
         }
     }
 }

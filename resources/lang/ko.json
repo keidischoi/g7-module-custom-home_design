@@ -2,7 +2,7 @@
     "admin": {
         "settings": {
             "title": "홈 디자인",
-            "description": "공식 sirsoft-basic 기준 콘텐츠 폭·상단 메뉴·푸터 사업자 고지를 설정합니다.",
+            "description": "파비콘, 콘텐츠 폭, 헤더, 홈, 푸터 표시 방식을 한곳에서 관리합니다.",
             "save": "저장",
             "validation_error": "입력값을 확인해 주세요.",
             "update_success": "홈 디자인 설정을 저장했습니다.",
@@ -12,7 +12,14 @@
                 "footer": "푸터 링크",
                 "business": "사업자 고지",
                 "home_boxes": "홈 박스",
-                "home_html": "홈 커스텀 HTML"
+                "home_html": "홈 커스텀 HTML",
+                "favicon": "사이트 아이콘 (파비콘)",
+                "general_desc": "사이트 본문이 차지하는 최대 가로 폭입니다.",
+                "header": "헤더",
+                "header_desc": "상단 헤더의 검색, 다크모드, 메뉴 표시 방식을 설정합니다.",
+                "home": "홈 화면",
+                "home_desc": "홈(/) 화면에만 적용되는 설정입니다.",
+                "footer_desc": "푸터 링크와 사업자 정보 표시를 설정합니다."
             },
             "fields": {
                 "enabled": "모듈 사용",
@@ -43,8 +50,20 @@
                 "hide_home_box_ids_note": "홈(/)에만 적용됩니다. 각 토큰은 하나의 박스 kind에만 1:1 매핑됩니다(배타 분류). 「게시판」/boards = Boards 통계 카드만. 게시판 요약 카드는 slug 또는 표시 이름으로 지정하세요. custom-ad_slots 광고 마운트는 숨기지 않습니다. hide 목록이 비어 있지 않으면 남은 카드는 SPA 지연 로드 후에도 한 행으로 재배치되며, 목록을 비우거나 홈을 떠나면 원래 레이아웃으로 복원됩니다.",
                 "home_custom_html": "홈 커스텀 HTML",
                 "home_custom_html_hint": "캐러셀(히어로) 아래 · 홈 박스 위에 삽입됩니다. 관리자만 저장하는 HTML이므로 기본 레이아웃 마크업·인라인 CSS·script를 그대로 넣을 수 있습니다. 비우면 삽입하지 않습니다(빈 여백 없음).",
-                "home_custom_html_note": "홈(/)에만 적용됩니다. 풀블리드 캐러셀( #main_content 밖 )을 포함해 실제 캐러셀/히어로 아래 · 홈 박스 위에 배치합니다. 강제 표시되며 홈 박스 숨김/접기와 무관합니다. SPA 재마운트 시에도 중복 마운트 없이 다시 보장됩니다."
-            }
+                "home_custom_html_note": "홈(/)에만 적용됩니다. 풀블리드 캐러셀( #main_content 밖 )을 포함해 실제 캐러셀/히어로 아래 · 홈 박스 위에 배치합니다. 강제 표시되며 홈 박스 숨김/접기와 무관합니다. SPA 재마운트 시에도 중복 마운트 없이 다시 보장됩니다.",
+                "favicon_url": "아이콘 주소 직접 입력",
+                "favicon_url_hint": "브라우저 탭과 즐겨찾기에 표시되는 아이콘입니다. 관리자 화면을 제외한 사용자 사이트 전체에 적용됩니다.",
+                "favicon_url_manual_hint": "외부 이미지 주소를 쓰려면 여기에 입력하고 저장하세요.",
+                "favicon_formats": "ICO, PNG, SVG, WebP 권장 · 정사각형 이미지 (32×32 이상) · 최대 2MB",
+                "favicon_empty": "없음",
+                "favicon_remove": "삭제",
+                "favicon_removed": "파비콘을 삭제했습니다.",
+                "favicon_upload_success": "파비콘을 업로드했습니다.",
+                "favicon_upload_error": "파비콘 업로드에 실패했습니다.",
+                "hide_home_box_ids_short_hint": "숨길 박스 이름이나 게시판 slug를 쉼표로 구분해 입력하세요 (예: welcome, shop, 공지사항). 비우면 모두 표시합니다.",
+                "home_custom_html_short_hint": "캐러셀 아래, 홈 박스 위에 삽입됩니다. HTML·CSS·script를 그대로 넣을 수 있고, 비우면 아무것도 삽입하지 않습니다."
+            },
+            "save_hint": "변경한 내용은 저장해야 사이트에 반영됩니다. 파비콘은 업로드 즉시 적용됩니다."
         }
     }
 }

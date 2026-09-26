@@ -75,7 +75,7 @@
       v = String(v || "").trim();
       if (/^\d+\.\d+\.\d+/.test(v)) return v;
     } catch (eV) {}
-    return "0.2.65";
+    return "0.2.66";
   }
 
   function injectHomeDesignJs() {

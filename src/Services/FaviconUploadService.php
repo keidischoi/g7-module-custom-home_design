@@ -14,11 +14,23 @@ class FaviconUploadService
 {
     private const DIR = 'custom-home_design/favicon';
 
+    private const ALLOWED_EXT = ['ico', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
+
+    private const MAX_BYTES = 2 * 1024 * 1024;
+
+    public function isAllowedImage(UploadedFile $file): bool
+    {
+        $ext = strtolower((string) $file->getClientOriginalExtension());
+
+        return in_array($ext, self::ALLOWED_EXT, true)
+            && (int) $file->getSize() > 0
+            && (int) $file->getSize() <= self::MAX_BYTES;
+    }
+
     public function storeImage(UploadedFile $file): array
     {
         $ext = strtolower((string) ($file->getClientOriginalExtension() ?: $file->extension() ?: 'png'));
-        $allowed = ['ico', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
-        if (! in_array($ext, $allowed, true)) {
+        if (! in_array($ext, self::ALLOWED_EXT, true)) {
             $ext = 'png';
         }
         $hash = (string) Str::uuid();
