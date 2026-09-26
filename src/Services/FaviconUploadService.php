@@ -22,8 +22,7 @@ class FaviconUploadService
             $ext = 'png';
         }
         $hash = (string) Str::uuid();
-        $storedFilename = $hash.'.'.$ext;
-        $relative = self::DIR.'/'.$storedFilename;
+        $relative = self::DIR.'/'.$hash.'.'.$ext;
 
         $contents = file_get_contents($file->getRealPath());
         if ($contents === false) {
@@ -34,6 +33,8 @@ class FaviconUploadService
         $size = (int) $file->getSize();
         $mime = (string) ($file->getMimeType() ?: 'image/png');
         $original = (string) $file->getClientOriginalName();
+
+        $persisted = $this->persistSettingUrl($url);
 
         return [
             'id' => self::encodeId($relative),
@@ -50,6 +51,7 @@ class FaviconUploadService
             'is_image' => true,
             'uploaded' => true,
             'path' => $relative,
+            'persisted' => $persisted,
         ];
     }
 
@@ -72,22 +74,33 @@ class FaviconUploadService
         }
     }
 
-    public function persistSettingUrl(string $url): void
+    public function persistSettingUrl(string $url): bool
     {
         if (! $this->ensureColumn()) {
-            return;
+            return false;
         }
 
         try {
-            $exists = DB::table('home_design_settings')
-                ->where('id', HomeDesignSetting::SINGLETON_ID)
-                ->exists();
-            if ($exists) {
-                DB::table('home_design_settings')
-                    ->where('id', HomeDesignSetting::SINGLETON_ID)
-                    ->update(['favicon_url' => $url, 'updated_at' => now()]);
+            $row = DB::table('home_design_settings')->orderBy('id')->first();
+            $now = now();
+            if ($row) {
+                return DB::table('home_design_settings')
+                    ->where('id', $row->id)
+                    ->update(['favicon_url' => $url, 'updated_at' => $now]) >= 0;
             }
+
+            DB::table('home_design_settings')->insert([
+                'id' => HomeDesignSetting::SINGLETON_ID,
+                'enabled' => 1,
+                'content_max_width_px' => HomeDesignSetting::DEFAULT_CONTENT_MAX_WIDTH_PX,
+                'favicon_url' => $url,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            return true;
         } catch (\Throwable) {
+            return false;
         }
     }
 
@@ -95,6 +108,8 @@ class FaviconUploadService
     {
         $raw = trim(urldecode((string) $uploadId));
         if ($raw === '' || strcasecmp($raw, 'noop') === 0) {
+            $this->persistSettingUrl('');
+
             return ['id' => $raw !== '' ? $raw : 'noop', 'deleted' => false, 'path' => null];
         }
 
@@ -111,6 +126,8 @@ class FaviconUploadService
         } catch (\Throwable) {
             $deleted = false;
         }
+
+        $this->persistSettingUrl('');
 
         return ['id' => $raw, 'deleted' => $deleted, 'path' => $path];
     }
