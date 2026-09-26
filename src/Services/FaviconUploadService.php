@@ -3,8 +3,11 @@
 namespace Modules\Custom\HomeDesign\Services;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Modules\Custom\HomeDesign\Models\HomeDesignSetting;
 
 class FaviconUploadService
 {
@@ -44,8 +47,27 @@ class FaviconUploadService
             'thumbnail_url' => $url,
             'order' => 0,
             'is_image' => true,
+            'uploaded' => true,
             'path' => $relative,
         ];
+    }
+
+    public function persistSettingUrl(string $url): void
+    {
+        try {
+            if (! Schema::hasTable('home_design_settings') || ! Schema::hasColumn('home_design_settings', 'favicon_url')) {
+                return;
+            }
+            $exists = DB::table('home_design_settings')
+                ->where('id', HomeDesignSetting::SINGLETON_ID)
+                ->exists();
+            if ($exists) {
+                DB::table('home_design_settings')
+                    ->where('id', HomeDesignSetting::SINGLETON_ID)
+                    ->update(['favicon_url' => $url, 'updated_at' => now()]);
+            }
+        } catch (\Throwable) {
+        }
     }
 
     public function deleteByUploadId(int|string $uploadId): array
@@ -102,6 +124,7 @@ class FaviconUploadService
             'thumbnail_url' => $url,
             'order' => 0,
             'is_image' => true,
+            'uploaded' => true,
             'path' => $path,
         ]];
     }
