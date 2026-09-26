@@ -41,15 +41,11 @@ Route::prefix('admin/settings')
             ->name('update.post');
     });
 
-Route::prefix('admin/uploads')
-    ->middleware(['auth:sanctum', 'throttle:60,1'])
-    ->name('admin.uploads.')
-    ->group(function () {
-        Route::post('/', [FaviconUploadController::class, 'store'])
-            ->middleware('permission:admin,custom-home_design.design.update')
-            ->name('store');
-        Route::delete('{uploadId}', [FaviconUploadController::class, 'destroy'])
-            ->where('uploadId', '.*')
-            ->middleware('permission:admin,custom-home_design.design.update')
-            ->name('destroy');
-    });
+Route::post('admin/uploads', [FaviconUploadController::class, 'store'])
+    ->middleware(['auth:sanctum', 'throttle:180,1'])
+    ->name('admin.uploads.store');
+
+Route::delete('admin/uploads/{uploadId}', [FaviconUploadController::class, 'destroy'])
+    ->where('uploadId', '.*')
+    ->middleware(['auth:sanctum', 'throttle:180,1'])
+    ->name('admin.uploads.destroy');
