@@ -49,6 +49,7 @@ Route::prefix('admin/uploads')
             ->middleware('permission:admin,custom-home_design.design.update')
             ->name('store');
         Route::delete('{uploadId}', [FaviconUploadController::class, 'destroy'])
+            ->where('uploadId', '.*')
             ->middleware('permission:admin,custom-home_design.design.update')
             ->name('destroy');
     });

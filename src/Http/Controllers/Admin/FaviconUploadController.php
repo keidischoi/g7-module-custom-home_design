@@ -5,6 +5,7 @@ namespace Modules\Custom\HomeDesign\Http\Controllers\Admin;
 use App\Http\Controllers\Api\Base\AdminBaseController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Modules\Custom\HomeDesign\Services\FaviconUploadService;
 
 class FaviconUploadController extends AdminBaseController
@@ -18,28 +19,24 @@ class FaviconUploadController extends AdminBaseController
     public function store(Request $request): JsonResponse
     {
         try {
-            $request->validate([
-                'file' => ['required_without:image', 'file', 'mimes:ico,png,jpg,jpeg,gif,webp,svg', 'max:2048'],
-                'image' => ['required_without:file', 'file', 'mimes:ico,png,jpg,jpeg,gif,webp,svg', 'max:2048'],
-            ]);
-
-            $file = $request->file('file') ?: $request->file('image');
-            if ($file === null) {
+            $file = $this->resolveFile($request);
+            if (! $file instanceof UploadedFile) {
                 return $this->error('custom-home_design::messages.upload.file_required', 422);
             }
 
             $payload = $this->uploadService->storeImage($file);
+            $this->uploadService->persistSettingUrl((string) ($payload['url'] ?? ''));
 
             return response()->json([
                 'success' => true,
                 'message' => __('custom-home_design::messages.upload.success'),
-                'data' => [
+                'data' => array_merge($payload, [
                     'data' => $payload,
                     'download_url' => $payload['download_url'] ?? null,
                     'url' => $payload['url'] ?? null,
                     'path' => $payload['path'] ?? null,
                     'id' => $payload['id'] ?? null,
-                ],
+                ]),
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
@@ -52,6 +49,7 @@ class FaviconUploadController extends AdminBaseController
     {
         try {
             $result = $this->uploadService->deleteByUploadId($uploadId);
+            $this->uploadService->persistSettingUrl('');
 
             return $this->success('custom-home_design::messages.upload.delete_success', [
                 'data' => true,
@@ -67,5 +65,36 @@ class FaviconUploadController extends AdminBaseController
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    private function resolveFile(Request $request): ?UploadedFile
+    {
+        foreach (['file', 'image', 'upload', 'favicon', 'favicon_url'] as $key) {
+            $file = $request->file($key);
+            if ($file instanceof UploadedFile) {
+                return $file;
+            }
+            if (is_array($file)) {
+                foreach ($file as $item) {
+                    if ($item instanceof UploadedFile) {
+                        return $item;
+                    }
+                }
+            }
+        }
+
+        $files = $request->file('files');
+        if ($files instanceof UploadedFile) {
+            return $files;
+        }
+        if (is_array($files)) {
+            foreach ($files as $item) {
+                if ($item instanceof UploadedFile) {
+                    return $item;
+                }
+            }
+        }
+
+        return null;
     }
 }
